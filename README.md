@@ -6,7 +6,19 @@
 
 ## Установка
 
-Готовые бинари (linux/macOS/windows, amd64/arm64) — в
+**macOS — одной командой.** Платформа отдаёт установщик, который сам определяет
+архитектуру (Apple Silicon / Intel), скачивает актуальный релиз и ставит бинарь:
+
+```sh
+curl -fsSL https://api.paas.traumtech.ru/cli/install.sh | sh
+```
+
+Ставится без `sudo` в `~/.local/bin` (каталог переопределяется переменной
+`PAAS_CLI_INSTALL_DIR`); если его нет в `PATH`, установщик подскажет, как добавить.
+Версию берёт из последнего
+[релиза](https://github.com/TraumTech/paas-cli/releases) через бэкенд платформы.
+
+Альтернативы (любая ОС): готовые бинари (linux/macOS/windows, amd64/arm64) — в
 [GitHub Releases](https://github.com/TraumTech/paas-cli/releases). Или через Go:
 
 ```sh
