@@ -1,0 +1,85 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  # Dogfooding: после релиза PaaS фиксирует версию paas-cli самим собой (VER-02) и
+  # регистрирует зависимость этой версии от контракта бэкенда (PRT-05) — CLI тоже
+  # реальный потребитель контракта.
+  PAAS_API: https://api.paas.traumtech.ru
+  PAAS_SERVICE_ID: 019ec740-67f1-78ea-ba9c-893b071c9266
+  # Продьюсер, на контракте которого собран клиент платформы, — сам paas-backend.
+  PAAS_BACKEND_SERVICE_ID: 019ec073-3da6-705b-b19e-bbcca56656e1
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - run: go test ./...
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Отдельный job (идемпотентный), чтобы публикацию можно было перезапустить
+  # независимо от релиза через «Re-run failed jobs».
+  publish:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Зафиксировать версию в PaaS
+        id: version
+        # Публикация версии идемпотентна (одна ревизия = одна версия): при «Re-run»
+        # вернётся та же версия с тем же id. Этот id адресует зависимость.
+        run: |
+          version_id=$(curl --fail-with-body -sS -X POST \
+            "${PAAS_API}/services/${PAAS_SERVICE_ID}/versions" \
+            -H 'Content-Type: application/json' \
+            -d "{\"commit_revision\":\"${{ github.sha }}\"}" \
+            | jq -er .id)
+          echo "id=${version_id}" >> "$GITHUB_OUTPUT"
+      - name: Зарегистрировать зависимость версии от контракта бэкенда
+        # Снимок — полученный этим же paas-cli и закоммиченный контракт бэкенда
+        # (protocols/paas-backend/openapi.json): ровно тот, из которого сгенерирован
+        # клиент платформы этой версии. Регистрация идемпотентна — повторный прогон
+        # обновит снимок той же версии, а не создаст дубль.
+        run: |
+          jq -n --arg pid "${PAAS_BACKEND_SERVICE_ID}" \
+            --slurpfile doc protocols/paas-backend/openapi.json \
+            '{producer_service_id: $pid, document: $doc[0]}' > dependency.json
+          curl --fail-with-body -sS -X PUT \
+            "${PAAS_API}/services/${PAAS_SERVICE_ID}/versions/${{ steps.version.outputs.id }}/dependencies" \
+            -H 'Content-Type: application/json' \
+            --data-binary @dependency.json
+      - name: Снять зависимости прошлых версий paas-cli
+        # paas-cli потребляет одну актуальную версию контракта — только что
+        # выпущенную. Оставляем зарегистрированной её одну, снимая зависимости
+        # прошлых версий от бэкенда (PRT-07). Строго ПОСЛЕ регистрации новой —
+        # реестр никогда не остаётся без актуальной связи. Идемпотентно: снятие
+        # отсутствующей связи — не ошибка, при отсутствии прошлых версий цикл пуст.
+        run: |
+          current="${{ steps.version.outputs.id }}"
+          curl --fail-with-body -sS \
+            "${PAAS_API}/services/${PAAS_BACKEND_SERVICE_ID}/consumers" \
+            | jq -r --arg svc "${PAAS_SERVICE_ID}" --arg cur "${current}" \
+                '.[] | select(.consumer_service_id == $svc and .consumer_version_id != $cur) | .consumer_version_id' \
+            | while read -r old_id; do
+                echo "снимаю зависимость прошлой версии ${old_id}"
+                curl --fail-with-body -sS -X DELETE \
+                  "${PAAS_API}/services/${PAAS_SERVICE_ID}/versions/${old_id}/dependencies/${PAAS_BACKEND_SERVICE_ID}"
+              done

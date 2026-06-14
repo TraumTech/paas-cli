@@ -6,6 +6,9 @@
 
 ## Установка
 
+Готовые бинари (linux/macOS/windows, amd64/arm64) — в
+[GitHub Releases](https://github.com/TraumTech/paas-cli/releases). Или через Go:
+
 ```sh
 go install github.com/TraumTech/paas-cli/cmd/paas-cli@latest
 ```
@@ -14,6 +17,18 @@ go install github.com/TraumTech/paas-cli/cmd/paas-cli@latest
 
 ```sh
 go build -o paas-cli ./cmd/paas-cli
+```
+
+Версия бинаря: `paas-cli --version`.
+
+## Релизы
+
+Релизы собирает [GoReleaser](https://goreleaser.com) по git-тегу `vX.Y.Z`
+(`.github/workflows/release.yml`): кросс-платформенные бинари и архивы
+публикуются в GitHub Releases, версия прошивается в бинарь через ldflags.
+
+```sh
+git tag v0.1.0 && git push origin v0.1.0   # триггерит сборку релиза
 ```
 
 ## Использование

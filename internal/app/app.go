@@ -21,6 +21,9 @@ const (
 	httpTimeout        = 30 * time.Second
 )
 
+// Version — версия бинаря; подставляется при сборке релиза (GoReleaser, ldflags).
+var Version = "dev"
+
 // Run собирает корневую команду CLI и запускает её. Адрес платформы берётся из
 // PAAS_API_URL (по умолчанию прод), поэтому команда работает из любого
 // репозитория-потребителя.
@@ -34,8 +37,9 @@ func Run(ctx context.Context, args []string) error {
 	fetch := protocolfetchcommandcli.New(usecases.NewFetchProtocol(source, store))
 
 	root := &cli.Command{
-		Name:  "paas-cli",
-		Usage: "получение контрактов сервисов платформы",
+		Name:    "paas-cli",
+		Usage:   "получение контрактов сервисов платформы",
+		Version: Version,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:    protocolfetchcommandcli.DestinationFlag,
