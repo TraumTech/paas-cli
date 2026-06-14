@@ -26,7 +26,10 @@ const (
 // репозитория-потребителя.
 func Run(ctx context.Context, args []string) error {
 	baseURL := strings.TrimRight(envOr("PAAS_API_URL", defaultAPIURL), "/")
-	source := protocolsourcehttp.New(baseURL, &http.Client{Timeout: httpTimeout})
+	source, err := protocolsourcehttp.New(baseURL, &http.Client{Timeout: httpTimeout})
+	if err != nil {
+		return err
+	}
 	store := protocolstorefile.New()
 	fetch := protocolfetchcommandcli.New(usecases.NewFetchProtocol(source, store))
 

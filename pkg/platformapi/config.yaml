@@ -1,0 +1,5 @@
+package: platformapi
+output: platformapi.gen.go
+generate:
+  models: true
+  client: true

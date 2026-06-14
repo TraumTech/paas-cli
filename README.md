@@ -55,15 +55,32 @@ PAAS_API_URL=http://localhost:8080 paas-cli protocols fetch <service-id>
 - `internal/entities` — `Protocol` и доменные ошибки;
 - `internal/usecases` — use case `FetchProtocol` и интерфейсы зависимостей
   (`ProtocolSource`, `ProtocolStore`);
-- `internal/controllers/fetch_command_cli` — подкоманда `protocols fetch`
+- `internal/controllers/protocol_fetch_command_cli` — подкоманда `protocols fetch`
   (input-адаптер на [urfave/cli v3](https://cli.urfave.org));
-- `internal/adapters/protocol_source_http` — HTTP-клиент к API платформы;
+- `internal/adapters/protocol_source_http` — обращение к API платформы через
+  сгенерированный клиент `pkg/platformapi`;
 - `internal/adapters/protocol_store_file` — атомарная запись протокола в файл;
-- `internal/app` — composition root: сборка команды и запуск.
+- `internal/app` — composition root: сборка команды и запуск;
+- `pkg/platformapi` — клиент API платформы, **сгенерированный из контракта**
+  ([oapi-codegen](https://github.com/oapi-codegen/oapi-codegen)).
+
+## Догфудинг контракта
+
+`paas-cli` — сам потребитель API бэкенда, поэтому клиент платформы не пишется
+руками, а генерируется из контракта, полученного этим же `paas-cli`:
+
+```sh
+paas-cli protocols fetch <paas-backend-service-id>   # → protocols/paas-backend/openapi.json
+go generate ./...                                    # контракт → pkg/platformapi + моки
+```
+
+И контракт (`protocols/paas-backend/openapi.json`), и сгенерированный клиент
+(`pkg/platformapi/platformapi.gen.go`) закоммичены — сборка не требует ни сети, ни
+повторной генерации.
 
 ## Разработка
 
 ```sh
-go generate ./...   # перегенерировать моки (go.uber.org/mock)
+go generate ./...   # клиент платформы (oapi-codegen) + моки (go.uber.org/mock)
 go test ./...
 ```

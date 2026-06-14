@@ -13,27 +13,36 @@ import (
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
-func newSource(h http.HandlerFunc) (*protocolsourcehttp.Source, func()) {
+const svcID = "019ec073-3da6-705b-b19e-bbcca56656e1"
+
+func newSource(t *testing.T, h http.HandlerFunc) *protocolsourcehttp.Source {
 	srv := httptest.NewServer(h)
-	return protocolsourcehttp.New(srv.URL, srv.Client()), srv.Close
+	t.Cleanup(srv.Close)
+	src, err := protocolsourcehttp.New(srv.URL, srv.Client())
+	require.NoError(t, err)
+	return src
+}
+
+func writeJSON(w http.ResponseWriter, body string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(body))
 }
 
 func TestFetchProtocol_Published(t *testing.T) {
-	src, closeFn := newSource(func(w http.ResponseWriter, r *http.Request) {
+	src := newSource(t, func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/services/svc-1":
-			w.Write([]byte(`{"id":"svc-1","name":"payments"}`))
-		case "/services/svc-1/protocol":
-			w.Write([]byte(`{"published":true,"version_number":4,"format":"openapi","document":{"openapi":"3.1.0","paths":{}}}`))
+		case "/services/" + svcID:
+			writeJSON(w, `{"id":"`+svcID+`","name":"payments"}`)
+		case "/services/" + svcID + "/protocol":
+			writeJSON(w, `{"published":true,"version_number":4,"format":"openapi","document":{"openapi":"3.1.0","paths":{}}}`)
 		default:
-			t.Fatalf("unexpected path %s", r.URL.Path)
+			t.Errorf("unexpected path %s", r.URL.Path)
 		}
 	})
-	defer closeFn()
 
-	got, err := src.FetchProtocol(context.Background(), "svc-1")
+	got, err := src.FetchProtocol(context.Background(), svcID)
 	require.NoError(t, err)
-	assert.Equal(t, "svc-1", got.ServiceID)
+	assert.Equal(t, svcID, got.ServiceID)
 	assert.Equal(t, "payments", got.ServiceName)
 	assert.Equal(t, 4, got.VersionNumber)
 	assert.Equal(t, "openapi", got.Format)
@@ -41,43 +50,49 @@ func TestFetchProtocol_Published(t *testing.T) {
 }
 
 func TestFetchProtocol_NotPublished(t *testing.T) {
-	src, closeFn := newSource(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/services/svc-1":
-			w.Write([]byte(`{"name":"payments"}`))
-		default:
-			w.Write([]byte(`{"published":false}`))
+	src := newSource(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/services/"+svcID {
+			writeJSON(w, `{"id":"`+svcID+`","name":"payments"}`)
+			return
 		}
+		writeJSON(w, `{"published":false}`)
 	})
-	defer closeFn()
 
-	_, err := src.FetchProtocol(context.Background(), "svc-1")
+	_, err := src.FetchProtocol(context.Background(), svcID)
 	assert.ErrorIs(t, err, entities.ErrProtocolNotPublished)
 }
 
 func TestFetchProtocol_ServiceNotFound(t *testing.T) {
-	src, closeFn := newSource(func(w http.ResponseWriter, r *http.Request) {
+	src := newSource(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	})
-	defer closeFn()
 
-	_, err := src.FetchProtocol(context.Background(), "missing")
+	_, err := src.FetchProtocol(context.Background(), svcID)
 	assert.ErrorIs(t, err, entities.ErrServiceNotFound)
 }
 
 func TestFetchProtocol_ServerError(t *testing.T) {
-	src, closeFn := newSource(func(w http.ResponseWriter, r *http.Request) {
+	src := newSource(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	})
-	defer closeFn()
 
-	_, err := src.FetchProtocol(context.Background(), "svc-1")
+	_, err := src.FetchProtocol(context.Background(), svcID)
 	require.Error(t, err)
 	assert.NotErrorIs(t, err, entities.ErrServiceNotFound)
 }
 
+func TestFetchProtocol_InvalidID(t *testing.T) {
+	src := newSource(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("платформа не должна вызываться при неверном id")
+	})
+
+	_, err := src.FetchProtocol(context.Background(), "not-a-uuid")
+	require.Error(t, err)
+}
+
 func TestFetchProtocol_Unreachable(t *testing.T) {
-	src := protocolsourcehttp.New("http://127.0.0.1:0", http.DefaultClient)
-	_, err := src.FetchProtocol(context.Background(), "svc-1")
+	src, err := protocolsourcehttp.New("http://127.0.0.1:0", http.DefaultClient)
+	require.NoError(t, err)
+	_, err = src.FetchProtocol(context.Background(), svcID)
 	require.Error(t, err)
 }
