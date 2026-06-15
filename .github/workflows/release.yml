@@ -47,11 +47,7 @@ jobs:
         # Публикация версии идемпотентна (одна ревизия = одна версия): при «Re-run»
         # вернётся та же версия с тем же id. Этот id адресует зависимость.
         run: |
-          version_id=$(curl --fail-with-body -sS -X POST \
-            "${PAAS_API}/services/${PAAS_SERVICE_ID}/versions" \
-            -H 'Content-Type: application/json' \
-            -d "{\"commit_revision\":\"${{ github.sha }}\"}" \
-            | jq -er .id)
+          version_id=$(paas-cli versions publish "${PAAS_SERVICE_ID}" "${{ github.sha }}")
           echo "id=${version_id}" >> "$GITHUB_OUTPUT"
       - name: Зарегистрировать зависимость версии от контракта бэкенда
         # Снимок — полученный этим же paas-cli и закоммиченный контракт бэкенда
