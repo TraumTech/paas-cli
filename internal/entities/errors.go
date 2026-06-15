@@ -17,4 +17,5 @@ var (
 	ErrProtocolNotPublished = newDomainError("контракт сервиса ещё не опубликован")
 	ErrEmptyProtocol        = newDomainError("контракт пуст")
 	ErrInvalidProtocol      = newDomainError("ответ не похож на OpenAPI-контракт")
+	ErrEmptyCommitRevision  = newDomainError("ревизия коммита не указана")
 )

@@ -26,3 +26,9 @@ type PublishProtocolInput struct {
 	// ContractPath — путь к файлу контракта в репозитории владельца сервиса.
 	ContractPath string
 }
+
+type PublishVersionInput struct {
+	ServiceID string
+	// CommitRevision — развёрнутая ревизия коммита, по которой фиксируется версия.
+	CommitRevision string
+}

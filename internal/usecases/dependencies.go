@@ -6,6 +6,7 @@ import (
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
+//go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=usecases github.com/TraumTech/paas-cli/internal/usecases ProtocolSource,ProtocolStore,CandidateReader,CompatibilitySource,VersionPublisher
 //go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=usecases github.com/TraumTech/paas-cli/internal/usecases ProtocolSource,ProtocolStore,CandidateReader,CompatibilitySource,ProtocolPublisher
 
 // ProtocolSource достаёт актуальный опубликованный контракт сервиса из платформы.
@@ -28,6 +29,14 @@ type CandidateReader interface {
 
 type CompatibilitySource interface {
 	CheckCompatibility(ctx context.Context, serviceID string, document []byte) (*entities.CompatibilityReport, error)
+}
+
+// VersionPublisher фиксирует версию сервиса в платформе по развёрнутой ревизии
+// коммита. Публикация идемпотентна: повторный вызов с той же ревизией возвращает
+// уже существующую версию, а не создаёт дубликат. Возвращает
+// entities.ErrServiceNotFound, когда сервиса нет.
+type VersionPublisher interface {
+	PublishVersion(ctx context.Context, serviceID, commitRevision string) (*entities.Version, error)
 }
 
 // ProtocolPublisher публикует контракт под версией сервиса в платформе и

@@ -14,8 +14,10 @@ import (
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_publish_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_source_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_store_file"
+	"github.com/TraumTech/paas-cli/internal/adapters/version_publisher_http"
 	"github.com/TraumTech/paas-cli/internal/controllers/protocol_compatibility_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/protocol_fetch_command_cli"
+	"github.com/TraumTech/paas-cli/internal/controllers/version_publish_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/protocol_publish_command_cli"
 	"github.com/TraumTech/paas-cli/internal/usecases"
 )
@@ -48,6 +50,12 @@ func Run(ctx context.Context, args []string) error {
 	candidates := candidatereaderfile.New()
 	compat := protocolcompatibilitycommandcli.New(usecases.NewCheckCompatibility(candidates, compatSource))
 
+	publisher, err := versionpublisherhttp.New(baseURL, &http.Client{Timeout: httpTimeout})
+	if err != nil {
+		return err
+	}
+	publishVersion := versionpublishcommandcli.New(usecases.NewPublishVersion(publisher))
+
 	publishSource, err := protocolpublishhttp.New(baseURL, &http.Client{Timeout: httpTimeout})
 	if err != nil {
 		return err
@@ -74,6 +82,13 @@ func Run(ctx context.Context, args []string) error {
 					fetch.CLICommand(),
 					compat.CLICommand(),
 					publish.CLICommand(),
+				},
+			},
+			{
+				Name:  "versions",
+				Usage: "работа с версиями сервисов",
+				Commands: []*cli.Command{
+					publishVersion.CLICommand(),
 				},
 			},
 		},
