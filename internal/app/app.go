@@ -10,15 +10,17 @@ import (
 	"github.com/urfave/cli/v3"
 
 	"github.com/TraumTech/paas-cli/internal/adapters/candidate_reader_file"
+	"github.com/TraumTech/paas-cli/internal/adapters/dependency_registrar_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_compatibility_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_publish_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_source_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_store_file"
 	"github.com/TraumTech/paas-cli/internal/adapters/version_publisher_http"
+	"github.com/TraumTech/paas-cli/internal/controllers/dependency_register_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/protocol_compatibility_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/protocol_fetch_command_cli"
-	"github.com/TraumTech/paas-cli/internal/controllers/version_publish_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/protocol_publish_command_cli"
+	"github.com/TraumTech/paas-cli/internal/controllers/version_publish_command_cli"
 	"github.com/TraumTech/paas-cli/internal/usecases"
 )
 
@@ -62,6 +64,12 @@ func Run(ctx context.Context, args []string) error {
 	}
 	publish := protocolpublishcommandcli.New(usecases.NewPublishProtocol(candidates, publishSource))
 
+	registrar, err := dependencyregistrarhttp.New(baseURL, &http.Client{Timeout: httpTimeout})
+	if err != nil {
+		return err
+	}
+	registerDependency := dependencyregistercommandcli.New(usecases.NewRegisterDependency(candidates, registrar))
+
 	root := &cli.Command{
 		Name:    "paas-cli",
 		Usage:   "получение контрактов сервисов платформы",
@@ -89,6 +97,13 @@ func Run(ctx context.Context, args []string) error {
 				Usage: "работа с версиями сервисов",
 				Commands: []*cli.Command{
 					publishVersion.CLICommand(),
+				},
+			},
+			{
+				Name:  "dependencies",
+				Usage: "зависимости версий потребителя от контрактов продьюсеров",
+				Commands: []*cli.Command{
+					registerDependency.CLICommand(),
 				},
 			},
 		},

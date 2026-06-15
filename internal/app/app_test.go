@@ -152,6 +152,31 @@ func TestRun_PublishProtocol(t *testing.T) {
 		[]string{"paas-cli", "protocols", "publish", svcID, verID, contract}))
 }
 
+// TestRun_RegisterDependency — сквозной тест команды потребителя: PAAS_API_URL
+// указывает на фейковую платформу, команда берёт снимок контракта из локального
+// файла и регистрирует зависимость версии от контракта продьюсера.
+func TestRun_RegisterDependency(t *testing.T) {
+	const (
+		verID  = "019ec073-3da6-705b-b19e-bbcca5665700"
+		prodID = "019ec073-3da6-705b-b19e-bbcca5665711"
+	)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/services/"+svcID+"/versions/"+verID+"/dependencies", r.URL.Path)
+		assert.Equal(t, http.MethodPut, r.Method)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte(`{"id":"` + svcID + `","consumer_service_id":"` + svcID + `","consumer_version_id":"` + verID + `","producer_service_id":"` + prodID + `","format":"openapi","registered_at":"2026-06-15T00:00:00Z"}`))
+	}))
+	defer srv.Close()
+
+	contract := filepath.Join(t.TempDir(), "openapi.json")
+	require.NoError(t, os.WriteFile(contract, []byte(`{"openapi":"3.1.0","paths":{"/x":{}}}`), 0o644))
+
+	t.Setenv("PAAS_API_URL", srv.URL)
+	require.NoError(t, app.Run(context.Background(),
+		[]string{"paas-cli", "dependencies", "register", svcID, verID, prodID, contract}))
+}
+
 func TestRun_FetchNotPublished(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/services/"+svcID {

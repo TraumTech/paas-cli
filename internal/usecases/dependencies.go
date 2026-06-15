@@ -6,8 +6,7 @@ import (
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
-//go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=usecases github.com/TraumTech/paas-cli/internal/usecases ProtocolSource,ProtocolStore,CandidateReader,CompatibilitySource,VersionPublisher
-//go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=usecases github.com/TraumTech/paas-cli/internal/usecases ProtocolSource,ProtocolStore,CandidateReader,CompatibilitySource,ProtocolPublisher
+//go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=usecases github.com/TraumTech/paas-cli/internal/usecases ProtocolSource,ProtocolStore,CandidateReader,CompatibilitySource,VersionPublisher,ProtocolPublisher,DependencyRegistrar
 
 // ProtocolSource достаёт актуальный опубликованный контракт сервиса из платформы.
 // Возвращает entities.ErrServiceNotFound / entities.ErrProtocolNotPublished,
@@ -45,4 +44,13 @@ type VersionPublisher interface {
 // возвращает ошибку с понятным сообщением от платформы.
 type ProtocolPublisher interface {
 	PublishProtocol(ctx context.Context, serviceID, versionID string, document []byte) (*entities.ProtocolPublication, error)
+}
+
+// DependencyRegistrar регистрирует в платформе зависимость версии потребителя от
+// контракта продьюсера, прикладывая снимок этого контракта. Идемпотентен:
+// повторная регистрация той же версии на того же продьюсера обновляет снимок, а
+// не плодит дубль. На отказ платформы (нет версии-потребителя или продьюсера,
+// снимок отклонён) возвращает ошибку с понятным сообщением от платформы.
+type DependencyRegistrar interface {
+	RegisterDependency(ctx context.Context, serviceID, versionID, producerServiceID string, document []byte) (*entities.Dependency, error)
 }
