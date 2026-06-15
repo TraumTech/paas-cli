@@ -75,19 +75,47 @@ PAAS_API_URL=http://localhost:8080 paas-cli protocols fetch <service-id>
 Кодоген (генерация клиента/типов из контракта) — забота потребителя; CLI только
 получает контракт.
 
+### Проверка совместимости контракта-кандидата (для владельца сервиса)
+
+Owner-команда для процесса выкатки: проверить, **ломает** ли контракт-кандидат
+зарегистрированных потребителей сервиса — **до** деплоя и **без публикации**.
+Платформа сверяет кандидата со снимком каждого потребителя и возвращает разбор;
+команда печатает его и завершается ненулевым кодом, если кандидат ломающий.
+
+```sh
+paas-cli protocols compatibility <service-id> <candidate-file>   # напр. ./openapi.json
+paas-cli protocols compat <service-id> <candidate-file>          # короткий алиас
+```
+
+- По каждому потребителю видно, какую его версию затрагивает кандидат, что меняется
+  и что из этого ломающее.
+- **Нет потребителей** → «кандидат никого не затрагивает», код выхода `0`.
+- **Ломающий кандидат** → ненулевой код выхода: пайплайн CI/CD останавливается
+  до деплоя. Совместимый → код `0`.
+- Несравнимый снимок потребителя ломающим не считается.
+- Пустой/неразбираемый файл кандидата, недоступная платформа или ненайденный сервис
+  — понятная ошибка (отличимая по выводу от вердикта «ломает»).
+
+Проверка **ничего не публикует и не меняет реестр** — её можно прогонять сколько
+угодно раз.
+
 ## Архитектура
 
 Чистая архитектура (см. `../docs/go-architecture.md`), адаптированная под CLI:
 
-- `internal/entities` — `Protocol` и доменные ошибки;
-- `internal/usecases` — use case `FetchProtocol` и интерфейсы зависимостей
-  (`ProtocolSource`, `ProtocolStore`);
-- `internal/controllers/protocol_fetch_command_cli` — подкоманда `protocols fetch`
-  (input-адаптер на [urfave/cli v3](https://cli.urfave.org));
-- `internal/adapters/protocol_source_http` — обращение к API платформы через
-  сгенерированный клиент `pkg/platformapi`;
-- `internal/adapters/protocol_store_file` — атомарная запись протокола в файл;
-- `internal/app` — composition root: сборка команды и запуск;
+- `internal/entities` — `Protocol`, `CandidateContract`, `CompatibilityReport` и
+  доменные ошибки;
+- `internal/usecases` — use cases `FetchProtocol` / `CheckCompatibility` и интерфейсы
+  зависимостей (`ProtocolSource`, `ProtocolStore`, `CandidateReader`,
+  `CompatibilitySource`);
+- `internal/controllers/protocol_fetch_command_cli` — подкоманда `protocols fetch`,
+  `internal/controllers/protocol_compatibility_command_cli` — подкоманда
+  `protocols compatibility` (input-адаптеры на [urfave/cli v3](https://cli.urfave.org));
+- `internal/adapters/protocol_source_http` / `protocol_compatibility_http` —
+  обращение к API платформы через сгенерированный клиент `pkg/platformapi`;
+- `internal/adapters/protocol_store_file` — атомарная запись протокола в файл,
+  `internal/adapters/candidate_reader_file` — чтение файла контракта-кандидата;
+- `internal/app` — composition root: сборка команд и запуск;
 - `pkg/platformapi` — клиент API платформы, **сгенерированный из контракта**
   ([oapi-codegen](https://github.com/oapi-codegen/oapi-codegen)).
 

@@ -20,14 +20,18 @@ type Protocol struct {
 // на пустой/битый ответ. Эта проверка — страховка критерия приёмки: рабочий
 // контракт не должен затираться чем попало.
 func (p *Protocol) Validate() error {
-	if len(bytes.TrimSpace(p.Document)) == 0 {
+	return validateContractDocument(p.Document)
+}
+
+func validateContractDocument(document []byte) error {
+	if len(bytes.TrimSpace(document)) == 0 {
 		return ErrEmptyProtocol
 	}
 	var doc struct {
 		OpenAPI string          `json:"openapi"`
 		Paths   json.RawMessage `json:"paths"`
 	}
-	if err := json.Unmarshal(p.Document, &doc); err != nil {
+	if err := json.Unmarshal(document, &doc); err != nil {
 		return ErrInvalidProtocol
 	}
 	if doc.OpenAPI == "" || len(doc.Paths) == 0 {

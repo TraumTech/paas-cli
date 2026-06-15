@@ -13,3 +13,9 @@ type FetchProtocolResult struct {
 	VersionNumber int
 	Path          string
 }
+
+type CheckCompatibilityInput struct {
+	ServiceID string
+	// CandidatePath — путь к файлу контракта-кандидата на диске потребителя.
+	CandidatePath string
+}

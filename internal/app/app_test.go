@@ -53,6 +53,39 @@ func TestRun_FetchWritesContract(t *testing.T) {
 	assert.JSONEq(t, `{"openapi":"3.1.0","paths":{"/x":{}}}`, string(data))
 }
 
+// TestRun_CompatibilityBreaking — сквозной тест owner-команды: PAAS_API_URL
+// указывает на фейковую платформу, команда шлёт кандидат на проверку и при
+// ломающем вердикте завершается ошибкой (ненулевой код останавливает выкатку).
+func TestRun_CompatibilityBreaking(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/services/"+svcID+"/protocol/compatibility", r.URL.Path)
+		writeJSON(w, `{"breaking":true,"consumers":[{"consumer_service_id":"`+svcID+`","consumer_service_name":"frontend","consumer_version_id":"`+svcID+`","consumer_version_number":5,"comparable":true,"breaking":true,"changes":[{"breaking":true,"kind":"operation-removed","operation":"GET /x","description":"удалён"}]}]}`)
+	}))
+	defer srv.Close()
+
+	candidate := filepath.Join(t.TempDir(), "openapi.json")
+	require.NoError(t, os.WriteFile(candidate, []byte(`{"openapi":"3.1.0","paths":{"/x":{}}}`), 0o644))
+
+	t.Setenv("PAAS_API_URL", srv.URL)
+	err := app.Run(context.Background(),
+		[]string{"paas-cli", "protocols", "compatibility", svcID, candidate})
+	require.Error(t, err)
+}
+
+func TestRun_CompatibilityNoConsumers(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, `{"breaking":false,"consumers":[]}`)
+	}))
+	defer srv.Close()
+
+	candidate := filepath.Join(t.TempDir(), "openapi.json")
+	require.NoError(t, os.WriteFile(candidate, []byte(`{"openapi":"3.1.0","paths":{"/x":{}}}`), 0o644))
+
+	t.Setenv("PAAS_API_URL", srv.URL)
+	require.NoError(t, app.Run(context.Background(),
+		[]string{"paas-cli", "protocols", "compatibility", svcID, candidate}))
+}
+
 func TestRun_FetchNotPublished(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/services/"+svcID {

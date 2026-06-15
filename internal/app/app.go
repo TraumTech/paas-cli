@@ -9,8 +9,11 @@ import (
 
 	"github.com/urfave/cli/v3"
 
+	"github.com/TraumTech/paas-cli/internal/adapters/candidate_reader_file"
+	"github.com/TraumTech/paas-cli/internal/adapters/protocol_compatibility_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_source_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_store_file"
+	"github.com/TraumTech/paas-cli/internal/controllers/protocol_compatibility_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/protocol_fetch_command_cli"
 	"github.com/TraumTech/paas-cli/internal/usecases"
 )
@@ -36,6 +39,13 @@ func Run(ctx context.Context, args []string) error {
 	store := protocolstorefile.New()
 	fetch := protocolfetchcommandcli.New(usecases.NewFetchProtocol(source, store))
 
+	compatSource, err := protocolcompatibilityhttp.New(baseURL, &http.Client{Timeout: httpTimeout})
+	if err != nil {
+		return err
+	}
+	candidates := candidatereaderfile.New()
+	compat := protocolcompatibilitycommandcli.New(usecases.NewCheckCompatibility(candidates, compatSource))
+
 	root := &cli.Command{
 		Name:    "paas-cli",
 		Usage:   "получение контрактов сервисов платформы",
@@ -54,6 +64,7 @@ func Run(ctx context.Context, args []string) error {
 				Usage: "работа с контрактами (протоколами) сервисов",
 				Commands: []*cli.Command{
 					fetch.CLICommand(),
+					compat.CLICommand(),
 				},
 			},
 		},
