@@ -42,16 +42,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Установить paas-cli
+        # Догфудинг: paas-cli фиксирует собственную версию своей же owner-командой
+        # (CLI-06), поставленной установочным скриптом платформы (CLI-05).
+        run: |
+          curl -fsSL "${PAAS_API}/cli/install.sh" | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Зафиксировать версию в PaaS
         id: version
-        # Публикация версии идемпотентна (одна ревизия = одна версия): при «Re-run»
-        # вернётся та же версия с тем же id. Этот id адресует зависимость.
+        # Фиксируем версию owner-командой paas-cli (CLI-06) вместо самодельного
+        # curl+jq. Публикация идемпотентна (одна ревизия = одна версия): при «Re-run»
+        # вернётся та же версия с тем же id. CLI печатает id версии на stdout — его и
+        # подхватываем. Этот id адресует зависимость.
+        env:
+          PAAS_API_URL: ${{ env.PAAS_API }}
         run: |
-          version_id=$(curl --fail-with-body -sS -X POST \
-            "${PAAS_API}/services/${PAAS_SERVICE_ID}/versions" \
-            -H 'Content-Type: application/json' \
-            -d "{\"commit_revision\":\"${{ github.sha }}\"}" \
-            | jq -er .id)
+          version_id=$(paas-cli versions publish "${PAAS_SERVICE_ID}" "${{ github.sha }}")
           echo "id=${version_id}" >> "$GITHUB_OUTPUT"
       - name: Зарегистрировать зависимость версии от контракта бэкенда
         # Снимок — полученный этим же paas-cli и закоммиченный контракт бэкенда
