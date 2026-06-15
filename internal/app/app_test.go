@@ -86,6 +86,28 @@ func TestRun_CompatibilityNoConsumers(t *testing.T) {
 		[]string{"paas-cli", "protocols", "compatibility", svcID, candidate}))
 }
 
+// TestRun_PublishProtocol — сквозной тест owner-команды публикации: PAAS_API_URL
+// указывает на фейковую платформу, команда берёт контракт из локального файла,
+// публикует его под версией и печатает сводку совместимости с потребителями.
+func TestRun_PublishProtocol(t *testing.T) {
+	const verID = "019ec073-3da6-705b-b19e-bbcca5665700"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/services/"+svcID+"/versions/"+verID+"/protocol", r.URL.Path)
+		assert.Equal(t, http.MethodPut, r.Method)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte(`{"published":true,"breaking":false,"protocol":{"service_id":"` + svcID + `","version_id":"` + verID + `","version_number":7,"format":"openapi","published_at":"2026-06-15T00:00:00Z"},"consumers":[]}`))
+	}))
+	defer srv.Close()
+
+	contract := filepath.Join(t.TempDir(), "openapi.json")
+	require.NoError(t, os.WriteFile(contract, []byte(`{"openapi":"3.1.0","paths":{"/x":{}}}`), 0o644))
+
+	t.Setenv("PAAS_API_URL", srv.URL)
+	require.NoError(t, app.Run(context.Background(),
+		[]string{"paas-cli", "protocols", "publish", svcID, verID, contract}))
+}
+
 func TestRun_FetchNotPublished(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/services/"+svcID {

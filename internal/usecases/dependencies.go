@@ -6,7 +6,7 @@ import (
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
-//go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=usecases github.com/TraumTech/paas-cli/internal/usecases ProtocolSource,ProtocolStore,CandidateReader,CompatibilitySource
+//go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=usecases github.com/TraumTech/paas-cli/internal/usecases ProtocolSource,ProtocolStore,CandidateReader,CompatibilitySource,ProtocolPublisher
 
 // ProtocolSource достаёт актуальный опубликованный контракт сервиса из платформы.
 // Возвращает entities.ErrServiceNotFound / entities.ErrProtocolNotPublished,
@@ -28,4 +28,12 @@ type CandidateReader interface {
 
 type CompatibilitySource interface {
 	CheckCompatibility(ctx context.Context, serviceID string, document []byte) (*entities.CompatibilityReport, error)
+}
+
+// ProtocolPublisher публикует контракт под версией сервиса в платформе и
+// возвращает итог: к какой версии привязан протокол и его совместимость с
+// потребителями. На отказ платформы (нет сервиса/версии, контракт отклонён)
+// возвращает ошибку с понятным сообщением от платформы.
+type ProtocolPublisher interface {
+	PublishProtocol(ctx context.Context, serviceID, versionID string, document []byte) (*entities.ProtocolPublication, error)
 }

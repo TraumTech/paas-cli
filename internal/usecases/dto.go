@@ -19,3 +19,10 @@ type CheckCompatibilityInput struct {
 	// CandidatePath — путь к файлу контракта-кандидата на диске потребителя.
 	CandidatePath string
 }
+
+type PublishProtocolInput struct {
+	ServiceID string
+	VersionID string
+	// ContractPath — путь к файлу контракта в репозитории владельца сервиса.
+	ContractPath string
+}
