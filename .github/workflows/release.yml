@@ -54,18 +54,15 @@ jobs:
           version_id=$(paas-cli versions publish "${PAAS_SERVICE_ID}" "${{ github.sha }}")
           echo "id=${version_id}" >> "$GITHUB_OUTPUT"
       - name: Зарегистрировать зависимость версии от контракта бэкенда
-        # Снимок — полученный этим же paas-cli и закоммиченный контракт бэкенда
+        # Регистрируем зависимость этим же paas-cli (CLI-08) вместо самодельного
+        # jq+curl. Снимок — закоммиченный контракт бэкенда
         # (protocols/paas-backend/openapi.json): ровно тот, из которого сгенерирован
         # клиент платформы этой версии. Регистрация идемпотентна — повторный прогон
         # обновит снимок той же версии, а не создаст дубль.
         run: |
-          jq -n --arg pid "${PAAS_BACKEND_SERVICE_ID}" \
-            --slurpfile doc protocols/paas-backend/openapi.json \
-            '{producer_service_id: $pid, document: $doc[0]}' > dependency.json
-          curl --fail-with-body -sS -X PUT \
-            "${PAAS_API}/services/${PAAS_SERVICE_ID}/versions/${{ steps.version.outputs.id }}/dependencies" \
-            -H 'Content-Type: application/json' \
-            --data-binary @dependency.json
+          paas-cli dependencies register \
+            "${PAAS_SERVICE_ID}" "${{ steps.version.outputs.id }}" \
+            "${PAAS_BACKEND_SERVICE_ID}" protocols/paas-backend/openapi.json
       - name: Снять зависимости прошлых версий paas-cli
         # paas-cli потребляет одну актуальную версию контракта — только что
         # выпущенную. Оставляем зарегистрированной её одну, снимая зависимости
