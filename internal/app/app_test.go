@@ -2,10 +2,12 @@ package app_test
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -84,6 +86,48 @@ func TestRun_CompatibilityNoConsumers(t *testing.T) {
 	t.Setenv("PAAS_API_URL", srv.URL)
 	require.NoError(t, app.Run(context.Background(),
 		[]string{"paas-cli", "protocols", "compatibility", svcID, candidate}))
+}
+
+// TestRun_PublishVersionIdempotent — сквозной тест owner-команды: фейковая
+// платформа идемпотентна (одна ревизия — одна версия), и оба прогона CLI печатают
+// на stdout один и тот же id версии, пригодный для следующего шага выкатки.
+func TestRun_PublishVersionIdempotent(t *testing.T) {
+	const versionID = "019ec099-0000-7000-8000-0000000000aa"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/services/"+svcID+"/versions", r.URL.Path)
+		assert.Equal(t, http.MethodPost, r.Method)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		writeJSON(w, `{"id":"`+versionID+`","number":3,"commit_revision":"deadbeef","created_at":"2026-06-15T10:00:00Z"}`)
+	}))
+	defer srv.Close()
+
+	t.Setenv("PAAS_API_URL", srv.URL)
+	for range 2 {
+		stdout := captureStdout(t, func() {
+			require.NoError(t, app.Run(context.Background(),
+				[]string{"paas-cli", "versions", "publish", svcID, "deadbeef"}))
+		})
+		assert.Equal(t, versionID, strings.TrimSpace(stdout))
+	}
+}
+
+// captureStdout подменяет os.Stdout на время вызова fn и возвращает написанное:
+// команда публикации печатает id версии прямо на stdout (контракт для автоматики),
+// а собственного writer'а app.Run наружу не отдаёт.
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	orig := os.Stdout
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stdout = w
+	defer func() { os.Stdout = orig }()
+
+	fn()
+	require.NoError(t, w.Close())
+	data, err := io.ReadAll(r)
+	require.NoError(t, err)
+	return string(data)
 }
 
 func TestRun_FetchNotPublished(t *testing.T) {

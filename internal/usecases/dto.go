@@ -19,3 +19,9 @@ type CheckCompatibilityInput struct {
 	// CandidatePath — путь к файлу контракта-кандидата на диске потребителя.
 	CandidatePath string
 }
+
+type PublishVersionInput struct {
+	ServiceID string
+	// CommitRevision — развёрнутая ревизия коммита, по которой фиксируется версия.
+	CommitRevision string
+}
