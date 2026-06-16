@@ -22,6 +22,12 @@ func (uc *FetchProtocolUseCase) Execute(ctx context.Context, in FetchProtocolInp
 	if err := protocol.Validate(); err != nil {
 		return nil, fmt.Errorf("validate protocol: %w", err)
 	}
+	if len(in.Methods) > 0 {
+		protocol, err = protocol.SelectMethods(in.Methods)
+		if err != nil {
+			return nil, fmt.Errorf("select methods: %w", err)
+		}
+	}
 	path, err := uc.store.Save(ctx, protocol, in.Destination)
 	if err != nil {
 		return nil, fmt.Errorf("save protocol: %w", err)

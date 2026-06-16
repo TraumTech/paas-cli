@@ -59,6 +59,22 @@ func TestCommandRun_CustomDestination(t *testing.T) {
 		[]string{"paas-cli", "--destination", "vendor/api", "protocols", "fetch", "svc-1"}))
 }
 
+func TestCommandRun_PartialPassesMethods(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	fetch := NewMockProtocolFetcher(ctrl)
+	fetch.EXPECT().
+		Execute(gomock.Any(), usecases.FetchProtocolInput{ServiceID: "svc-1", Destination: "protocols", Methods: []string{"op-a", "op-b"}}).
+		Return(&usecases.FetchProtocolResult{ServiceName: "payments", Path: "protocols/payments/openapi.json"}, nil)
+
+	var out bytes.Buffer
+	root := rootWith(fetch, &out)
+	err := root.Run(context.Background(),
+		[]string{"paas-cli", "protocols", "fetch", "svc-1", "--method", "op-a", "--method", "op-b"})
+
+	require.NoError(t, err)
+	assert.Contains(t, out.String(), "частичный")
+}
+
 func TestCommandRun_RequiresExactlyOneServiceID(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	// Execute не вызывается — аргументы не прошли разбор.

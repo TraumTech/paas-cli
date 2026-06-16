@@ -14,6 +14,45 @@ import (
 
 const validDoc = `{"openapi":"3.1.0","paths":{"/x":{}}}`
 
+const twoOpDoc = `{"openapi":"3.1.0","paths":{` +
+	`"/a":{"get":{"operationId":"op-a","responses":{"200":{"description":"ok"}}}},` +
+	`"/b":{"get":{"operationId":"op-b","responses":{"200":{"description":"ok"}}}}}}`
+
+func TestFetchProtocolExecute_PartialSavesSelectedSubset(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	source := NewMockProtocolSource(ctrl)
+	store := NewMockProtocolStore(ctrl)
+
+	protocol := &entities.Protocol{ServiceID: "svc", ServiceName: "svc-name", Document: []byte(twoOpDoc)}
+	source.EXPECT().FetchProtocol(gomock.Any(), "svc").Return(protocol, nil)
+	store.EXPECT().Save(gomock.Any(), gomock.Any(), "protocols").
+		DoAndReturn(func(_ context.Context, saved *entities.Protocol, _ string) (string, error) {
+			assert.Contains(t, string(saved.Document), "op-a")
+			assert.NotContains(t, string(saved.Document), "op-b")
+			return "protocols/svc-name/openapi.json", nil
+		})
+
+	_, err := NewFetchProtocol(source, store).Execute(context.Background(),
+		FetchProtocolInput{ServiceID: "svc", Destination: "protocols", Methods: []string{"op-a"}})
+	require.NoError(t, err)
+}
+
+func TestFetchProtocolExecute_UnknownMethod_NoSave(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	source := NewMockProtocolSource(ctrl)
+	store := NewMockProtocolStore(ctrl)
+
+	protocol := &entities.Protocol{ServiceID: "svc", Document: []byte(twoOpDoc)}
+	source.EXPECT().FetchProtocol(gomock.Any(), "svc").Return(protocol, nil)
+	// store.Save не вызывается — несуществующий метод не даёт записать неполный срез.
+
+	_, err := NewFetchProtocol(source, store).Execute(context.Background(),
+		FetchProtocolInput{ServiceID: "svc", Destination: "protocols", Methods: []string{"op-x"}})
+
+	var unknown *entities.UnknownMethodsError
+	assert.ErrorAs(t, err, &unknown)
+}
+
 func TestFetchProtocolExecute_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	source := NewMockProtocolSource(ctrl)
