@@ -45,15 +45,6 @@ type ConsumerCompatibilityResponse struct {
 	ConsumerVersionNumber int64                         `json:"consumer_version_number"`
 }
 
-// CreateServiceInputBody defines model for CreateServiceInputBody.
-type CreateServiceInputBody struct {
-	// Schema A URL to the JSON Schema for this object.
-	Schema *string `json:"$schema,omitempty"`
-
-	// Name Имя сервиса
-	Name string `json:"name"`
-}
-
 // ErrorDetail defines model for ErrorDetail.
 type ErrorDetail struct {
 	// Location Where the error occurred, e.g. 'body.items[3].tags' or 'path.thing-id'
@@ -88,16 +79,6 @@ type ErrorModel struct {
 
 	// Type A URI reference to human-readable documentation for the error.
 	Type *string `json:"type,omitempty"`
-}
-
-// ProtocolConsumerResponse defines model for ProtocolConsumerResponse.
-type ProtocolConsumerResponse struct {
-	ConsumerServiceId     openapi_types.UUID `json:"consumer_service_id"`
-	ConsumerServiceName   string             `json:"consumer_service_name"`
-	ConsumerVersionId     openapi_types.UUID `json:"consumer_version_id"`
-	ConsumerVersionNumber int64              `json:"consumer_version_number"`
-	Format                string             `json:"format"`
-	RegisteredAt          time.Time          `json:"registered_at"`
 }
 
 // ProtocolDependencyResponse defines model for ProtocolDependencyResponse.
@@ -165,15 +146,6 @@ type RegisterProtocolDependencyInputBody struct {
 	ProducerServiceId openapi_types.UUID `json:"producer_service_id"`
 }
 
-// RenameServiceInputBody defines model for RenameServiceInputBody.
-type RenameServiceInputBody struct {
-	// Schema A URL to the JSON Schema for this object.
-	Schema *string `json:"$schema,omitempty"`
-
-	// Name Новое имя сервиса
-	Name string `json:"name"`
-}
-
 // ServiceResponse defines model for ServiceResponse.
 type ServiceResponse struct {
 	// Schema A URL to the JSON Schema for this object.
@@ -181,14 +153,6 @@ type ServiceResponse struct {
 	CreatedAt time.Time          `json:"created_at"`
 	Id        openapi_types.UUID `json:"id"`
 	Name      string             `json:"name"`
-}
-
-// VersionPageResponse defines model for VersionPageResponse.
-type VersionPageResponse struct {
-	// Schema A URL to the JSON Schema for this object.
-	Schema     *string             `json:"$schema,omitempty"`
-	NextCursor *openapi_types.UUID `json:"next_cursor,omitempty"`
-	Versions   []VersionResponse   `json:"versions"`
 }
 
 // VersionResponse defines model for VersionResponse.
@@ -212,18 +176,6 @@ type CheckProtocolCompatibilityJSONBody map[string]interface{}
 
 // PublishProtocolJSONBody defines parameters for PublishProtocol.
 type PublishProtocolJSONBody map[string]interface{}
-
-// ListVersionsPageParams defines parameters for ListVersionsPage.
-type ListVersionsPageParams struct {
-	// Cursor Курсор: ID последней версии предыдущей страницы; пусто — первая страница
-	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
-}
-
-// CreateServiceJSONRequestBody defines body for CreateService for application/json ContentType.
-type CreateServiceJSONRequestBody = CreateServiceInputBody
-
-// RenameServiceJSONRequestBody defines body for RenameService for application/json ContentType.
-type RenameServiceJSONRequestBody = RenameServiceInputBody
 
 // CheckProtocolCompatibilityJSONRequestBody defines body for CheckProtocolCompatibility for application/json ContentType.
 type CheckProtocolCompatibilityJSONRequestBody CheckProtocolCompatibilityJSONBody
@@ -313,24 +265,8 @@ type ClientInterface interface {
 	// ListServices request
 	ListServices(ctx context.Context, params *ListServicesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateServiceWithBody request with any body
-	CreateServiceWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	CreateService(ctx context.Context, body CreateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// DeleteService request
-	DeleteService(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
-
 	// GetService request
 	GetService(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// RenameServiceWithBody request with any body
-	RenameServiceWithBody(ctx context.Context, id openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	RenameService(ctx context.Context, id openapi_types.UUID, body RenameServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// ListProtocolConsumers request
-	ListProtocolConsumers(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetProtocol request
 	GetProtocol(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -339,9 +275,6 @@ type ClientInterface interface {
 	CheckProtocolCompatibilityWithBody(ctx context.Context, id openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	CheckProtocolCompatibility(ctx context.Context, id openapi_types.UUID, body CheckProtocolCompatibilityJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// ListVersions request
-	ListVersions(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PublishVersionWithBody request with any body
 	PublishVersionWithBody(ctx context.Context, id openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -353,19 +286,10 @@ type ClientInterface interface {
 
 	RegisterProtocolDependency(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, body RegisterProtocolDependencyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// DeregisterProtocolDependency request
-	DeregisterProtocolDependency(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, producerServiceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// GetProtocolByVersion request
-	GetProtocolByVersion(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
-
 	// PublishProtocolWithBody request with any body
 	PublishProtocolWithBody(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	PublishProtocol(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, body PublishProtocolJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// ListVersionsPage request
-	ListVersionsPage(ctx context.Context, id openapi_types.UUID, params *ListVersionsPageParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) ListServices(ctx context.Context, params *ListServicesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -380,80 +304,8 @@ func (c *Client) ListServices(ctx context.Context, params *ListServicesParams, r
 	return c.Client.Do(req)
 }
 
-func (c *Client) CreateServiceWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateServiceRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) CreateService(ctx context.Context, body CreateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateServiceRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) DeleteService(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewDeleteServiceRequest(c.Server, id)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
 func (c *Client) GetService(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetServiceRequest(c.Server, id)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) RenameServiceWithBody(ctx context.Context, id openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRenameServiceRequestWithBody(c.Server, id, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) RenameService(ctx context.Context, id openapi_types.UUID, body RenameServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRenameServiceRequest(c.Server, id, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) ListProtocolConsumers(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewListProtocolConsumersRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -490,18 +342,6 @@ func (c *Client) CheckProtocolCompatibilityWithBody(ctx context.Context, id open
 
 func (c *Client) CheckProtocolCompatibility(ctx context.Context, id openapi_types.UUID, body CheckProtocolCompatibilityJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCheckProtocolCompatibilityRequest(c.Server, id, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) ListVersions(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewListVersionsRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -560,30 +400,6 @@ func (c *Client) RegisterProtocolDependency(ctx context.Context, id openapi_type
 	return c.Client.Do(req)
 }
 
-func (c *Client) DeregisterProtocolDependency(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, producerServiceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewDeregisterProtocolDependencyRequest(c.Server, id, versionId, producerServiceId)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) GetProtocolByVersion(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetProtocolByVersionRequest(c.Server, id, versionId)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
 func (c *Client) PublishProtocolWithBody(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPublishProtocolRequestWithBody(c.Server, id, versionId, contentType, body)
 	if err != nil {
@@ -598,18 +414,6 @@ func (c *Client) PublishProtocolWithBody(ctx context.Context, id openapi_types.U
 
 func (c *Client) PublishProtocol(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, body PublishProtocolJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPublishProtocolRequest(c.Server, id, versionId, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) ListVersionsPage(ctx context.Context, id openapi_types.UUID, params *ListVersionsPageParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewListVersionsPageRequest(c.Server, id, params)
 	if err != nil {
 		return nil, err
 	}
@@ -674,80 +478,6 @@ func NewListServicesRequest(server string, params *ListServicesParams) (*http.Re
 	return req, nil
 }
 
-// NewCreateServiceRequest calls the generic CreateService builder with application/json body
-func NewCreateServiceRequest(server string, body CreateServiceJSONRequestBody) (*http.Request, error) {
-	var bodyReader io.Reader
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	bodyReader = bytes.NewReader(buf)
-	return NewCreateServiceRequestWithBody(server, "application/json", bodyReader)
-}
-
-// NewCreateServiceRequestWithBody generates requests for CreateService with any type of body
-func NewCreateServiceRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
-	var err error
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/services")
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Content-Type", contentType)
-
-	return req, nil
-}
-
-// NewDeleteServiceRequest generates requests for DeleteService
-func NewDeleteServiceRequest(server string, id openapi_types.UUID) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/services/%s", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
 // NewGetServiceRequest generates requests for GetService
 func NewGetServiceRequest(server string, id openapi_types.UUID) (*http.Request, error) {
 	var err error
@@ -765,87 +495,6 @@ func NewGetServiceRequest(server string, id openapi_types.UUID) (*http.Request, 
 	}
 
 	operationPath := fmt.Sprintf("/services/%s", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewRenameServiceRequest calls the generic RenameService builder with application/json body
-func NewRenameServiceRequest(server string, id openapi_types.UUID, body RenameServiceJSONRequestBody) (*http.Request, error) {
-	var bodyReader io.Reader
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	bodyReader = bytes.NewReader(buf)
-	return NewRenameServiceRequestWithBody(server, id, "application/json", bodyReader)
-}
-
-// NewRenameServiceRequestWithBody generates requests for RenameService with any type of body
-func NewRenameServiceRequestWithBody(server string, id openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/services/%s", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Content-Type", contentType)
-
-	return req, nil
-}
-
-// NewListProtocolConsumersRequest generates requests for ListProtocolConsumers
-func NewListProtocolConsumersRequest(server string, id openapi_types.UUID) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/services/%s/consumers", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -940,40 +589,6 @@ func NewCheckProtocolCompatibilityRequestWithBody(server string, id openapi_type
 	}
 
 	req.Header.Add("Content-Type", contentType)
-
-	return req, nil
-}
-
-// NewListVersionsRequest generates requests for ListVersions
-func NewListVersionsRequest(server string, id openapi_types.UUID) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/services/%s/versions", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
 
 	return req, nil
 }
@@ -1079,95 +694,6 @@ func NewRegisterProtocolDependencyRequestWithBody(server string, id openapi_type
 	return req, nil
 }
 
-// NewDeregisterProtocolDependencyRequest generates requests for DeregisterProtocolDependency
-func NewDeregisterProtocolDependencyRequest(server string, id openapi_types.UUID, versionId openapi_types.UUID, producerServiceId openapi_types.UUID) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
-	if err != nil {
-		return nil, err
-	}
-
-	var pathParam1 string
-
-	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "version_id", versionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
-	if err != nil {
-		return nil, err
-	}
-
-	var pathParam2 string
-
-	pathParam2, err = runtime.StyleParamWithOptions("simple", false, "producer_service_id", producerServiceId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/services/%s/versions/%s/dependencies/%s", pathParam0, pathParam1, pathParam2)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewGetProtocolByVersionRequest generates requests for GetProtocolByVersion
-func NewGetProtocolByVersionRequest(server string, id openapi_types.UUID, versionId openapi_types.UUID) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
-	if err != nil {
-		return nil, err
-	}
-
-	var pathParam1 string
-
-	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "version_id", versionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/services/%s/versions/%s/protocol", pathParam0, pathParam1)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
 // NewPublishProtocolRequest calls the generic PublishProtocol builder with application/json body
 func NewPublishProtocolRequest(server string, id openapi_types.UUID, versionId openapi_types.UUID, body PublishProtocolJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -1222,67 +748,6 @@ func NewPublishProtocolRequestWithBody(server string, id openapi_types.UUID, ver
 	return req, nil
 }
 
-// NewListVersionsPageRequest generates requests for ListVersionsPage
-func NewListVersionsPageRequest(server string, id openapi_types.UUID, params *ListVersionsPageParams) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/services/%s/versions:paged", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	if params != nil {
-		// queryValues collects non-styled parameters (passthrough, JSON)
-		// that are safe to round-trip through url.Values.Encode().
-		queryValues := queryURL.Query()
-		// rawQueryFragments collects pre-encoded query fragments from
-		// styled parameters, preserving literal commas as delimiters
-		// per the OpenAPI spec (e.g. "color=blue,black,brown").
-		var rawQueryFragments []string
-
-		if params.Cursor != nil {
-
-			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "cursor", *params.Cursor, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
-				return nil, err
-			} else {
-				for _, qp := range strings.Split(queryFrag, "&") {
-					rawQueryFragments = append(rawQueryFragments, qp)
-				}
-			}
-
-		}
-
-		if encoded := queryValues.Encode(); encoded != "" {
-			rawQueryFragments = append(rawQueryFragments, encoded)
-		}
-		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
-	}
-
-	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -1329,24 +794,8 @@ type ClientWithResponsesInterface interface {
 	// ListServicesWithResponse request
 	ListServicesWithResponse(ctx context.Context, params *ListServicesParams, reqEditors ...RequestEditorFn) (*ListServicesResponse, error)
 
-	// CreateServiceWithBodyWithResponse request with any body
-	CreateServiceWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateServiceResponse, error)
-
-	CreateServiceWithResponse(ctx context.Context, body CreateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateServiceResponse, error)
-
-	// DeleteServiceWithResponse request
-	DeleteServiceWithResponse(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteServiceResponse, error)
-
 	// GetServiceWithResponse request
 	GetServiceWithResponse(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetServiceResponse, error)
-
-	// RenameServiceWithBodyWithResponse request with any body
-	RenameServiceWithBodyWithResponse(ctx context.Context, id openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RenameServiceResponse, error)
-
-	RenameServiceWithResponse(ctx context.Context, id openapi_types.UUID, body RenameServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*RenameServiceResponse, error)
-
-	// ListProtocolConsumersWithResponse request
-	ListProtocolConsumersWithResponse(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListProtocolConsumersResponse, error)
 
 	// GetProtocolWithResponse request
 	GetProtocolWithResponse(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetProtocolResponse, error)
@@ -1355,9 +804,6 @@ type ClientWithResponsesInterface interface {
 	CheckProtocolCompatibilityWithBodyWithResponse(ctx context.Context, id openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CheckProtocolCompatibilityResponse, error)
 
 	CheckProtocolCompatibilityWithResponse(ctx context.Context, id openapi_types.UUID, body CheckProtocolCompatibilityJSONRequestBody, reqEditors ...RequestEditorFn) (*CheckProtocolCompatibilityResponse, error)
-
-	// ListVersionsWithResponse request
-	ListVersionsWithResponse(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListVersionsResponse, error)
 
 	// PublishVersionWithBodyWithResponse request with any body
 	PublishVersionWithBodyWithResponse(ctx context.Context, id openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PublishVersionResponse, error)
@@ -1369,19 +815,10 @@ type ClientWithResponsesInterface interface {
 
 	RegisterProtocolDependencyWithResponse(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, body RegisterProtocolDependencyJSONRequestBody, reqEditors ...RequestEditorFn) (*RegisterProtocolDependencyResponse, error)
 
-	// DeregisterProtocolDependencyWithResponse request
-	DeregisterProtocolDependencyWithResponse(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, producerServiceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeregisterProtocolDependencyResponse, error)
-
-	// GetProtocolByVersionWithResponse request
-	GetProtocolByVersionWithResponse(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetProtocolByVersionResponse, error)
-
 	// PublishProtocolWithBodyWithResponse request with any body
 	PublishProtocolWithBodyWithResponse(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PublishProtocolResponse, error)
 
 	PublishProtocolWithResponse(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, body PublishProtocolJSONRequestBody, reqEditors ...RequestEditorFn) (*PublishProtocolResponse, error)
-
-	// ListVersionsPageWithResponse request
-	ListVersionsPageWithResponse(ctx context.Context, id openapi_types.UUID, params *ListVersionsPageParams, reqEditors ...RequestEditorFn) (*ListVersionsPageResponse, error)
 }
 
 type ListServicesResponse struct {
@@ -1415,67 +852,6 @@ func (r ListServicesResponse) ContentType() string {
 	return ""
 }
 
-type CreateServiceResponse struct {
-	Body                          []byte
-	HTTPResponse                  *http.Response
-	JSON201                       *ServiceResponse
-	ApplicationproblemJSONDefault *ErrorModel
-}
-
-// Status returns HTTPResponse.Status
-func (r CreateServiceResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r CreateServiceResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r CreateServiceResponse) ContentType() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Header.Get("Content-Type")
-	}
-	return ""
-}
-
-type DeleteServiceResponse struct {
-	Body                          []byte
-	HTTPResponse                  *http.Response
-	ApplicationproblemJSONDefault *ErrorModel
-}
-
-// Status returns HTTPResponse.Status
-func (r DeleteServiceResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r DeleteServiceResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r DeleteServiceResponse) ContentType() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Header.Get("Content-Type")
-	}
-	return ""
-}
-
 type GetServiceResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
@@ -1501,68 +877,6 @@ func (r GetServiceResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetServiceResponse) ContentType() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Header.Get("Content-Type")
-	}
-	return ""
-}
-
-type RenameServiceResponse struct {
-	Body                          []byte
-	HTTPResponse                  *http.Response
-	JSON200                       *ServiceResponse
-	ApplicationproblemJSONDefault *ErrorModel
-}
-
-// Status returns HTTPResponse.Status
-func (r RenameServiceResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r RenameServiceResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r RenameServiceResponse) ContentType() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Header.Get("Content-Type")
-	}
-	return ""
-}
-
-type ListProtocolConsumersResponse struct {
-	Body                          []byte
-	HTTPResponse                  *http.Response
-	JSON200                       *[]ProtocolConsumerResponse
-	ApplicationproblemJSONDefault *ErrorModel
-}
-
-// Status returns HTTPResponse.Status
-func (r ListProtocolConsumersResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r ListProtocolConsumersResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r ListProtocolConsumersResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -1631,37 +945,6 @@ func (r CheckProtocolCompatibilityResponse) ContentType() string {
 	return ""
 }
 
-type ListVersionsResponse struct {
-	Body                          []byte
-	HTTPResponse                  *http.Response
-	JSON200                       *[]VersionResponse
-	ApplicationproblemJSONDefault *ErrorModel
-}
-
-// Status returns HTTPResponse.Status
-func (r ListVersionsResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r ListVersionsResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r ListVersionsResponse) ContentType() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Header.Get("Content-Type")
-	}
-	return ""
-}
-
 type PublishVersionResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
@@ -1724,67 +1007,6 @@ func (r RegisterProtocolDependencyResponse) ContentType() string {
 	return ""
 }
 
-type DeregisterProtocolDependencyResponse struct {
-	Body                          []byte
-	HTTPResponse                  *http.Response
-	ApplicationproblemJSONDefault *ErrorModel
-}
-
-// Status returns HTTPResponse.Status
-func (r DeregisterProtocolDependencyResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r DeregisterProtocolDependencyResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r DeregisterProtocolDependencyResponse) ContentType() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Header.Get("Content-Type")
-	}
-	return ""
-}
-
-type GetProtocolByVersionResponse struct {
-	Body                          []byte
-	HTTPResponse                  *http.Response
-	JSON200                       *ProtocolView
-	ApplicationproblemJSONDefault *ErrorModel
-}
-
-// Status returns HTTPResponse.Status
-func (r GetProtocolByVersionResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r GetProtocolByVersionResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r GetProtocolByVersionResponse) ContentType() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Header.Get("Content-Type")
-	}
-	return ""
-}
-
 type PublishProtocolResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
@@ -1816,37 +1038,6 @@ func (r PublishProtocolResponse) ContentType() string {
 	return ""
 }
 
-type ListVersionsPageResponse struct {
-	Body                          []byte
-	HTTPResponse                  *http.Response
-	JSON200                       *VersionPageResponse
-	ApplicationproblemJSONDefault *ErrorModel
-}
-
-// Status returns HTTPResponse.Status
-func (r ListVersionsPageResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r ListVersionsPageResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r ListVersionsPageResponse) ContentType() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Header.Get("Content-Type")
-	}
-	return ""
-}
-
 // ListServicesWithResponse request returning *ListServicesResponse
 func (c *ClientWithResponses) ListServicesWithResponse(ctx context.Context, params *ListServicesParams, reqEditors ...RequestEditorFn) (*ListServicesResponse, error) {
 	rsp, err := c.ListServices(ctx, params, reqEditors...)
@@ -1856,32 +1047,6 @@ func (c *ClientWithResponses) ListServicesWithResponse(ctx context.Context, para
 	return ParseListServicesResponse(rsp)
 }
 
-// CreateServiceWithBodyWithResponse request with arbitrary body returning *CreateServiceResponse
-func (c *ClientWithResponses) CreateServiceWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateServiceResponse, error) {
-	rsp, err := c.CreateServiceWithBody(ctx, contentType, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseCreateServiceResponse(rsp)
-}
-
-func (c *ClientWithResponses) CreateServiceWithResponse(ctx context.Context, body CreateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateServiceResponse, error) {
-	rsp, err := c.CreateService(ctx, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseCreateServiceResponse(rsp)
-}
-
-// DeleteServiceWithResponse request returning *DeleteServiceResponse
-func (c *ClientWithResponses) DeleteServiceWithResponse(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteServiceResponse, error) {
-	rsp, err := c.DeleteService(ctx, id, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseDeleteServiceResponse(rsp)
-}
-
 // GetServiceWithResponse request returning *GetServiceResponse
 func (c *ClientWithResponses) GetServiceWithResponse(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetServiceResponse, error) {
 	rsp, err := c.GetService(ctx, id, reqEditors...)
@@ -1889,32 +1054,6 @@ func (c *ClientWithResponses) GetServiceWithResponse(ctx context.Context, id ope
 		return nil, err
 	}
 	return ParseGetServiceResponse(rsp)
-}
-
-// RenameServiceWithBodyWithResponse request with arbitrary body returning *RenameServiceResponse
-func (c *ClientWithResponses) RenameServiceWithBodyWithResponse(ctx context.Context, id openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RenameServiceResponse, error) {
-	rsp, err := c.RenameServiceWithBody(ctx, id, contentType, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseRenameServiceResponse(rsp)
-}
-
-func (c *ClientWithResponses) RenameServiceWithResponse(ctx context.Context, id openapi_types.UUID, body RenameServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*RenameServiceResponse, error) {
-	rsp, err := c.RenameService(ctx, id, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseRenameServiceResponse(rsp)
-}
-
-// ListProtocolConsumersWithResponse request returning *ListProtocolConsumersResponse
-func (c *ClientWithResponses) ListProtocolConsumersWithResponse(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListProtocolConsumersResponse, error) {
-	rsp, err := c.ListProtocolConsumers(ctx, id, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseListProtocolConsumersResponse(rsp)
 }
 
 // GetProtocolWithResponse request returning *GetProtocolResponse
@@ -1941,15 +1080,6 @@ func (c *ClientWithResponses) CheckProtocolCompatibilityWithResponse(ctx context
 		return nil, err
 	}
 	return ParseCheckProtocolCompatibilityResponse(rsp)
-}
-
-// ListVersionsWithResponse request returning *ListVersionsResponse
-func (c *ClientWithResponses) ListVersionsWithResponse(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListVersionsResponse, error) {
-	rsp, err := c.ListVersions(ctx, id, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseListVersionsResponse(rsp)
 }
 
 // PublishVersionWithBodyWithResponse request with arbitrary body returning *PublishVersionResponse
@@ -1986,24 +1116,6 @@ func (c *ClientWithResponses) RegisterProtocolDependencyWithResponse(ctx context
 	return ParseRegisterProtocolDependencyResponse(rsp)
 }
 
-// DeregisterProtocolDependencyWithResponse request returning *DeregisterProtocolDependencyResponse
-func (c *ClientWithResponses) DeregisterProtocolDependencyWithResponse(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, producerServiceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeregisterProtocolDependencyResponse, error) {
-	rsp, err := c.DeregisterProtocolDependency(ctx, id, versionId, producerServiceId, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseDeregisterProtocolDependencyResponse(rsp)
-}
-
-// GetProtocolByVersionWithResponse request returning *GetProtocolByVersionResponse
-func (c *ClientWithResponses) GetProtocolByVersionWithResponse(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetProtocolByVersionResponse, error) {
-	rsp, err := c.GetProtocolByVersion(ctx, id, versionId, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseGetProtocolByVersionResponse(rsp)
-}
-
 // PublishProtocolWithBodyWithResponse request with arbitrary body returning *PublishProtocolResponse
 func (c *ClientWithResponses) PublishProtocolWithBodyWithResponse(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PublishProtocolResponse, error) {
 	rsp, err := c.PublishProtocolWithBody(ctx, id, versionId, contentType, body, reqEditors...)
@@ -2019,15 +1131,6 @@ func (c *ClientWithResponses) PublishProtocolWithResponse(ctx context.Context, i
 		return nil, err
 	}
 	return ParsePublishProtocolResponse(rsp)
-}
-
-// ListVersionsPageWithResponse request returning *ListVersionsPageResponse
-func (c *ClientWithResponses) ListVersionsPageWithResponse(ctx context.Context, id openapi_types.UUID, params *ListVersionsPageParams, reqEditors ...RequestEditorFn) (*ListVersionsPageResponse, error) {
-	rsp, err := c.ListVersionsPage(ctx, id, params, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseListVersionsPageResponse(rsp)
 }
 
 // ParseListServicesResponse parses an HTTP response from a ListServicesWithResponse call
@@ -2063,65 +1166,6 @@ func ParseListServicesResponse(rsp *http.Response) (*ListServicesResponse, error
 	return response, nil
 }
 
-// ParseCreateServiceResponse parses an HTTP response from a CreateServiceWithResponse call
-func ParseCreateServiceResponse(rsp *http.Response) (*CreateServiceResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &CreateServiceResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
-		var dest ServiceResponse
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON201 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest ErrorModel
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.ApplicationproblemJSONDefault = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseDeleteServiceResponse parses an HTTP response from a DeleteServiceWithResponse call
-func ParseDeleteServiceResponse(rsp *http.Response) (*DeleteServiceResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &DeleteServiceResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest ErrorModel
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.ApplicationproblemJSONDefault = &dest
-
-	}
-
-	return response, nil
-}
-
 // ParseGetServiceResponse parses an HTTP response from a GetServiceWithResponse call
 func ParseGetServiceResponse(rsp *http.Response) (*GetServiceResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -2138,72 +1182,6 @@ func ParseGetServiceResponse(rsp *http.Response) (*GetServiceResponse, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest ServiceResponse
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest ErrorModel
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.ApplicationproblemJSONDefault = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseRenameServiceResponse parses an HTTP response from a RenameServiceWithResponse call
-func ParseRenameServiceResponse(rsp *http.Response) (*RenameServiceResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &RenameServiceResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest ServiceResponse
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest ErrorModel
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.ApplicationproblemJSONDefault = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseListProtocolConsumersResponse parses an HTTP response from a ListProtocolConsumersWithResponse call
-func ParseListProtocolConsumersResponse(rsp *http.Response) (*ListProtocolConsumersResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &ListProtocolConsumersResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest []ProtocolConsumerResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2287,39 +1265,6 @@ func ParseCheckProtocolCompatibilityResponse(rsp *http.Response) (*CheckProtocol
 	return response, nil
 }
 
-// ParseListVersionsResponse parses an HTTP response from a ListVersionsWithResponse call
-func ParseListVersionsResponse(rsp *http.Response) (*ListVersionsResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &ListVersionsResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest []VersionResponse
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest ErrorModel
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.ApplicationproblemJSONDefault = &dest
-
-	}
-
-	return response, nil
-}
-
 // ParsePublishVersionResponse parses an HTTP response from a PublishVersionWithResponse call
 func ParsePublishVersionResponse(rsp *http.Response) (*PublishVersionResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -2386,65 +1331,6 @@ func ParseRegisterProtocolDependencyResponse(rsp *http.Response) (*RegisterProto
 	return response, nil
 }
 
-// ParseDeregisterProtocolDependencyResponse parses an HTTP response from a DeregisterProtocolDependencyWithResponse call
-func ParseDeregisterProtocolDependencyResponse(rsp *http.Response) (*DeregisterProtocolDependencyResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &DeregisterProtocolDependencyResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest ErrorModel
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.ApplicationproblemJSONDefault = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseGetProtocolByVersionResponse parses an HTTP response from a GetProtocolByVersionWithResponse call
-func ParseGetProtocolByVersionResponse(rsp *http.Response) (*GetProtocolByVersionResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &GetProtocolByVersionResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest ProtocolView
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest ErrorModel
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.ApplicationproblemJSONDefault = &dest
-
-	}
-
-	return response, nil
-}
-
 // ParsePublishProtocolResponse parses an HTTP response from a PublishProtocolWithResponse call
 func ParsePublishProtocolResponse(rsp *http.Response) (*PublishProtocolResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -2465,39 +1351,6 @@ func ParsePublishProtocolResponse(rsp *http.Response) (*PublishProtocolResponse,
 			return nil, err
 		}
 		response.JSON201 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest ErrorModel
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.ApplicationproblemJSONDefault = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseListVersionsPageResponse parses an HTTP response from a ListVersionsPageWithResponse call
-func ParseListVersionsPageResponse(rsp *http.Response) (*ListVersionsPageResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &ListVersionsPageResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest VersionPageResponse
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest ErrorModel

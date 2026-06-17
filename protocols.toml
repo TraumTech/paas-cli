@@ -7,5 +7,16 @@
 # destination = "protocols"
 
 # Зависимости — массив объектов; name — имя сервиса-продьюсера (папка protocols/<name>/).
+# methods опционально сужает контракт до перечисленных операций (operationId); пусто — берётся целиком.
 [[dependencies]]
 name = "paas-backend"  # продьюсер, на контракте которого собран клиент платформы
+# Только операции, которые реально вызывают HTTP-адаптеры internal/adapters/*_http/.
+methods = [
+    "list-services", # service_resolver_http: резолв имени продьюсера в id
+    "get-service", # protocol_source_http: метаданные сервиса перед получением контракта
+    "get-protocol", # protocol_source_http: получение контракта (sync/fetch)
+    "publish-version", # version_publisher_http: публикация версии из выкатки
+    "check-protocol-compatibility", # protocol_compatibility_http: проверка кандидата
+    "register-protocol-dependency", # dependency_registrar_http: регистрация зависимости
+    "publish-protocol", # protocol_publish_http: публикация протокола
+]

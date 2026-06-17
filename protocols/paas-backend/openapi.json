@@ -94,28 +94,6 @@
         ],
         "type": "object"
       },
-      "CreateServiceInputBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://api.paas.traumtech.ru/schemas/CreateServiceInputBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "name": {
-            "description": "Имя сервиса",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name"
-        ],
-        "type": "object"
-      },
       "ErrorDetail": {
         "additionalProperties": false,
         "properties": {
@@ -192,42 +170,6 @@
             "type": "string"
           }
         },
-        "type": "object"
-      },
-      "ProtocolConsumerResponse": {
-        "additionalProperties": false,
-        "properties": {
-          "consumer_service_id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "consumer_service_name": {
-            "type": "string"
-          },
-          "consumer_version_id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "consumer_version_number": {
-            "format": "int64",
-            "type": "integer"
-          },
-          "format": {
-            "type": "string"
-          },
-          "registered_at": {
-            "format": "date-time",
-            "type": "string"
-          }
-        },
-        "required": [
-          "consumer_service_id",
-          "consumer_service_name",
-          "consumer_version_id",
-          "consumer_version_number",
-          "format",
-          "registered_at"
-        ],
         "type": "object"
       },
       "ProtocolDependencyResponse": {
@@ -439,28 +381,6 @@
         ],
         "type": "object"
       },
-      "RenameServiceInputBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://api.paas.traumtech.ru/schemas/RenameServiceInputBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "name": {
-            "description": "Новое имя сервиса",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name"
-        ],
-        "type": "object"
-      },
       "ServiceResponse": {
         "additionalProperties": false,
         "properties": {
@@ -489,34 +409,6 @@
           "id",
           "name",
           "created_at"
-        ],
-        "type": "object"
-      },
-      "VersionPageResponse": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://api.paas.traumtech.ru/schemas/VersionPageResponse.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "next_cursor": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "versions": {
-            "items": {
-              "$ref": "#/components/schemas/VersionResponse"
-            },
-            "type": "array"
-          }
-        },
-        "required": [
-          "versions"
         ],
         "type": "object"
       },
@@ -611,83 +503,9 @@
         "tags": [
           "services"
         ]
-      },
-      "post": {
-        "operationId": "create-service",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateServiceInputBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ServiceResponse"
-                }
-              }
-            },
-            "description": "Created"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorModel"
-                }
-              }
-            },
-            "description": "Error"
-          }
-        },
-        "summary": "Создать сервис",
-        "tags": [
-          "services"
-        ]
       }
     },
     "/services/{id}": {
-      "delete": {
-        "operationId": "delete-service",
-        "parameters": [
-          {
-            "description": "ID сервиса",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "description": "ID сервиса",
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "No Content"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorModel"
-                }
-              }
-            },
-            "description": "Error"
-          }
-        },
-        "summary": "Удалить сервис",
-        "tags": [
-          "services"
-        ]
-      },
       "get": {
         "operationId": "get-service",
         "parameters": [
@@ -728,105 +546,6 @@
         "summary": "Получить сервис по ID",
         "tags": [
           "services"
-        ]
-      },
-      "patch": {
-        "operationId": "rename-service",
-        "parameters": [
-          {
-            "description": "ID сервиса",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "description": "ID сервиса",
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RenameServiceInputBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ServiceResponse"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorModel"
-                }
-              }
-            },
-            "description": "Error"
-          }
-        },
-        "summary": "Переименовать сервис",
-        "tags": [
-          "services"
-        ]
-      }
-    },
-    "/services/{id}/consumers": {
-      "get": {
-        "operationId": "list-protocol-consumers",
-        "parameters": [
-          {
-            "description": "ID сервиса-продьюсера",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "description": "ID сервиса-продьюсера",
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/ProtocolConsumerResponse"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorModel"
-                }
-              }
-            },
-            "description": "Error"
-          }
-        },
-        "summary": "Список потребителей контракта сервиса",
-        "tags": [
-          "protocols"
         ]
       }
     },
@@ -931,51 +650,6 @@
       }
     },
     "/services/{id}/versions": {
-      "get": {
-        "operationId": "list-versions",
-        "parameters": [
-          {
-            "description": "ID сервиса",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "description": "ID сервиса",
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/VersionResponse"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorModel"
-                }
-              }
-            },
-            "description": "Error"
-          }
-        },
-        "summary": "Список версий сервиса",
-        "tags": [
-          "versions"
-        ]
-      },
       "post": {
         "operationId": "publish-version",
         "parameters": [
@@ -1094,119 +768,7 @@
         ]
       }
     },
-    "/services/{id}/versions/{version_id}/dependencies/{producer_service_id}": {
-      "delete": {
-        "operationId": "deregister-protocol-dependency",
-        "parameters": [
-          {
-            "description": "ID сервиса-потребителя",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "description": "ID сервиса-потребителя",
-              "format": "uuid",
-              "type": "string"
-            }
-          },
-          {
-            "description": "ID версии потребителя",
-            "in": "path",
-            "name": "version_id",
-            "required": true,
-            "schema": {
-              "description": "ID версии потребителя",
-              "format": "uuid",
-              "type": "string"
-            }
-          },
-          {
-            "description": "ID сервиса-продьюсера",
-            "in": "path",
-            "name": "producer_service_id",
-            "required": true,
-            "schema": {
-              "description": "ID сервиса-продьюсера",
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "No Content"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorModel"
-                }
-              }
-            },
-            "description": "Error"
-          }
-        },
-        "summary": "Снять зависимость версии от контракта другого сервиса",
-        "tags": [
-          "protocols"
-        ]
-      }
-    },
     "/services/{id}/versions/{version_id}/protocol": {
-      "get": {
-        "operationId": "get-protocol-by-version",
-        "parameters": [
-          {
-            "description": "ID сервиса",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "description": "ID сервиса",
-              "format": "uuid",
-              "type": "string"
-            }
-          },
-          {
-            "description": "ID версии сервиса",
-            "in": "path",
-            "name": "version_id",
-            "required": true,
-            "schema": {
-              "description": "ID версии сервиса",
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProtocolView"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorModel"
-                }
-              }
-            },
-            "description": "Error"
-          }
-        },
-        "summary": "Получить протокол версии сервиса",
-        "tags": [
-          "protocols"
-        ]
-      },
       "put": {
         "operationId": "publish-protocol",
         "parameters": [
@@ -1270,60 +832,6 @@
         "summary": "Опубликовать протокол версии сервиса",
         "tags": [
           "protocols"
-        ]
-      }
-    },
-    "/services/{id}/versions:paged": {
-      "get": {
-        "operationId": "list-versions-page",
-        "parameters": [
-          {
-            "description": "ID сервиса",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "description": "ID сервиса",
-              "format": "uuid",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Курсор: ID последней версии предыдущей страницы; пусто — первая страница",
-            "explode": false,
-            "in": "query",
-            "name": "cursor",
-            "schema": {
-              "description": "Курсор: ID последней версии предыдущей страницы; пусто — первая страница",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/VersionPageResponse"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorModel"
-                }
-              }
-            },
-            "description": "Error"
-          }
-        },
-        "summary": "Страница версий сервиса",
-        "tags": [
-          "versions"
         ]
       }
     }
