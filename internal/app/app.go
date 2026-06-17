@@ -11,15 +11,18 @@ import (
 
 	"github.com/TraumTech/paas-cli/internal/adapters/candidate_reader_file"
 	"github.com/TraumTech/paas-cli/internal/adapters/dependency_registrar_http"
+	"github.com/TraumTech/paas-cli/internal/adapters/manifest_reader_file"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_compatibility_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_publish_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_source_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_store_file"
+	"github.com/TraumTech/paas-cli/internal/adapters/service_resolver_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/version_publisher_http"
 	"github.com/TraumTech/paas-cli/internal/controllers/dependency_register_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/protocol_compatibility_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/protocol_fetch_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/protocol_publish_command_cli"
+	"github.com/TraumTech/paas-cli/internal/controllers/protocol_sync_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/version_publish_command_cli"
 	"github.com/TraumTech/paas-cli/internal/usecases"
 )
@@ -44,6 +47,13 @@ func Run(ctx context.Context, args []string) error {
 	}
 	store := protocolstorefile.New()
 	fetch := protocolfetchcommandcli.New(usecases.NewFetchProtocol(source, store))
+
+	resolver, err := serviceresolverhttp.New(baseURL, &http.Client{Timeout: httpTimeout})
+	if err != nil {
+		return err
+	}
+	manifests := manifestreaderfile.New()
+	sync := protocolsynccommandcli.New(usecases.NewSyncProtocols(manifests, resolver, source, store))
 
 	compatSource, err := protocolcompatibilityhttp.New(baseURL, &http.Client{Timeout: httpTimeout})
 	if err != nil {
@@ -88,6 +98,7 @@ func Run(ctx context.Context, args []string) error {
 				Usage: "работа с контрактами (протоколами) сервисов",
 				Commands: []*cli.Command{
 					fetch.CLICommand(),
+					sync.CLICommand(),
 					compat.CLICommand(),
 					publish.CLICommand(),
 				},

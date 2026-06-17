@@ -24,6 +24,9 @@ var (
 	ErrInvalidProtocol      = newDomainError("ответ не похож на OpenAPI-контракт")
 	ErrEmptyCommitRevision  = newDomainError("ревизия коммита не указана")
 	ErrNoMethodsSelected    = newDomainError("не указан ни один метод")
+
+	ErrManifestNoDependencies   = newDomainError("в манифесте не объявлено ни одной зависимости")
+	ErrManifestDependencyNoName = newDomainError("у зависимости в манифесте не указано имя сервиса")
 )
 
 // UnknownMethodsError сообщает, какие именно запрошенные методы не нашлись в

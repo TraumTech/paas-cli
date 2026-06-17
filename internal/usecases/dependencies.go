@@ -6,7 +6,7 @@ import (
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
-//go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=usecases github.com/TraumTech/paas-cli/internal/usecases ProtocolSource,ProtocolStore,CandidateReader,CompatibilitySource,VersionPublisher,ProtocolPublisher,DependencyRegistrar
+//go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=usecases github.com/TraumTech/paas-cli/internal/usecases ProtocolSource,ProtocolStore,CandidateReader,CompatibilitySource,VersionPublisher,ProtocolPublisher,DependencyRegistrar,ManifestReader,ServiceResolver
 
 // ProtocolSource достаёт актуальный опубликованный контракт сервиса из платформы.
 // Возвращает entities.ErrServiceNotFound / entities.ErrProtocolNotPublished,
@@ -53,4 +53,17 @@ type ProtocolPublisher interface {
 // снимок отклонён) возвращает ошибку с понятным сообщением от платформы.
 type DependencyRegistrar interface {
 	RegisterDependency(ctx context.Context, serviceID, versionID, producerServiceID string, document []byte) (*entities.Dependency, error)
+}
+
+// ManifestReader читает манифест зависимостей из файла в репозитории потребителя.
+type ManifestReader interface {
+	Read(ctx context.Context, path string) (*entities.Manifest, error)
+}
+
+// ServiceResolver находит id сервисов платформы по именам: манифест адресует
+// продьюсеров по имени, а платформа — по id. Резолвит весь манифест одним запросом
+// и возвращает карту name→id только по найденным сервисам; ненайденные имена в карту
+// не попадают (вызывающий сам решает, что это ошибка).
+type ServiceResolver interface {
+	ResolveIDs(ctx context.Context, names []string) (map[string]string, error)
 }

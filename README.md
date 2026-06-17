@@ -78,6 +78,40 @@ paas-cli protocols fetch <service-id> --method create-order,list-orders
 PAAS_API_URL=http://localhost:8080 paas-cli protocols fetch <service-id>
 ```
 
+#### Манифест зависимостей
+
+Чтобы не перечислять сервисы в команде при каждом обновлении, состав зависимостей
+объявляется в манифесте `protocols.toml` в корне репозитория потребителя, а
+`protocols sync` тянет все объявленные контракты разом. Манифест перечисляет сервисы
+**по имени** (не по версии): воспроизводимость даёт git — полученные снимки
+коммитятся, — а не пин на эфемерную версию продьюсера.
+
+```toml
+# protocols.toml
+# destination опционально (по умолчанию "protocols")
+# destination = "protocols"
+
+[[dependencies]]
+name = "paas-backend"
+
+[[dependencies]]
+name = "billing"
+methods = ["create-invoice", "list-invoices"]   # необязательный частичный контракт
+```
+
+```sh
+paas-cli protocols sync                       # читает ./protocols.toml
+paas-cli protocols sync --manifest deps.toml  # другой путь к манифесту (-f)
+```
+
+- Раскладка та же, что у `fetch`: по контракту на сервис в `<destination>/<name>/openapi.json`.
+  Директорию задаёт `destination` в манифесте; явный `--destination`/`-d` её переопределяет.
+- На каждую зависимость можно сузить контракт до методов полем `methods` (как `-m` у `fetch`).
+- Имя сервиса CLI резолвит в его id у платформы. Если объявленный сервис не найден,
+  контракт не получить, либо манифест отсутствует/пуст/неразбираем — команда печатает
+  понятную ошибку (с именем упавшей зависимости) и завершается ненулевым кодом,
+  останавливая пайплайн; уже полученные рабочие контракты не затираются.
+
 ### Гарантии
 
 - **Воспроизводимость.** Повторный прогон после публикации нового контракта
@@ -207,6 +241,11 @@ paas-cli dependencies register <service-id> <version-id> <producer-service-id> <
   `pkg/platformapi`;
 - `internal/adapters/protocol_store_file` — атомарная запись протокола в файл,
   `internal/adapters/candidate_reader_file` — чтение файла контракта с диска;
+- манифест зависимостей: `entities.Manifest` + use case `SyncProtocols`
+  (интерфейсы `ManifestReader`, `ServiceResolver`); подкоманда
+  `internal/controllers/protocol_sync_command_cli` (`protocols sync`);
+  адаптеры `internal/adapters/manifest_reader_file` (разбор `protocols.toml`) и
+  `internal/adapters/service_resolver_http` (резолв имени сервиса в id);
 - `internal/app` — composition root: сборка команд и запуск;
 - `pkg/platformapi` — клиент API платформы, **сгенерированный из контракта**
   ([oapi-codegen](https://github.com/oapi-codegen/oapi-codegen)).

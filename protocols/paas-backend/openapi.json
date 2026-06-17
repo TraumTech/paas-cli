@@ -567,6 +567,21 @@
     "/services": {
       "get": {
         "operationId": "list-services",
+        "parameters": [
+          {
+            "description": "Фильтр по имени сервиса (точное совпадение); можно повторять — вернутся все совпавшие. Пусто — весь перечень",
+            "explode": true,
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "description": "Фильтр по имени сервиса (точное совпадение); можно повторять — вернутся все совпавшие. Пусто — весь перечень",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {

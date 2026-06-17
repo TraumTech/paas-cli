@@ -3,6 +3,7 @@ module github.com/TraumTech/paas-cli
 go 1.26
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	github.com/google/uuid v1.6.0
 	github.com/oapi-codegen/runtime v1.4.1
 	github.com/stretchr/testify v1.11.1
