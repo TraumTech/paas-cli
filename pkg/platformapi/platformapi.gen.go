@@ -144,6 +144,9 @@ type RegisterProtocolDependencyInputBody struct {
 
 	// ProducerServiceId ID сервиса, на контракте которого собрана версия
 	ProducerServiceId openapi_types.UUID `json:"producer_service_id"`
+
+	// SupersedePrevious Снять зависимости прочих версий этого потребителя от того же продьюсера, оставив только регистрируемую (по умолчанию нет)
+	SupersedePrevious *bool `json:"supersede_previous,omitempty"`
 }
 
 // ServiceResponse defines model for ServiceResponse.

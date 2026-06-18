@@ -45,6 +45,20 @@ func TestCommandRun_RegistersAndConfirms(t *testing.T) {
 	assert.Contains(t, out.String(), "зарегистрировано зависимостей — 1")
 }
 
+func TestCommandRun_PruneSetsSupersede(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	registrar := NewMockDependencyRegistrar(ctrl)
+	registrar.EXPECT().
+		Execute(gomock.Any(), usecases.RegisterDependencyInput{VersionID: "ver-1", ManifestPath: "protocols.toml", SupersedePrevious: true}).
+		Return(&usecases.RegisterDependenciesResult{}, nil)
+
+	var out, errOut bytes.Buffer
+	err := rootWith(registrar, &out, &errOut).Run(context.Background(),
+		[]string{"paas-cli", "dependencies", "register", "--prune", "ver-1"})
+
+	require.NoError(t, err)
+}
+
 func TestCommandRun_RequiresOneArg(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	registrar := NewMockDependencyRegistrar(ctrl)

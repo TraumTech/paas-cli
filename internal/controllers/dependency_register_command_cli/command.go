@@ -11,6 +11,8 @@ import (
 
 const manifestFlag = "manifest"
 
+const pruneFlag = "prune"
+
 // defaultManifestPath — манифест по умолчанию ищется в корне репозитория.
 const defaultManifestPath = "protocols.toml"
 
@@ -37,6 +39,10 @@ func (c *Command) CLICommand() *cli.Command {
 				Value:   defaultManifestPath,
 				Usage:   "путь к манифесту зависимостей с секцией [service]",
 			},
+			&cli.BoolFlag{
+				Name:  pruneFlag,
+				Usage: "заместить зарегистрированными зависимости прошлых версий этого потребителя (оставить только эту версию)",
+			},
 		},
 		Action: c.run,
 	}
@@ -48,8 +54,9 @@ func (c *Command) run(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	result, err := c.registrar.Execute(ctx, usecases.RegisterDependencyInput{
-		VersionID:    cmd.Args().Get(0),
-		ManifestPath: cmd.String(manifestFlag),
+		VersionID:         cmd.Args().Get(0),
+		ManifestPath:      cmd.String(manifestFlag),
+		SupersedePrevious: cmd.Bool(pruneFlag),
 	})
 	if err != nil {
 		return err

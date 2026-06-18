@@ -27,7 +27,7 @@ func New(baseURL string, httpClient *http.Client) (*Source, error) {
 	return &Source{client: client}, nil
 }
 
-func (s *Source) RegisterDependency(ctx context.Context, serviceID, versionID, producerServiceID string, document []byte) (*entities.Dependency, error) {
+func (s *Source) RegisterDependency(ctx context.Context, serviceID, versionID, producerServiceID string, document []byte, supersedePrevious bool) (*entities.Dependency, error) {
 	id, err := uuid.Parse(serviceID)
 	if err != nil {
 		return nil, fmt.Errorf("неверный id сервиса %q: %w", serviceID, err)
@@ -46,9 +46,15 @@ func (s *Source) RegisterDependency(ctx context.Context, serviceID, versionID, p
 		return nil, fmt.Errorf("снимок контракта не разобран как JSON: %w", err)
 	}
 
+	// nil, когда не замещаем, — поле опускается; платформа трактует отсутствие как false.
+	var supersede *bool
+	if supersedePrevious {
+		supersede = &supersedePrevious
+	}
 	resp, err := s.client.RegisterProtocolDependencyWithResponse(ctx, id, versionUUID, platformapi.RegisterProtocolDependencyJSONRequestBody{
 		ProducerServiceId: producerUUID,
 		Document:          doc,
+		SupersedePrevious: supersede,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("платформа недоступна: %w", err)
