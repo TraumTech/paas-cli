@@ -63,13 +63,13 @@ func TestCommandRun_PartialPassesMethods(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	fetch := NewMockProtocolFetcher(ctrl)
 	fetch.EXPECT().
-		Execute(gomock.Any(), usecases.FetchProtocolInput{ServiceID: "svc-1", Destination: "protocols", Methods: []string{"op-a", "op-b"}}).
+		Execute(gomock.Any(), usecases.FetchProtocolInput{ServiceID: "svc-1", Destination: "protocols", Methods: []string{"GET /a", "POST /b"}}).
 		Return(&usecases.FetchProtocolResult{ServiceName: "payments", Path: "protocols/payments/openapi.json"}, nil)
 
 	var out bytes.Buffer
 	root := rootWith(fetch, &out)
 	err := root.Run(context.Background(),
-		[]string{"paas-cli", "protocols", "fetch", "svc-1", "--method", "op-a", "--method", "op-b"})
+		[]string{"paas-cli", "protocols", "fetch", "svc-1", "--method", "GET /a", "--method", "POST /b"})
 
 	require.NoError(t, err)
 	assert.Contains(t, out.String(), "частичный")

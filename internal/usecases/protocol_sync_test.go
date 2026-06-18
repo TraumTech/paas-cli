@@ -53,7 +53,7 @@ func TestSyncProtocolsExecute_PartialPerDependency(t *testing.T) {
 
 	manifests.EXPECT().Read(gomock.Any(), gomock.Any()).Return(&entities.Manifest{
 		Service:      &entities.ManifestService{Name: "frontend"},
-		Dependencies: []entities.ManifestDependency{{Name: "billing", Methods: []string{"op-a"}}},
+		Dependencies: []entities.ManifestDependency{{Name: "billing", Methods: []string{"GET /a"}}},
 	}, nil)
 	resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"billing"}).
 		Return(map[string]string{"billing": "id-billing"}, nil)

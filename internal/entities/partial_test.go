@@ -51,7 +51,7 @@ func parse(t *testing.T, doc []byte) map[string]any {
 func TestSelectMethods_KeepsOnlySelectedOperations(t *testing.T) {
 	p := &Protocol{ServiceName: "shop", Document: []byte(contract)}
 
-	got, err := p.SelectMethods([]string{"create-order"})
+	got, err := p.SelectMethods([]string{"POST /orders"})
 	require.NoError(t, err)
 
 	m := parse(t, got.Document)
@@ -64,10 +64,20 @@ func TestSelectMethods_KeepsOnlySelectedOperations(t *testing.T) {
 	assert.NotContains(t, orders, "get", "невыбранная операция того же пути выкидывается")
 }
 
+func TestSelectMethods_MatchesMethodCaseInsensitively(t *testing.T) {
+	p := &Protocol{ServiceName: "shop", Document: []byte(contract)}
+
+	got, err := p.SelectMethods([]string{"post /orders"})
+	require.NoError(t, err)
+
+	orders := parse(t, got.Document)["paths"].(map[string]any)["/orders"].(map[string]any)
+	assert.Contains(t, orders, "post", "метод сопоставляется без учёта регистра")
+}
+
 func TestSelectMethods_KeepsTransitivelyReferencedSchemas(t *testing.T) {
 	p := &Protocol{ServiceName: "shop", Document: []byte(contract)}
 
-	got, err := p.SelectMethods([]string{"create-order"})
+	got, err := p.SelectMethods([]string{"POST /orders"})
 	require.NoError(t, err)
 
 	schemas := parse(t, got.Document)["components"].(map[string]any)["schemas"].(map[string]any)
@@ -79,7 +89,7 @@ func TestSelectMethods_KeepsTransitivelyReferencedSchemas(t *testing.T) {
 func TestSelectMethods_ResultStaysValidContract(t *testing.T) {
 	p := &Protocol{ServiceName: "shop", Document: []byte(contract)}
 
-	got, err := p.SelectMethods([]string{"list-orders"})
+	got, err := p.SelectMethods([]string{"GET /orders"})
 	require.NoError(t, err)
 	assert.NoError(t, got.Validate())
 }
@@ -87,9 +97,9 @@ func TestSelectMethods_ResultStaysValidContract(t *testing.T) {
 func TestSelectMethods_Reproducible(t *testing.T) {
 	p := &Protocol{ServiceName: "shop", Document: []byte(contract)}
 
-	first, err := p.SelectMethods([]string{"create-order", "list-orders"})
+	first, err := p.SelectMethods([]string{"POST /orders", "GET /orders"})
 	require.NoError(t, err)
-	second, err := p.SelectMethods([]string{"list-orders", "create-order"})
+	second, err := p.SelectMethods([]string{"GET /orders", "POST /orders"})
 	require.NoError(t, err)
 
 	assert.Equal(t, string(first.Document), string(second.Document),
@@ -99,11 +109,11 @@ func TestSelectMethods_Reproducible(t *testing.T) {
 func TestSelectMethods_UnknownMethod_Errors(t *testing.T) {
 	p := &Protocol{ServiceName: "shop", Document: []byte(contract)}
 
-	_, err := p.SelectMethods([]string{"create-order", "delete-order"})
+	_, err := p.SelectMethods([]string{"POST /orders", "DELETE /orders"})
 
 	var unknown *UnknownMethodsError
 	require.ErrorAs(t, err, &unknown)
-	assert.Equal(t, []string{"delete-order"}, unknown.Methods)
+	assert.Equal(t, []string{"DELETE /orders"}, unknown.Methods)
 }
 
 func TestSelectMethods_Empty_Errors(t *testing.T) {
@@ -116,7 +126,7 @@ func TestSelectMethods_Empty_Errors(t *testing.T) {
 func TestSelectMethods_DropsComponentsWhenNothingReferenced(t *testing.T) {
 	p := &Protocol{ServiceName: "shop", Document: []byte(contract)}
 
-	got, err := p.SelectMethods([]string{"list-orders"})
+	got, err := p.SelectMethods([]string{"GET /orders"})
 	require.NoError(t, err)
 	assert.NotContains(t, parse(t, got.Document), "components",
 		"если срез ни на что не ссылается, components исчезает целиком")
@@ -130,7 +140,7 @@ func TestSelectMethods_KeepsSecuritySchemesByName(t *testing.T) {
     }`
 	p := &Protocol{ServiceName: "s", Document: []byte(secured)}
 
-	got, err := p.SelectMethods([]string{"op"})
+	got, err := p.SelectMethods([]string{"GET /p"})
 	require.NoError(t, err)
 
 	schemes := parse(t, got.Document)["components"].(map[string]any)["securitySchemes"].(map[string]any)

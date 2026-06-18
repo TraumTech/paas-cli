@@ -56,14 +56,16 @@ paas-cli --destination vendor/api protocols fetch <service-id>   # → vendor/ap
 
 #### Частичный контракт
 
-Если из контракта нужны лишь отдельные методы, перечисли их operationId флагом
-`--method`/`-m` (повторяемый или через запятую) — CLI обрежет контракт до этих
-операций. Каждая оставленная операция сохраняется целиком, а определения, на
-которые срез больше не ссылается, отбрасываются: результат самодостаточен и меньше:
+Если из контракта нужны лишь отдельные методы, перечисли их по HTTP-паттерну
+(`МЕТОД /путь`) флагом `--method`/`-m` (повторяемый или через запятую) — CLI обрежет
+контракт до этих операций. Метод сопоставляется без учёта регистра, путь — как в
+контракте (вместе с шаблонными параметрами `{id}`). Каждая оставленная операция
+сохраняется целиком, а определения, на которые срез больше не ссылается,
+отбрасываются: результат самодостаточен и меньше:
 
 ```sh
-paas-cli protocols fetch <service-id> -m create-order -m list-orders
-paas-cli protocols fetch <service-id> --method create-order,list-orders
+paas-cli protocols fetch <service-id> -m "GET /services" -m "GET /services/{id}"
+paas-cli protocols fetch <service-id> --method "GET /services,DELETE /services/{id}"
 ```
 
 Если указан несуществующий метод, команда сообщает, какой именно не найден, и
@@ -107,7 +109,7 @@ name = "paas-backend"
 
 [[dependencies]]
 name = "billing"
-methods = ["create-invoice", "list-invoices"]   # необязательный частичный контракт
+methods = ["POST /invoices", "GET /invoices"]   # необязательный частичный контракт (по HTTP-паттерну)
 ```
 
 ```sh

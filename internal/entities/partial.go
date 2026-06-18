@@ -15,17 +15,21 @@ var httpMethods = map[string]bool{
 }
 
 // SelectMethods возвращает частичный контракт — копию, в которой остались только
-// операции с перечисленными operationId. Каждая оставленная операция сохраняется
-// целиком, а определения (`components`), на которые из неё больше никто не
-// ссылается, отбрасываются — срез самодостаточен и при этом меньше исходного.
+// операции с перечисленными HTTP-паттернами (метод + путь, например
+// "DELETE /services/{id}"). Каждая оставленная операция сохраняется целиком, а
+// определения (`components`), на которые из неё больше никто не ссылается,
+// отбрасываются — срез самодостаточен и при этом меньше исходного.
 //
-// Если запрошен метод, которого в контракте нет, возвращается *UnknownMethodsError
-// со списком ненайденных — частичный/пустой результат наружу не отдаётся.
+// Метод сопоставляется без учёта регистра, путь — как записан в контракте (вместе
+// с шаблонными параметрами `{id}`). Если запрошен паттерн, которого в контракте
+// нет, возвращается *UnknownMethodsError со списком ненайденных — частичный/пустой
+// результат наружу не отдаётся.
 func (p *Protocol) SelectMethods(methods []string) (*Protocol, error) {
-	want := make(map[string]bool, len(methods))
+	// want: канонический ключ "метод путь" → исходный паттерн (для текста ошибки).
+	want := make(map[string]string, len(methods))
 	for _, m := range methods {
-		if m = strings.TrimSpace(m); m != "" {
-			want[m] = true
+		if key, original, ok := canonicalMethodKey(m); ok {
+			want[key] = original
 		}
 	}
 	if len(want) == 0 {
@@ -50,16 +54,13 @@ func (p *Protocol) SelectMethods(methods []string) (*Protocol, error) {
 		}
 		keptOps := make(map[string]any)
 		for key, val := range item {
-			if !httpMethods[strings.ToLower(key)] {
+			method := strings.ToLower(key)
+			if !httpMethods[method] {
 				continue
 			}
-			op, ok := val.(map[string]any)
-			if !ok {
-				continue
-			}
-			if id, _ := op["operationId"].(string); id != "" && want[id] {
+			if _, ok := want[method+" "+path]; ok {
 				keptOps[key] = val
-				found[id] = true
+				found[method+" "+path] = true
 			}
 		}
 		if len(keptOps) == 0 {
@@ -74,9 +75,9 @@ func (p *Protocol) SelectMethods(methods []string) (*Protocol, error) {
 	}
 
 	var missing []string
-	for id := range want {
-		if !found[id] {
-			missing = append(missing, id)
+	for key, original := range want {
+		if !found[key] {
+			missing = append(missing, original)
 		}
 	}
 	if len(missing) > 0 {
@@ -95,6 +96,25 @@ func (p *Protocol) SelectMethods(methods []string) (*Protocol, error) {
 	selected := *p
 	selected.Document = document
 	return &selected, nil
+}
+
+// canonicalMethodKey разбирает HTTP-паттерн "МЕТОД /путь" в канонический ключ
+// "метод путь" с методом в нижнем регистре. Для пустой строки возвращает ok=false.
+// Непустой, но неразбираемый паттерн отдаётся ключом как есть: он не совпадёт ни с
+// одной операцией и будет сообщён пользователю как ненайденный, а не молча отброшен.
+func canonicalMethodKey(spec string) (key, original string, ok bool) {
+	spec = strings.TrimSpace(spec)
+	if spec == "" {
+		return "", "", false
+	}
+	if method, path, found := strings.Cut(spec, " "); found {
+		method = strings.ToLower(strings.TrimSpace(method))
+		path = strings.TrimSpace(path)
+		if httpMethods[method] && path != "" {
+			return method + " " + path, spec, true
+		}
+	}
+	return spec, spec, true
 }
 
 // pruneComponents выкидывает из doc["components"] всё, на что из оставшихся путей

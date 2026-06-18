@@ -28,7 +28,7 @@ name = "paas-backend"
 
 [[dependencies]]
 name = "billing"
-methods = ["op-a", "op-b"]
+methods = ["GET /a", "POST /b"]
 `)
 
 	got, err := manifestreaderfile.New().Read(context.Background(), path)
@@ -38,7 +38,7 @@ methods = ["op-a", "op-b"]
 	assert.Equal(t, "paas-backend", got.Dependencies[0].Name)
 	assert.Empty(t, got.Dependencies[0].Methods)
 	assert.Equal(t, "billing", got.Dependencies[1].Name)
-	assert.Equal(t, []string{"op-a", "op-b"}, got.Dependencies[1].Methods)
+	assert.Equal(t, []string{"GET /a", "POST /b"}, got.Dependencies[1].Methods)
 }
 
 func TestRead_Service(t *testing.T) {

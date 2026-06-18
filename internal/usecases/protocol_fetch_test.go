@@ -33,7 +33,7 @@ func TestFetchProtocolExecute_PartialSavesSelectedSubset(t *testing.T) {
 		})
 
 	_, err := NewFetchProtocol(source, store).Execute(context.Background(),
-		FetchProtocolInput{ServiceID: "svc", Destination: "protocols", Methods: []string{"op-a"}})
+		FetchProtocolInput{ServiceID: "svc", Destination: "protocols", Methods: []string{"GET /a"}})
 	require.NoError(t, err)
 }
 
@@ -47,7 +47,7 @@ func TestFetchProtocolExecute_UnknownMethod_NoSave(t *testing.T) {
 	// store.Save не вызывается — несуществующий метод не даёт записать неполный срез.
 
 	_, err := NewFetchProtocol(source, store).Execute(context.Background(),
-		FetchProtocolInput{ServiceID: "svc", Destination: "protocols", Methods: []string{"op-x"}})
+		FetchProtocolInput{ServiceID: "svc", Destination: "protocols", Methods: []string{"GET /x"}})
 
 	var unknown *entities.UnknownMethodsError
 	assert.ErrorAs(t, err, &unknown)
