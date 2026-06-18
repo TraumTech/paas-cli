@@ -11,6 +11,11 @@ import (
 	"github.com/TraumTech/paas-cli/internal/usecases"
 )
 
+const manifestFlag = "manifest"
+
+// defaultManifestPath — манифест по умолчанию ищется в корне репозитория владельца.
+const defaultManifestPath = "protocols.toml"
+
 type Command struct {
 	publisher ProtocolPublisher
 }
@@ -19,25 +24,34 @@ func New(publisher ProtocolPublisher) *Command {
 	return &Command{publisher: publisher}
 }
 
-// CLICommand описывает подкоманду `publish` для urfave/cli.
+// CLICommand описывает подкоманду `publish` для urfave/cli. Имя сервиса и путь к его
+// контракту берутся из манифеста (секция [service]); аргументом приходит только
+// эфемерная версия, под которой публикуется протокол.
 func (c *Command) CLICommand() *cli.Command {
 	return &cli.Command{
 		Name:      "publish",
-		Usage:     "опубликовать протокол сервиса под версией (контракт берётся из локального файла)",
-		ArgsUsage: "<service-id> <version-id> <contract-file>",
-		Action:    c.run,
+		Usage:     "опубликовать протокол сервиса под версией (сервис и контракт — из манифеста)",
+		ArgsUsage: "<version-id>",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:    manifestFlag,
+				Aliases: []string{"f"},
+				Value:   defaultManifestPath,
+				Usage:   "путь к манифесту с секцией [service] (имя сервиса и его контракт)",
+			},
+		},
+		Action: c.run,
 	}
 }
 
 func (c *Command) run(ctx context.Context, cmd *cli.Command) error {
-	if cmd.Args().Len() != 3 {
-		return fmt.Errorf("нужно указать <service-id>, <version-id> и путь к файлу контракта")
+	if cmd.Args().Len() != 1 {
+		return fmt.Errorf("нужно указать <version-id> (имя сервиса и контракт берутся из манифеста)")
 	}
 
 	publication, err := c.publisher.Execute(ctx, usecases.PublishProtocolInput{
-		ServiceID:    cmd.Args().Get(0),
-		VersionID:    cmd.Args().Get(1),
-		ContractPath: cmd.Args().Get(2),
+		VersionID:    cmd.Args().Get(0),
+		ManifestPath: cmd.String(manifestFlag),
 	})
 	if err != nil {
 		return err

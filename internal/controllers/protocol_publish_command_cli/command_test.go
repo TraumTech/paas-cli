@@ -28,14 +28,14 @@ func rootWith(publisher ProtocolPublisher, out *bytes.Buffer) *cli.Command {
 func run(t *testing.T, publisher ProtocolPublisher, out *bytes.Buffer) error {
 	t.Helper()
 	return rootWith(publisher, out).Run(context.Background(),
-		[]string{"paas-cli", "protocols", "publish", "svc", "ver", "openapi.json"})
+		[]string{"paas-cli", "protocols", "publish", "ver"})
 }
 
 func TestCommandRun_PublishesAndShowsCompatibility(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	publisher := NewMockProtocolPublisher(ctrl)
 	publisher.EXPECT().
-		Execute(gomock.Any(), usecases.PublishProtocolInput{ServiceID: "svc", VersionID: "ver", ContractPath: "openapi.json"}).
+		Execute(gomock.Any(), usecases.PublishProtocolInput{VersionID: "ver", ManifestPath: "protocols.toml"}).
 		Return(&entities.ProtocolPublication{VersionNumber: 7, Breaking: false, Consumers: []entities.ConsumerCompatibility{
 			{ServiceName: "frontend", VersionNumber: 5, Comparable: true, Changes: []entities.CompatibilityChange{
 				{Kind: "operation-added", Operation: "GET /y", Description: "новый эндпоинт"},
@@ -79,12 +79,12 @@ func TestCommandRun_BreakingStillSucceeds(t *testing.T) {
 	assert.Contains(t, out.String(), "ломает часть потребителей")
 }
 
-func TestCommandRun_RequiresThreeArgs(t *testing.T) {
+func TestCommandRun_RequiresOneArg(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	publisher := NewMockProtocolPublisher(ctrl)
 	// Execute не вызывается — аргументы не прошли разбор.
 
-	for _, extra := range [][]string{{}, {"svc"}, {"svc", "ver"}, {"svc", "ver", "a", "b"}} {
+	for _, extra := range [][]string{{}, {"ver", "extra"}} {
 		root := rootWith(publisher, &bytes.Buffer{})
 		args := append([]string{"paas-cli", "protocols", "publish"}, extra...)
 		assert.Error(t, root.Run(context.Background(), args))

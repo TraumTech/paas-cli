@@ -41,6 +41,36 @@ methods = ["op-a", "op-b"]
 	assert.Equal(t, []string{"op-a", "op-b"}, got.Dependencies[1].Methods)
 }
 
+func TestRead_Service(t *testing.T) {
+	path := writeManifest(t, `
+[service]
+name = "paas-backend"
+contract = "api/openapi.json"
+
+[[dependencies]]
+name = "billing"
+`)
+
+	got, err := manifestreaderfile.New().Read(context.Background(), path)
+	require.NoError(t, err)
+	require.NotNil(t, got.Service)
+	assert.Equal(t, "paas-backend", got.Service.Name)
+	assert.Equal(t, "api/openapi.json", got.Service.Contract)
+}
+
+// Reader только разбирает TOML и не валидирует: файл без [service] читается с
+// Service == nil, а обязательность секции проверяет Manifest.Validate.
+func TestRead_NoServiceParsesNil(t *testing.T) {
+	path := writeManifest(t, `
+[[dependencies]]
+name = "paas-backend"
+`)
+
+	got, err := manifestreaderfile.New().Read(context.Background(), path)
+	require.NoError(t, err)
+	assert.Nil(t, got.Service)
+}
+
 func TestRead_DestinationOptional(t *testing.T) {
 	path := writeManifest(t, `
 [[dependencies]]

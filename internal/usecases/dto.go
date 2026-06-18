@@ -38,10 +38,12 @@ type CheckCompatibilityInput struct {
 }
 
 type PublishProtocolInput struct {
-	ServiceID string
+	// VersionID — версия, под которой публикуется протокол. Приходит аргументом, а
+	// не из манифеста: версия эфемерна, привязана к конкретной выкатке.
 	VersionID string
-	// ContractPath — путь к файлу контракта в репозитории владельца сервиса.
-	ContractPath string
+	// ManifestPath — манифест репозитория-владельца; из него берём имя текущего
+	// сервиса и путь к его собственному контракту.
+	ManifestPath string
 }
 
 type PublishVersionInput struct {

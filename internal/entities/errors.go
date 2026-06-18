@@ -27,6 +27,10 @@ var (
 
 	ErrManifestNoDependencies   = newDomainError("в манифесте не объявлено ни одной зависимости")
 	ErrManifestDependencyNoName = newDomainError("у зависимости в манифесте не указано имя сервиса")
+
+	ErrManifestNoService         = newDomainError("манифест не объявляет текущий сервис: добавьте секцию [service] с именем сервиса (name)")
+	ErrManifestServiceNoName     = newDomainError("в секции [service] манифеста не указано имя сервиса (name)")
+	ErrManifestServiceNoContract = newDomainError("в секции [service] манифеста не указан путь к контракту (contract)")
 )
 
 // UnknownMethodsError сообщает, какие именно запрошенные методы не нашлись в

@@ -20,6 +20,7 @@ func TestSyncProtocolsExecute_FetchesAllDependencies(t *testing.T) {
 	store := NewMockProtocolStore(ctrl)
 
 	manifests.EXPECT().Read(gomock.Any(), "protocols.toml").Return(&entities.Manifest{
+		Service:      &entities.ManifestService{Name: "frontend"},
 		Dependencies: []entities.ManifestDependency{{Name: "paas-backend"}, {Name: "billing"}},
 	}, nil)
 
@@ -51,6 +52,7 @@ func TestSyncProtocolsExecute_PartialPerDependency(t *testing.T) {
 	store := NewMockProtocolStore(ctrl)
 
 	manifests.EXPECT().Read(gomock.Any(), gomock.Any()).Return(&entities.Manifest{
+		Service:      &entities.ManifestService{Name: "frontend"},
 		Dependencies: []entities.ManifestDependency{{Name: "billing", Methods: []string{"op-a"}}},
 	}, nil)
 	resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"billing"}).
@@ -77,6 +79,7 @@ func TestSyncProtocolsExecute_DestinationFromManifest(t *testing.T) {
 	store := NewMockProtocolStore(ctrl)
 
 	manifests.EXPECT().Read(gomock.Any(), gomock.Any()).Return(&entities.Manifest{
+		Service:      &entities.ManifestService{Name: "frontend"},
 		Destination:  "vendor/api",
 		Dependencies: []entities.ManifestDependency{{Name: "billing"}},
 	}, nil)
@@ -100,6 +103,7 @@ func TestSyncProtocolsExecute_OverrideBeatsManifest(t *testing.T) {
 	store := NewMockProtocolStore(ctrl)
 
 	manifests.EXPECT().Read(gomock.Any(), gomock.Any()).Return(&entities.Manifest{
+		Service:      &entities.ManifestService{Name: "frontend"},
 		Destination:  "vendor/api",
 		Dependencies: []entities.ManifestDependency{{Name: "billing"}},
 	}, nil)
@@ -127,7 +131,7 @@ func TestSyncProtocolsExecute_InvalidManifest_NoFetch(t *testing.T) {
 
 	_, err := NewSyncProtocols(manifests, resolver, source, store).
 		Execute(context.Background(), SyncProtocolsInput{ManifestPath: "protocols.toml"})
-	assert.ErrorIs(t, err, entities.ErrManifestNoDependencies)
+	assert.ErrorIs(t, err, entities.ErrManifestNoService)
 }
 
 func TestSyncProtocolsExecute_UnknownService_Aborts(t *testing.T) {
@@ -138,6 +142,7 @@ func TestSyncProtocolsExecute_UnknownService_Aborts(t *testing.T) {
 	store := NewMockProtocolStore(ctrl)
 
 	manifests.EXPECT().Read(gomock.Any(), gomock.Any()).Return(&entities.Manifest{
+		Service:      &entities.ManifestService{Name: "frontend"},
 		Dependencies: []entities.ManifestDependency{{Name: "ghost"}, {Name: "billing"}},
 	}, nil)
 	// платформа не вернула "ghost" — его нет в карте; прогон валится на первой

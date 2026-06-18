@@ -72,7 +72,7 @@ func Run(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	publish := protocolpublishcommandcli.New(usecases.NewPublishProtocol(candidates, publishSource))
+	publish := protocolpublishcommandcli.New(usecases.NewPublishProtocol(manifests, resolver, candidates, publishSource))
 
 	registrar, err := dependencyregistrarhttp.New(baseURL, &http.Client{Timeout: httpTimeout})
 	if err != nil {
