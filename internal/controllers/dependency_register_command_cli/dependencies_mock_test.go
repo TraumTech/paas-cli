@@ -13,7 +13,6 @@ import (
 	context "context"
 	reflect "reflect"
 
-	entities "github.com/TraumTech/paas-cli/internal/entities"
 	usecases "github.com/TraumTech/paas-cli/internal/usecases"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -43,10 +42,10 @@ func (m *MockDependencyRegistrar) EXPECT() *MockDependencyRegistrarMockRecorder 
 }
 
 // Execute mocks base method.
-func (m *MockDependencyRegistrar) Execute(ctx context.Context, in usecases.RegisterDependencyInput) (*entities.Dependency, error) {
+func (m *MockDependencyRegistrar) Execute(ctx context.Context, in usecases.RegisterDependencyInput) (*usecases.RegisterDependenciesResult, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Execute", ctx, in)
-	ret0, _ := ret[0].(*entities.Dependency)
+	ret0, _ := ret[0].(*usecases.RegisterDependenciesResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

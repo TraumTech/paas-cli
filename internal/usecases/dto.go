@@ -54,13 +54,20 @@ type PublishVersionInput struct {
 }
 
 type RegisterDependencyInput struct {
-	// VersionID — версия потребителя, для которой регистрируется зависимость.
+	// VersionID — версия потребителя, для которой регистрируется состав зависимостей.
 	VersionID string
-	// ProducerServiceID — сервис-продьюсер, на контракте которого собрана версия.
-	ProducerServiceID string
-	// ContractPath — путь к файлу контракта продьюсера в репозитории потребителя:
-	// снимок, на котором собрана эта версия.
-	ContractPath string
-	// ManifestPath — манифест, из которого берём имя текущего сервиса (потребителя).
+	// ManifestPath — манифест потребителя: из него берём имя своего сервиса и весь
+	// состав зависимостей (продьюсеры по имени), а снимки — из его раскладки контрактов.
 	ManifestPath string
+}
+
+// RegisterDependenciesResult — итог массовой регистрации: по каждой зарегистрированной
+// зависимости — продьюсер, чтобы отчитаться пользователю.
+type RegisterDependenciesResult struct {
+	Registered []RegisteredDependency
+}
+
+type RegisteredDependency struct {
+	ProducerName      string
+	ProducerServiceID string
 }

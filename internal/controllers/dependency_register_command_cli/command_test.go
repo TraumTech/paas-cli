@@ -31,25 +31,26 @@ func TestCommandRun_RegistersAndConfirms(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	registrar := NewMockDependencyRegistrar(ctrl)
 	registrar.EXPECT().
-		Execute(gomock.Any(), usecases.RegisterDependencyInput{
-			VersionID: "ver-1", ProducerServiceID: "prod", ContractPath: "contract.json", ManifestPath: "protocols.toml",
-		}).
-		Return(&entities.Dependency{ConsumerVersionID: "ver-1", ProducerServiceID: "prod"}, nil)
+		Execute(gomock.Any(), usecases.RegisterDependencyInput{VersionID: "ver-1", ManifestPath: "protocols.toml"}).
+		Return(&usecases.RegisterDependenciesResult{Registered: []usecases.RegisteredDependency{
+			{ProducerName: "paas-backend", ProducerServiceID: "prod"},
+		}}, nil)
 
 	var out, errOut bytes.Buffer
 	err := rootWith(registrar, &out, &errOut).Run(context.Background(),
-		[]string{"paas-cli", "dependencies", "register", "ver-1", "prod", "contract.json"})
+		[]string{"paas-cli", "dependencies", "register", "ver-1"})
 
 	require.NoError(t, err)
-	assert.Contains(t, out.String(), "Зависимость версии от контракта продьюсера prod зарегистрирована")
+	assert.Contains(t, out.String(), "Зависимость от paas-backend (prod) зарегистрирована")
+	assert.Contains(t, out.String(), "зарегистрировано зависимостей — 1")
 }
 
-func TestCommandRun_RequiresThreeArgs(t *testing.T) {
+func TestCommandRun_RequiresOneArg(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	registrar := NewMockDependencyRegistrar(ctrl)
 	// Execute не вызывается — аргументы не прошли разбор.
 
-	for _, extra := range [][]string{{}, {"ver"}, {"ver", "prod"}, {"ver", "prod", "c.json", "extra"}} {
+	for _, extra := range [][]string{{}, {"ver", "extra"}} {
 		args := append([]string{"paas-cli", "dependencies", "register"}, extra...)
 		err := rootWith(registrar, &bytes.Buffer{}, &bytes.Buffer{}).Run(context.Background(), args)
 		assert.Error(t, err)
@@ -63,7 +64,7 @@ func TestCommandRun_PropagatesUseCaseError(t *testing.T) {
 
 	var out bytes.Buffer
 	err := rootWith(registrar, &out, &bytes.Buffer{}).Run(context.Background(),
-		[]string{"paas-cli", "dependencies", "register", "ver-1", "prod", "contract.json"})
+		[]string{"paas-cli", "dependencies", "register", "ver-1"})
 
 	assert.ErrorIs(t, err, entities.ErrServiceNotFound)
 	assert.Empty(t, strings.TrimSpace(out.String()))

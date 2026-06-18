@@ -177,8 +177,9 @@ contract = "openapi.json"
 }
 
 // TestRun_RegisterDependency — сквозной тест команды потребителя: PAAS_API_URL
-// указывает на фейковую платформу, команда берёт снимок контракта из локального
-// файла и регистрирует зависимость версии от контракта продьюсера.
+// указывает на фейковую платформу, команда читает состав зависимостей из манифеста,
+// резолвит потребителя и продьюсера по имени, берёт снимок продьюсера из раскладки и
+// регистрирует зависимость версии.
 func TestRun_RegisterDependency(t *testing.T) {
 	const (
 		verID  = "019ec073-3da6-705b-b19e-bbcca5665700"
@@ -187,8 +188,7 @@ func TestRun_RegisterDependency(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/services" && r.Method == http.MethodGet:
-			assert.Equal(t, "payments", r.URL.Query().Get("name"))
-			writeJSON(w, `[{"id":"`+svcID+`","name":"payments"}]`)
+			writeJSON(w, `[{"id":"`+svcID+`","name":"payments"},{"id":"`+prodID+`","name":"paas-backend"}]`)
 		case r.URL.Path == "/services/"+svcID+"/versions/"+verID+"/dependencies" && r.Method == http.MethodPut:
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
@@ -201,14 +201,17 @@ func TestRun_RegisterDependency(t *testing.T) {
 	defer srv.Close()
 
 	dir := t.TempDir()
-	contract := filepath.Join(dir, "openapi.json")
-	require.NoError(t, os.WriteFile(contract, []byte(`{"openapi":"3.1.0","paths":{"/x":{}}}`), 0o644))
+	dest := filepath.Join(dir, "protocols")
+	require.NoError(t, os.MkdirAll(filepath.Join(dest, "paas-backend"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dest, "paas-backend", "openapi.json"),
+		[]byte(`{"openapi":"3.1.0","paths":{"/x":{}}}`), 0o644))
 	manifest := filepath.Join(dir, "protocols.toml")
-	require.NoError(t, os.WriteFile(manifest, []byte("[service]\nname = \"payments\"\n"), 0o644))
+	require.NoError(t, os.WriteFile(manifest,
+		[]byte("destination = \""+dest+"\"\n\n[service]\nname = \"payments\"\n\n[[dependencies]]\nname = \"paas-backend\"\n"), 0o644))
 
 	t.Setenv("PAAS_API_URL", srv.URL)
 	require.NoError(t, app.Run(context.Background(),
-		[]string{"paas-cli", "dependencies", "register", "--manifest", manifest, verID, prodID, contract}))
+		[]string{"paas-cli", "dependencies", "register", "--manifest", manifest, verID}))
 }
 
 func TestRun_FetchNotPublished(t *testing.T) {

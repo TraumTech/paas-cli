@@ -22,20 +22,20 @@ func New(registrar DependencyRegistrar) *Command {
 	return &Command{registrar: registrar}
 }
 
-// CLICommand описывает подкоманду `register` для urfave/cli. Имя своего сервиса
-// (потребителя) берётся из манифеста (секция [service]); аргументами приходят данные
-// конкретной зависимости — версия, продьюсер и снимок его контракта.
+// CLICommand описывает подкоманду `register` для urfave/cli. Весь состав зависимостей
+// и имя своего сервиса (потребителя) берутся из манифеста; продьюсеры резолвятся по
+// имени, снимки — из раскладки контрактов. Аргументом приходит только версия.
 func (c *Command) CLICommand() *cli.Command {
 	return &cli.Command{
 		Name:      "register",
-		Usage:     "зарегистрировать зависимость версии от контракта продьюсера (потребитель — из манифеста, снимок — из локального файла)",
-		ArgsUsage: "<version-id> <producer-service-id> <contract-file>",
+		Usage:     "зарегистрировать зависимости версии от контрактов продьюсеров, объявленных в манифесте",
+		ArgsUsage: "<version-id>",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:    manifestFlag,
 				Aliases: []string{"f"},
 				Value:   defaultManifestPath,
-				Usage:   "путь к манифесту с секцией [service] (имя сервиса-потребителя)",
+				Usage:   "путь к манифесту зависимостей с секцией [service]",
 			},
 		},
 		Action: c.run,
@@ -43,21 +43,22 @@ func (c *Command) CLICommand() *cli.Command {
 }
 
 func (c *Command) run(ctx context.Context, cmd *cli.Command) error {
-	if cmd.Args().Len() != 3 {
-		return fmt.Errorf("нужно указать <version-id>, <producer-service-id> и путь к файлу контракта (имя сервиса берётся из манифеста)")
+	if cmd.Args().Len() != 1 {
+		return fmt.Errorf("нужно указать <version-id> (состав зависимостей берётся из манифеста)")
 	}
 
-	dependency, err := c.registrar.Execute(ctx, usecases.RegisterDependencyInput{
-		VersionID:         cmd.Args().Get(0),
-		ProducerServiceID: cmd.Args().Get(1),
-		ContractPath:      cmd.Args().Get(2),
-		ManifestPath:      cmd.String(manifestFlag),
+	result, err := c.registrar.Execute(ctx, usecases.RegisterDependencyInput{
+		VersionID:    cmd.Args().Get(0),
+		ManifestPath: cmd.String(manifestFlag),
 	})
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprintf(cmd.Root().Writer, "✓ Зависимость версии от контракта продьюсера %s зарегистрирована.\n",
-		dependency.ProducerServiceID)
+	for _, dep := range result.Registered {
+		fmt.Fprintf(cmd.Root().Writer, "✓ Зависимость от %s (%s) зарегистрирована.\n",
+			dep.ProducerName, dep.ProducerServiceID)
+	}
+	fmt.Fprintf(cmd.Root().Writer, "Готово: зарегистрировано зависимостей — %d.\n", len(result.Registered))
 	return nil
 }

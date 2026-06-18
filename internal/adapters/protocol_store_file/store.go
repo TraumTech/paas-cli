@@ -11,9 +11,6 @@ import (
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
-// protocolFileName — имя файла контракта внутри директории сервиса.
-const protocolFileName = "openapi.json"
-
 // Store пишет контракт в <destDir>/<service-name>/openapi.json атомарно: сначала
 // во временный файл рядом с целью, затем rename. Если запись падает — ранее
 // полученный рабочий контракт остаётся нетронутым.
@@ -31,7 +28,7 @@ func (s *Store) Save(_ context.Context, protocol *entities.Protocol, destDir str
 	pretty.WriteByte('\n')
 
 	dir := filepath.Join(destDir, protocol.ServiceName)
-	destPath := filepath.Join(dir, protocolFileName)
+	destPath := filepath.Join(dir, entities.ProtocolFileName)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("создание каталога %s: %w", dir, err)
 	}
