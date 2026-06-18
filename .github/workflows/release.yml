@@ -51,7 +51,7 @@ jobs:
         # Публикация версии идемпотентна (одна ревизия = одна версия): при «Re-run»
         # вернётся та же версия с тем же id. Этот id адресует зависимость.
         run: |
-          version_id=$(paas-cli versions publish "${PAAS_SERVICE_ID}" "${{ github.sha }}")
+          version_id=$(paas-cli versions publish "${{ github.sha }}")
           echo "id=${version_id}" >> "$GITHUB_OUTPUT"
       - name: Зарегистрировать зависимость версии от контракта бэкенда
         # Регистрируем зависимость этим же paas-cli (CLI-08) вместо самодельного
@@ -61,7 +61,7 @@ jobs:
         # обновит снимок той же версии, а не создаст дубль.
         run: |
           paas-cli dependencies register \
-            "${PAAS_SERVICE_ID}" "${{ steps.version.outputs.id }}" \
+            "${{ steps.version.outputs.id }}" \
             "${PAAS_BACKEND_SERVICE_ID}" protocols/paas-backend/openapi.json
       - name: Снять зависимости прошлых версий paas-cli
         # paas-cli потребляет одну актуальную версию контракта — только что

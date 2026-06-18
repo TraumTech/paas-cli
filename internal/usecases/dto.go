@@ -47,14 +47,13 @@ type PublishProtocolInput struct {
 }
 
 type PublishVersionInput struct {
-	ServiceID string
 	// CommitRevision — развёрнутая ревизия коммита, по которой фиксируется версия.
 	CommitRevision string
+	// ManifestPath — манифест, из которого берём имя текущего сервиса.
+	ManifestPath string
 }
 
 type RegisterDependencyInput struct {
-	// ServiceID — сервис-потребитель (собственный), чья версия зависит от контракта.
-	ServiceID string
 	// VersionID — версия потребителя, для которой регистрируется зависимость.
 	VersionID string
 	// ProducerServiceID — сервис-продьюсер, на контракте которого собрана версия.
@@ -62,4 +61,6 @@ type RegisterDependencyInput struct {
 	// ContractPath — путь к файлу контракта продьюсера в репозитории потребителя:
 	// снимок, на котором собрана эта версия.
 	ContractPath string
+	// ManifestPath — манифест, из которого берём имя текущего сервиса (потребителя).
+	ManifestPath string
 }

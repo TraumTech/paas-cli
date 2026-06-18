@@ -9,6 +9,11 @@ import (
 	"github.com/TraumTech/paas-cli/internal/usecases"
 )
 
+const manifestFlag = "manifest"
+
+// defaultManifestPath — манифест по умолчанию ищется в корне репозитория.
+const defaultManifestPath = "protocols.toml"
+
 type Command struct {
 	publisher VersionPublisher
 }
@@ -17,24 +22,33 @@ func New(publisher VersionPublisher) *Command {
 	return &Command{publisher: publisher}
 }
 
-// CLICommand описывает подкоманду `publish` для urfave/cli.
+// CLICommand описывает подкоманду `publish` для urfave/cli. Имя сервиса берётся из
+// манифеста (секция [service]); аргументом приходит только эфемерная ревизия коммита.
 func (c *Command) CLICommand() *cli.Command {
 	return &cli.Command{
 		Name:      "publish",
-		Usage:     "зафиксировать версию сервиса по развёрнутой ревизии коммита",
-		ArgsUsage: "<service-id> <commit-revision>",
-		Action:    c.run,
+		Usage:     "зафиксировать версию сервиса по развёрнутой ревизии коммита (сервис — из манифеста)",
+		ArgsUsage: "<commit-revision>",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:    manifestFlag,
+				Aliases: []string{"f"},
+				Value:   defaultManifestPath,
+				Usage:   "путь к манифесту с секцией [service] (имя сервиса)",
+			},
+		},
+		Action: c.run,
 	}
 }
 
 func (c *Command) run(ctx context.Context, cmd *cli.Command) error {
-	if cmd.Args().Len() != 2 {
-		return fmt.Errorf("нужно указать <service-id> и <commit-revision>")
+	if cmd.Args().Len() != 1 {
+		return fmt.Errorf("нужно указать <commit-revision> (имя сервиса берётся из манифеста)")
 	}
 
 	version, err := c.publisher.Execute(ctx, usecases.PublishVersionInput{
-		ServiceID:      cmd.Args().Get(0),
-		CommitRevision: cmd.Args().Get(1),
+		CommitRevision: cmd.Args().Get(0),
+		ManifestPath:   cmd.String(manifestFlag),
 	})
 	if err != nil {
 		return err

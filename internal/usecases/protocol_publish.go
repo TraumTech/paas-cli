@@ -28,14 +28,9 @@ func (uc *PublishProtocolUseCase) Execute(ctx context.Context, in PublishProtoco
 	if err != nil {
 		return nil, err
 	}
-
-	ids, err := uc.resolver.ResolveIDs(ctx, []string{service.Name})
+	serviceID, err := resolveSelfID(ctx, uc.resolver, service.Name)
 	if err != nil {
-		return nil, fmt.Errorf("resolve service: %w", err)
-	}
-	serviceID, ok := ids[service.Name]
-	if !ok {
-		return nil, fmt.Errorf("сервис %q: %w", service.Name, entities.ErrServiceNotFound)
+		return nil, err
 	}
 
 	document, err := uc.reader.Read(ctx, contractPath(in.ManifestPath, service.Contract))

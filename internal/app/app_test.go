@@ -94,19 +94,29 @@ func TestRun_CompatibilityNoConsumers(t *testing.T) {
 func TestRun_PublishVersionIdempotent(t *testing.T) {
 	const versionID = "019ec099-0000-7000-8000-0000000000aa"
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/services/"+svcID+"/versions", r.URL.Path)
-		assert.Equal(t, http.MethodPost, r.Method)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		writeJSON(w, `{"id":"`+versionID+`","number":3,"commit_revision":"deadbeef","created_at":"2026-06-15T10:00:00Z"}`)
+		switch {
+		case r.URL.Path == "/services" && r.Method == http.MethodGet:
+			assert.Equal(t, "payments", r.URL.Query().Get("name"))
+			writeJSON(w, `[{"id":"`+svcID+`","name":"payments"}]`)
+		case r.URL.Path == "/services/"+svcID+"/versions" && r.Method == http.MethodPost:
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			writeJSON(w, `{"id":"`+versionID+`","number":3,"commit_revision":"deadbeef","created_at":"2026-06-15T10:00:00Z"}`)
+		default:
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
 	}))
 	defer srv.Close()
+
+	manifest := filepath.Join(t.TempDir(), "protocols.toml")
+	require.NoError(t, os.WriteFile(manifest, []byte("[service]\nname = \"payments\"\n"), 0o644))
 
 	t.Setenv("PAAS_API_URL", srv.URL)
 	for range 2 {
 		stdout := captureStdout(t, func() {
 			require.NoError(t, app.Run(context.Background(),
-				[]string{"paas-cli", "versions", "publish", svcID, "deadbeef"}))
+				[]string{"paas-cli", "versions", "publish", "--manifest", manifest, "deadbeef"}))
 		})
 		assert.Equal(t, versionID, strings.TrimSpace(stdout))
 	}
@@ -175,20 +185,30 @@ func TestRun_RegisterDependency(t *testing.T) {
 		prodID = "019ec073-3da6-705b-b19e-bbcca5665711"
 	)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/services/"+svcID+"/versions/"+verID+"/dependencies", r.URL.Path)
-		assert.Equal(t, http.MethodPut, r.Method)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(`{"id":"` + svcID + `","consumer_service_id":"` + svcID + `","consumer_version_id":"` + verID + `","producer_service_id":"` + prodID + `","format":"openapi","registered_at":"2026-06-15T00:00:00Z"}`))
+		switch {
+		case r.URL.Path == "/services" && r.Method == http.MethodGet:
+			assert.Equal(t, "payments", r.URL.Query().Get("name"))
+			writeJSON(w, `[{"id":"`+svcID+`","name":"payments"}]`)
+		case r.URL.Path == "/services/"+svcID+"/versions/"+verID+"/dependencies" && r.Method == http.MethodPut:
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			w.Write([]byte(`{"id":"` + svcID + `","consumer_service_id":"` + svcID + `","consumer_version_id":"` + verID + `","producer_service_id":"` + prodID + `","format":"openapi","registered_at":"2026-06-15T00:00:00Z"}`))
+		default:
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
 	}))
 	defer srv.Close()
 
-	contract := filepath.Join(t.TempDir(), "openapi.json")
+	dir := t.TempDir()
+	contract := filepath.Join(dir, "openapi.json")
 	require.NoError(t, os.WriteFile(contract, []byte(`{"openapi":"3.1.0","paths":{"/x":{}}}`), 0o644))
+	manifest := filepath.Join(dir, "protocols.toml")
+	require.NoError(t, os.WriteFile(manifest, []byte("[service]\nname = \"payments\"\n"), 0o644))
 
 	t.Setenv("PAAS_API_URL", srv.URL)
 	require.NoError(t, app.Run(context.Background(),
-		[]string{"paas-cli", "dependencies", "register", svcID, verID, prodID, contract}))
+		[]string{"paas-cli", "dependencies", "register", "--manifest", manifest, verID, prodID, contract}))
 }
 
 func TestRun_FetchNotPublished(t *testing.T) {

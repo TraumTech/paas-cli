@@ -31,12 +31,12 @@ func TestCommandRun_PrintsBareIDToStdout(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	publisher := NewMockVersionPublisher(ctrl)
 	publisher.EXPECT().
-		Execute(gomock.Any(), usecases.PublishVersionInput{ServiceID: "svc", CommitRevision: "abc123"}).
+		Execute(gomock.Any(), usecases.PublishVersionInput{CommitRevision: "abc123", ManifestPath: "protocols.toml"}).
 		Return(&entities.Version{ID: "ver-1", Number: 7, CommitRevision: "abc123"}, nil)
 
 	var out, errOut bytes.Buffer
 	err := rootWith(publisher, &out, &errOut).Run(context.Background(),
-		[]string{"paas-cli", "versions", "publish", "svc", "abc123"})
+		[]string{"paas-cli", "versions", "publish", "abc123"})
 
 	require.NoError(t, err)
 	// stdout — только id, без украшений: его подхватывает автоматика.
@@ -46,12 +46,12 @@ func TestCommandRun_PrintsBareIDToStdout(t *testing.T) {
 	assert.Contains(t, errOut.String(), "Версия 7 зафиксирована для ревизии abc123")
 }
 
-func TestCommandRun_RequiresTwoArgs(t *testing.T) {
+func TestCommandRun_RequiresOneArg(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	publisher := NewMockVersionPublisher(ctrl)
 	// Execute не вызывается — аргументы не прошли разбор.
 
-	for _, extra := range [][]string{{}, {"svc"}, {"svc", "rev", "extra"}} {
+	for _, extra := range [][]string{{}, {"rev", "extra"}} {
 		args := append([]string{"paas-cli", "versions", "publish"}, extra...)
 		err := rootWith(publisher, &bytes.Buffer{}, &bytes.Buffer{}).Run(context.Background(), args)
 		assert.Error(t, err)
@@ -65,7 +65,7 @@ func TestCommandRun_PropagatesUseCaseError(t *testing.T) {
 
 	var out bytes.Buffer
 	err := rootWith(publisher, &out, &bytes.Buffer{}).Run(context.Background(),
-		[]string{"paas-cli", "versions", "publish", "svc", "abc123"})
+		[]string{"paas-cli", "versions", "publish", "abc123"})
 
 	assert.ErrorIs(t, err, entities.ErrServiceNotFound)
 	assert.Empty(t, strings.TrimSpace(out.String()))

@@ -76,15 +76,26 @@ func (m *Manifest) Validate() error {
 	return nil
 }
 
-// RequireService возвращает самодекларацию текущего сервиса или понятную ошибку,
-// если её нет либо она неполна. Нужна owner-командам, которые берут имя сервиса и
-// путь к собственному контракту из манифеста, а не из аргументов.
-func (m *Manifest) RequireService() (*ManifestService, error) {
+// ServiceName возвращает имя текущего сервиса из самодекларации или понятную ошибку,
+// если секции нет либо имя пустое. Контракт здесь не требуется — он нужен только
+// owner-команде публикации протокола (см. RequireService); фиксация версии и
+// регистрация зависимости берут из манифеста лишь имя своего сервиса.
+func (m *Manifest) ServiceName() (string, error) {
 	if m.Service == nil {
-		return nil, ErrManifestNoService
+		return "", ErrManifestNoService
 	}
 	if strings.TrimSpace(m.Service.Name) == "" {
-		return nil, ErrManifestServiceNoName
+		return "", ErrManifestServiceNoName
+	}
+	return m.Service.Name, nil
+}
+
+// RequireService возвращает самодекларацию текущего сервиса вместе с контрактом или
+// понятную ошибку, если её нет либо она неполна. Нужна команде публикации протокола,
+// которая берёт из манифеста и имя сервиса, и путь к собственному контракту.
+func (m *Manifest) RequireService() (*ManifestService, error) {
+	if _, err := m.ServiceName(); err != nil {
+		return nil, err
 	}
 	if strings.TrimSpace(m.Service.Contract) == "" {
 		return nil, ErrManifestServiceNoContract

@@ -66,7 +66,7 @@ func Run(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	publishVersion := versionpublishcommandcli.New(usecases.NewPublishVersion(publisher))
+	publishVersion := versionpublishcommandcli.New(usecases.NewPublishVersion(manifests, resolver, publisher))
 
 	publishSource, err := protocolpublishhttp.New(baseURL, &http.Client{Timeout: httpTimeout})
 	if err != nil {
@@ -78,7 +78,7 @@ func Run(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	registerDependency := dependencyregistercommandcli.New(usecases.NewRegisterDependency(candidates, registrar))
+	registerDependency := dependencyregistercommandcli.New(usecases.NewRegisterDependency(manifests, resolver, candidates, registrar))
 
 	root := &cli.Command{
 		Name:    "paas-cli",
