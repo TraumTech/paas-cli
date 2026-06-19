@@ -52,7 +52,7 @@ func TestRegisterDependencyExecute_Success(t *testing.T) {
 		Return(map[string]string{"paas-frontend": "consumer", "paas-backend": "prod"}, nil)
 	m.reader.EXPECT().Read(gomock.Any(), "protocols/paas-backend/openapi.json").Return([]byte(validContract), nil)
 	m.registrar.EXPECT().
-		RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod", []byte(validContract), false).
+		RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod", []byte(validContract), gomock.Any(), false).
 		Return(&entities.Dependency{ConsumerVersionID: "ver-1", ProducerServiceID: "prod"}, nil)
 
 	got, err := m.run()
@@ -61,6 +61,30 @@ func TestRegisterDependencyExecute_Success(t *testing.T) {
 	require.Len(t, got.Registered, 1)
 	assert.Equal(t, "paas-backend", got.Registered[0].ProducerName)
 	assert.Equal(t, "prod", got.Registered[0].ProducerServiceID)
+}
+
+// Перечень используемых методов из манифеста доходит до регистратора как есть.
+func TestRegisterDependencyExecute_PassesMethods(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	m := newRegisterMocks(ctrl)
+
+	manifest := &entities.Manifest{
+		Service: &entities.ManifestService{Name: "paas-frontend"},
+		Dependencies: []entities.ManifestDependency{
+			{Name: "paas-backend", Methods: []string{"GET /services/{id}", "GET /services/{id}/protocol"}},
+		},
+	}
+	m.manifests.EXPECT().Read(gomock.Any(), "protocols.toml").Return(manifest, nil)
+	m.resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"paas-frontend", "paas-backend"}).
+		Return(map[string]string{"paas-frontend": "consumer", "paas-backend": "prod"}, nil)
+	m.reader.EXPECT().Read(gomock.Any(), "protocols/paas-backend/openapi.json").Return([]byte(validContract), nil)
+	m.registrar.EXPECT().
+		RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod", []byte(validContract),
+			[]string{"GET /services/{id}", "GET /services/{id}/protocol"}, false).
+		Return(&entities.Dependency{}, nil)
+
+	_, err := m.run()
+	require.NoError(t, err)
 }
 
 // С SupersedePrevious флаг замещения уходит в каждый вызов регистрации.
@@ -73,7 +97,7 @@ func TestRegisterDependencyExecute_SupersedePrevious(t *testing.T) {
 		Return(map[string]string{"paas-frontend": "consumer", "paas-backend": "prod"}, nil)
 	m.reader.EXPECT().Read(gomock.Any(), "protocols/paas-backend/openapi.json").Return([]byte(validContract), nil)
 	m.registrar.EXPECT().
-		RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod", []byte(validContract), true).
+		RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod", []byte(validContract), gomock.Any(), true).
 		Return(&entities.Dependency{}, nil)
 
 	_, err := NewRegisterDependency(m.manifests, m.resolver, m.reader, m.registrar).
@@ -91,8 +115,8 @@ func TestRegisterDependencyExecute_AllDependencies(t *testing.T) {
 		Return(map[string]string{"paas-frontend": "consumer", "paas-backend": "prod-a", "billing": "prod-b"}, nil)
 	m.reader.EXPECT().Read(gomock.Any(), "protocols/paas-backend/openapi.json").Return([]byte(validContract), nil)
 	m.reader.EXPECT().Read(gomock.Any(), "protocols/billing/openapi.json").Return([]byte(validContract), nil)
-	m.registrar.EXPECT().RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod-a", gomock.Any(), false).Return(&entities.Dependency{}, nil)
-	m.registrar.EXPECT().RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod-b", gomock.Any(), false).Return(&entities.Dependency{}, nil)
+	m.registrar.EXPECT().RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod-a", gomock.Any(), gomock.Any(), false).Return(&entities.Dependency{}, nil)
+	m.registrar.EXPECT().RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod-b", gomock.Any(), gomock.Any(), false).Return(&entities.Dependency{}, nil)
 
 	got, err := m.run()
 
@@ -112,7 +136,7 @@ func TestRegisterDependencyExecute_DestinationFromManifest(t *testing.T) {
 	m.resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"paas-frontend", "paas-backend"}).
 		Return(map[string]string{"paas-frontend": "consumer", "paas-backend": "prod"}, nil)
 	m.reader.EXPECT().Read(gomock.Any(), "vendor/api/paas-backend/openapi.json").Return([]byte(validContract), nil)
-	m.registrar.EXPECT().RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod", gomock.Any(), false).Return(&entities.Dependency{}, nil)
+	m.registrar.EXPECT().RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod", gomock.Any(), gomock.Any(), false).Return(&entities.Dependency{}, nil)
 
 	_, err := m.run()
 	require.NoError(t, err)
@@ -203,7 +227,7 @@ func TestRegisterDependencyExecute_RegistrarError_Aborts(t *testing.T) {
 		Return(map[string]string{"paas-frontend": "consumer", "paas-backend": "prod"}, nil)
 	m.reader.EXPECT().Read(gomock.Any(), "protocols/paas-backend/openapi.json").Return([]byte(validContract), nil)
 	srcErr := errors.New("boom")
-	m.registrar.EXPECT().RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod", gomock.Any(), false).Return(nil, srcErr)
+	m.registrar.EXPECT().RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod", gomock.Any(), gomock.Any(), false).Return(nil, srcErr)
 
 	_, err := m.run()
 	assert.ErrorIs(t, err, srcErr)
