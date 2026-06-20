@@ -47,6 +47,11 @@ jobs:
         id: version
         # Публикация версии идемпотентна (одна ревизия = одна версия): при «Re-run»
         # вернётся та же версия с тем же id. Этот id адресует зависимость.
+        env:
+          # Машинный креденшел сервиса (TKN-06): CLI действует от имени paas-cli без
+          # браузерного входа. Секрет — токен, выпущенный владельцем для этого сервиса;
+          # пуст до создания секрета → CLI идёт анонимно, как прежде.
+          PAAS_API_TOKEN: ${{ secrets.PAAS_API_TOKEN }}
         run: |
           version_id=$(paas-cli versions publish "${{ github.sha }}")
           echo "id=${version_id}" >> "$GITHUB_OUTPUT"
@@ -56,4 +61,6 @@ jobs:
         # --prune (CLI-16): регистрируемая версия замещает зависимости прошлых версий —
         # платформа снимает их атомарно с регистрацией (PRT-12). Отдельный шаг снятия
         # (curl+jq) больше не нужен. Идемпотентно: повторный прогон — та же одна связь.
+        env:
+          PAAS_API_TOKEN: ${{ secrets.PAAS_API_TOKEN }}
         run: paas-cli dependencies register --prune "${{ steps.version.outputs.id }}"
