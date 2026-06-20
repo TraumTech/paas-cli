@@ -49,7 +49,7 @@ func TestRegisterDependency_SendsSnapshotAndMapsResult(t *testing.T) {
 		}`))
 	})
 
-	dependency, err := src.RegisterDependency(context.Background(), svcID, verID, prodID, []byte(contract), false)
+	dependency, err := src.RegisterDependency(context.Background(), svcID, verID, prodID, []byte(contract), nil, false)
 	require.NoError(t, err)
 	// Тело — обёртка {producer_service_id, document}: продьюсер и приложенный снимок.
 	assert.Equal(t, prodID, gotBody["producer_service_id"])
@@ -70,9 +70,40 @@ func TestRegisterDependency_SupersedePreviousInBody(t *testing.T) {
 		w.Write([]byte(`{"id":"` + svcID + `","consumer_service_id":"` + svcID + `","consumer_version_id":"` + verID + `","producer_service_id":"` + prodID + `","format":"openapi","registered_at":"2026-06-15T00:00:00Z"}`))
 	})
 
-	_, err := src.RegisterDependency(context.Background(), svcID, verID, prodID, []byte(contract), true)
+	_, err := src.RegisterDependency(context.Background(), svcID, verID, prodID, []byte(contract), nil, true)
 	require.NoError(t, err)
 	assert.Equal(t, true, gotBody["supersede_previous"])
+}
+
+func TestRegisterDependency_SendsMethods(t *testing.T) {
+	var gotBody map[string]interface{}
+	src := newSource(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		require.NoError(t, json.Unmarshal(body, &gotBody))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte(`{"id":"` + svcID + `","consumer_service_id":"` + svcID + `","consumer_version_id":"` + verID + `","producer_service_id":"` + prodID + `","format":"openapi","methods":["GET /x"],"registered_at":"2026-06-15T00:00:00Z"}`))
+	})
+
+	_, err := src.RegisterDependency(context.Background(), svcID, verID, prodID, []byte(contract), []string{"GET /x", "POST /y"}, false)
+	require.NoError(t, err)
+	assert.Equal(t, []interface{}{"GET /x", "POST /y"}, gotBody["methods"])
+}
+
+func TestRegisterDependency_OmitsEmptyMethods(t *testing.T) {
+	var gotBody map[string]interface{}
+	src := newSource(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		require.NoError(t, json.Unmarshal(body, &gotBody))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte(`{"id":"` + svcID + `","consumer_service_id":"` + svcID + `","consumer_version_id":"` + verID + `","producer_service_id":"` + prodID + `","format":"openapi","registered_at":"2026-06-15T00:00:00Z"}`))
+	})
+
+	_, err := src.RegisterDependency(context.Background(), svcID, verID, prodID, []byte(contract), nil, false)
+	require.NoError(t, err)
+	_, hasMethods := gotBody["methods"]
+	assert.False(t, hasMethods, "пустой перечень методов опускается")
 }
 
 func TestRegisterDependency_NotFoundSurfacesDetail(t *testing.T) {
@@ -82,7 +113,7 @@ func TestRegisterDependency_NotFoundSurfacesDetail(t *testing.T) {
 		w.Write([]byte(`{"title": "Not Found", "status": 404, "detail": "producer service not found"}`))
 	})
 
-	_, err := src.RegisterDependency(context.Background(), svcID, verID, prodID, []byte(contract), false)
+	_, err := src.RegisterDependency(context.Background(), svcID, verID, prodID, []byte(contract), nil, false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "producer service not found")
 }
@@ -92,7 +123,7 @@ func TestRegisterDependency_InvalidServiceID(t *testing.T) {
 		t.Errorf("платформа не должна вызываться при неверном id")
 	})
 
-	_, err := src.RegisterDependency(context.Background(), "not-a-uuid", verID, prodID, []byte(contract), false)
+	_, err := src.RegisterDependency(context.Background(), "not-a-uuid", verID, prodID, []byte(contract), nil, false)
 	require.Error(t, err)
 }
 
@@ -101,7 +132,7 @@ func TestRegisterDependency_InvalidVersionID(t *testing.T) {
 		t.Errorf("платформа не должна вызываться при неверном id версии")
 	})
 
-	_, err := src.RegisterDependency(context.Background(), svcID, "not-a-uuid", prodID, []byte(contract), false)
+	_, err := src.RegisterDependency(context.Background(), svcID, "not-a-uuid", prodID, []byte(contract), nil, false)
 	require.Error(t, err)
 }
 
@@ -110,13 +141,13 @@ func TestRegisterDependency_InvalidProducerID(t *testing.T) {
 		t.Errorf("платформа не должна вызываться при неверном id продьюсера")
 	})
 
-	_, err := src.RegisterDependency(context.Background(), svcID, verID, "not-a-uuid", []byte(contract), false)
+	_, err := src.RegisterDependency(context.Background(), svcID, verID, "not-a-uuid", []byte(contract), nil, false)
 	require.Error(t, err)
 }
 
 func TestRegisterDependency_Unreachable(t *testing.T) {
 	src, err := dependencyregistrarhttp.New("http://127.0.0.1:0", http.DefaultClient)
 	require.NoError(t, err)
-	_, err = src.RegisterDependency(context.Background(), svcID, verID, prodID, []byte(contract), false)
+	_, err = src.RegisterDependency(context.Background(), svcID, verID, prodID, []byte(contract), nil, false)
 	require.Error(t, err)
 }

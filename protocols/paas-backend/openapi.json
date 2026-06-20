@@ -199,6 +199,12 @@
             "format": "uuid",
             "type": "string"
           },
+          "methods": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "producer_service_id": {
             "format": "uuid",
             "type": "string"
@@ -214,6 +220,7 @@
           "consumer_version_id",
           "producer_service_id",
           "format",
+          "methods",
           "registered_at"
         ],
         "type": "object"
@@ -368,6 +375,13 @@
             "additionalProperties": {},
             "description": "Снимок контракта продьюсера, на котором собрана версия (OpenAPI-документ)",
             "type": "object"
+          },
+          "methods": {
+            "description": "Используемые методы продьюсера (HTTP-паттерны, напр. \"GET /services/{id}\"); пусто — зависимость от всего снимка",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "producer_service_id": {
             "description": "ID сервиса, на контракте которого собрана версия",

@@ -52,7 +52,7 @@ type ProtocolPublisher interface {
 // не плодит дубль. На отказ платформы (нет версии-потребителя или продьюсера,
 // снимок отклонён) возвращает ошибку с понятным сообщением от платформы.
 type DependencyRegistrar interface {
-	RegisterDependency(ctx context.Context, serviceID, versionID, producerServiceID string, document []byte, supersedePrevious bool) (*entities.Dependency, error)
+	RegisterDependency(ctx context.Context, serviceID, versionID, producerServiceID string, document []byte, methods []string, supersedePrevious bool) (*entities.Dependency, error)
 }
 
 // ManifestReader читает манифест зависимостей из файла в репозитории потребителя.

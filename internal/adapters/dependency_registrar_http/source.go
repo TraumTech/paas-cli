@@ -27,7 +27,7 @@ func New(baseURL string, httpClient *http.Client) (*Source, error) {
 	return &Source{client: client}, nil
 }
 
-func (s *Source) RegisterDependency(ctx context.Context, serviceID, versionID, producerServiceID string, document []byte, supersedePrevious bool) (*entities.Dependency, error) {
+func (s *Source) RegisterDependency(ctx context.Context, serviceID, versionID, producerServiceID string, document []byte, methods []string, supersedePrevious bool) (*entities.Dependency, error) {
 	id, err := uuid.Parse(serviceID)
 	if err != nil {
 		return nil, fmt.Errorf("неверный id сервиса %q: %w", serviceID, err)
@@ -51,9 +51,15 @@ func (s *Source) RegisterDependency(ctx context.Context, serviceID, versionID, p
 	if supersedePrevious {
 		supersede = &supersedePrevious
 	}
+	// Пустой перечень опускаем — платформа трактует отсутствие как «зависит от всего снимка».
+	var methodsBody *[]string
+	if len(methods) > 0 {
+		methodsBody = &methods
+	}
 	resp, err := s.client.RegisterProtocolDependencyWithResponse(ctx, id, versionUUID, platformapi.RegisterProtocolDependencyJSONRequestBody{
 		ProducerServiceId: producerUUID,
 		Document:          doc,
+		Methods:           methodsBody,
 		SupersedePrevious: supersede,
 	})
 	if err != nil {

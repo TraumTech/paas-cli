@@ -89,6 +89,7 @@ type ProtocolDependencyResponse struct {
 	ConsumerVersionId openapi_types.UUID `json:"consumer_version_id"`
 	Format            string             `json:"format"`
 	Id                openapi_types.UUID `json:"id"`
+	Methods           []string           `json:"methods"`
 	ProducerServiceId openapi_types.UUID `json:"producer_service_id"`
 	RegisteredAt      time.Time          `json:"registered_at"`
 }
@@ -141,6 +142,9 @@ type RegisterProtocolDependencyInputBody struct {
 
 	// Document Снимок контракта продьюсера, на котором собрана версия (OpenAPI-документ)
 	Document map[string]interface{} `json:"document"`
+
+	// Methods Используемые методы продьюсера (HTTP-паттерны, напр. "GET /services/{id}"); пусто — зависимость от всего снимка
+	Methods *[]string `json:"methods,omitempty"`
 
 	// ProducerServiceId ID сервиса, на контракте которого собрана версия
 	ProducerServiceId openapi_types.UUID `json:"producer_service_id"`
