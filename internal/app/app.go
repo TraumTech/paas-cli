@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -31,6 +30,8 @@ const (
 	defaultAPIURL      = "https://api.paas.traumtech.ru"
 	defaultDestination = "protocols"
 	httpTimeout        = 30 * time.Second
+	// envAPIToken — машинный креденшел сервиса для неинтерактивного доступа (CI, скрипты).
+	envAPIToken = "PAAS_API_TOKEN"
 )
 
 // Version — версия бинаря; подставляется при сборке релиза (GoReleaser, ldflags).
@@ -41,40 +42,43 @@ var Version = "dev"
 // репозитория-потребителя.
 func Run(ctx context.Context, args []string) error {
 	baseURL := strings.TrimRight(envOr("PAAS_API_URL", defaultAPIURL), "/")
-	source, err := protocolsourcehttp.New(baseURL, &http.Client{Timeout: httpTimeout})
+	// Машинный креденшел сервиса (если задан) уходит со всеми запросами к платформе.
+	client := httpClient(os.Getenv(envAPIToken))
+
+	source, err := protocolsourcehttp.New(baseURL, client)
 	if err != nil {
 		return err
 	}
 	store := protocolstorefile.New()
 	fetch := protocolfetchcommandcli.New(usecases.NewFetchProtocol(source, store))
 
-	resolver, err := serviceresolverhttp.New(baseURL, &http.Client{Timeout: httpTimeout})
+	resolver, err := serviceresolverhttp.New(baseURL, client)
 	if err != nil {
 		return err
 	}
 	manifests := manifestreaderfile.New()
 	sync := protocolsynccommandcli.New(usecases.NewSyncProtocols(manifests, resolver, source, store))
 
-	compatSource, err := protocolcompatibilityhttp.New(baseURL, &http.Client{Timeout: httpTimeout})
+	compatSource, err := protocolcompatibilityhttp.New(baseURL, client)
 	if err != nil {
 		return err
 	}
 	candidates := candidatereaderfile.New()
 	compat := protocolcompatibilitycommandcli.New(usecases.NewCheckCompatibility(candidates, compatSource))
 
-	publisher, err := versionpublisherhttp.New(baseURL, &http.Client{Timeout: httpTimeout})
+	publisher, err := versionpublisherhttp.New(baseURL, client)
 	if err != nil {
 		return err
 	}
 	publishVersion := versionpublishcommandcli.New(usecases.NewPublishVersion(manifests, resolver, publisher))
 
-	publishSource, err := protocolpublishhttp.New(baseURL, &http.Client{Timeout: httpTimeout})
+	publishSource, err := protocolpublishhttp.New(baseURL, client)
 	if err != nil {
 		return err
 	}
 	publish := protocolpublishcommandcli.New(usecases.NewPublishProtocol(manifests, resolver, candidates, publishSource))
 
-	registrar, err := dependencyregistrarhttp.New(baseURL, &http.Client{Timeout: httpTimeout})
+	registrar, err := dependencyregistrarhttp.New(baseURL, client)
 	if err != nil {
 		return err
 	}
