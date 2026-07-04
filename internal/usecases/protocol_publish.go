@@ -28,6 +28,12 @@ func (uc *PublishProtocolUseCase) Execute(ctx context.Context, in PublishProtoco
 	if err != nil {
 		return nil, err
 	}
+	// Формат проверяем до похода на платформу: опечатка в манифесте — ошибка
+	// сразу, а не молчаливая публикация не тем типом.
+	format, err := entities.ParseProtocolFormat(service.Format)
+	if err != nil {
+		return nil, err
+	}
 	serviceID, err := resolveSelfID(ctx, uc.resolver, service.Name)
 	if err != nil {
 		return nil, err
@@ -37,11 +43,11 @@ func (uc *PublishProtocolUseCase) Execute(ctx context.Context, in PublishProtoco
 	if err != nil {
 		return nil, fmt.Errorf("read contract: %w", err)
 	}
-	contract := &entities.CandidateContract{Document: document}
+	contract := &entities.CandidateContract{Format: format, Document: document}
 	if err := contract.Validate(); err != nil {
 		return nil, fmt.Errorf("validate contract: %w", err)
 	}
-	publication, err := uc.publisher.PublishProtocol(ctx, serviceID, in.VersionID, contract.Document)
+	publication, err := uc.publisher.PublishProtocol(ctx, serviceID, in.VersionID, format, contract.Document)
 	if err != nil {
 		return nil, fmt.Errorf("publish protocol: %w", err)
 	}

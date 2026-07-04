@@ -26,3 +26,22 @@ func TestCandidateContractValidate(t *testing.T) {
 		})
 	}
 }
+
+// Для gRPC-контракта достаточно непустого текста: синтаксис .proto проверяет
+// платформа, JSON-проверка OpenAPI к нему не применяется.
+func TestCandidateContractValidate_GRPC(t *testing.T) {
+	tests := []struct {
+		name     string
+		document string
+		wantErr  error
+	}{
+		{name: "непустой .proto", document: "syntax = \"proto3\";", wantErr: nil},
+		{name: "пустой документ", document: " \n\t", wantErr: entities.ErrEmptyProtocol},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &entities.CandidateContract{Format: entities.ProtocolFormatGRPC, Document: []byte(tt.document)}
+			assert.ErrorIs(t, c.Validate(), tt.wantErr)
+		})
+	}
+}

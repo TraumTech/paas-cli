@@ -33,6 +33,17 @@ var (
 	ErrManifestServiceNoContract = newDomainError("в секции [service] манифеста не указан путь к контракту (contract)")
 )
 
+// UnsupportedProtocolFormatError сообщает, какой формат из манифеста CLI не
+// поддерживает, и перечисляет поддерживаемые — чтобы опечатка не ушла на
+// платформу публикацией не того типа.
+type UnsupportedProtocolFormatError struct {
+	Name string
+}
+
+func (e *UnsupportedProtocolFormatError) Error() string {
+	return fmt.Sprintf("формат протокола %q не поддерживается (поддерживаются: %s, %s)", e.Name, ProtocolFormatOpenAPI, ProtocolFormatGRPC)
+}
+
 // UnknownMethodsError сообщает, какие именно запрошенные методы не нашлись в
 // контракте, — чтобы пользователь видел причину, а не молча получал неполный срез.
 type UnknownMethodsError struct {

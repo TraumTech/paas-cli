@@ -56,6 +56,24 @@ name = "billing"
 	require.NotNil(t, got.Service)
 	assert.Equal(t, "paas-backend", got.Service.Name)
 	assert.Equal(t, "api/openapi.json", got.Service.Contract)
+	assert.Empty(t, got.Service.Format)
+}
+
+func TestRead_ServiceFormat(t *testing.T) {
+	path := writeManifest(t, `
+[service]
+name = "paas-protocols"
+contract = "internal/infrastructure/grpc/registry.proto"
+format = "grpc"
+
+[[dependencies]]
+name = "paas-backend"
+`)
+
+	got, err := manifestreaderfile.New().Read(context.Background(), path)
+	require.NoError(t, err)
+	require.NotNil(t, got.Service)
+	assert.Equal(t, "grpc", got.Service.Format)
 }
 
 // Reader только разбирает TOML и не валидирует: файл без [service] читается с

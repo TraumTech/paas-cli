@@ -5,6 +5,30 @@ import (
 	"encoding/json"
 )
 
+// ProtocolFormat — формат контракта каноническим именем платформы. Пустое
+// значение в манифесте означает формат по умолчанию (OpenAPI).
+type ProtocolFormat string
+
+const (
+	ProtocolFormatOpenAPI ProtocolFormat = "openapi"
+	ProtocolFormatGRPC    ProtocolFormat = "grpc"
+)
+
+// ParseProtocolFormat разбирает формат из манифеста. Пусто — формат не указан —
+// означает OpenAPI: манифесты, не знающие про тип, работают как прежде.
+// Неизвестное имя — понятная ошибка вместо молчаливой публикации не тем типом.
+// Здесь — единственная точка CLI, знающая перечень поддерживаемых форматов.
+func ParseProtocolFormat(name string) (ProtocolFormat, error) {
+	switch name {
+	case "", string(ProtocolFormatOpenAPI):
+		return ProtocolFormatOpenAPI, nil
+	case string(ProtocolFormatGRPC):
+		return ProtocolFormatGRPC, nil
+	default:
+		return "", &UnsupportedProtocolFormatError{Name: name}
+	}
+}
+
 // Protocol — актуальный опубликованный контракт сервиса: машиночитаемое описание
 // его API. Document — сырой документ контракта (для OpenAPI это JSON-объект),
 // который потребитель кладёт к себе и строит против него свой код.

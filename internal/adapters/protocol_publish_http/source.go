@@ -3,6 +3,7 @@ package protocolpublishhttp
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -27,7 +28,7 @@ func New(baseURL string, httpClient *http.Client) (*Source, error) {
 	return &Source{client: client}, nil
 }
 
-func (s *Source) PublishProtocol(ctx context.Context, serviceID, versionID string, document []byte) (*entities.ProtocolPublication, error) {
+func (s *Source) PublishProtocol(ctx context.Context, serviceID, versionID string, format entities.ProtocolFormat, document []byte) (*entities.ProtocolPublication, error) {
 	id, err := uuid.Parse(serviceID)
 	if err != nil {
 		return nil, fmt.Errorf("неверный id сервиса %q: %w", serviceID, err)
@@ -37,7 +38,21 @@ func (s *Source) PublishProtocol(ctx context.Context, serviceID, versionID strin
 		return nil, fmt.Errorf("неверный id версии %q: %w", versionID, err)
 	}
 
-	resp, err := s.client.PublishProtocolWithBodyWithResponse(ctx, id, versionUUID, "application/json", bytes.NewReader(document))
+	// Тело запроса — документ контракта в родном для формата виде: OpenAPI —
+	// JSON-объект как есть, gRPC — JSON-строка с .proto-исходником. Формат
+	// OpenAPI не передаём (умолчание платформы) — запрос не отличается от
+	// прежних публикаций без типа.
+	params := &platformapi.PublishProtocolParams{}
+	payload := document
+	if format == entities.ProtocolFormatGRPC {
+		f := platformapi.PublishProtocolParamsFormat(format)
+		params.Format = &f
+		if payload, err = json.Marshal(string(document)); err != nil {
+			return nil, fmt.Errorf("кодирование .proto-контракта: %w", err)
+		}
+	}
+
+	resp, err := s.client.PublishProtocolWithBodyWithResponse(ctx, id, versionUUID, params, "application/json", bytes.NewReader(payload))
 	if err != nil {
 		return nil, fmt.Errorf("платформа недоступна: %w", err)
 	}

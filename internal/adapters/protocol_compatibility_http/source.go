@@ -33,7 +33,9 @@ func (s *Source) CheckCompatibility(ctx context.Context, serviceID string, docum
 		return nil, fmt.Errorf("неверный id сервиса %q: %w", serviceID, err)
 	}
 
-	resp, err := s.client.CheckProtocolCompatibilityWithBodyWithResponse(ctx, id, "application/json", bytes.NewReader(document))
+	// Формат не передаём — проверка кандидата пока только для OpenAPI (умолчание
+	// платформы); запрос не отличается от прежних, без параметра.
+	resp, err := s.client.CheckProtocolCompatibilityWithBodyWithResponse(ctx, id, &platformapi.CheckProtocolCompatibilityParams{}, "application/json", bytes.NewReader(document))
 	if err != nil {
 		return nil, fmt.Errorf("платформа недоступна: %w", err)
 	}

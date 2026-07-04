@@ -1,13 +1,26 @@
 package entities
 
+import "bytes"
+
 // CandidateContract — контракт из локального файла, который владелец сервиса
 // отправляет платформе: либо на проверку совместимости (без публикации), либо при
-// публикации протокола под версией.
+// публикации протокола под версией. Пустой Format означает OpenAPI — как в
+// манифесте, где формат необязателен.
 type CandidateContract struct {
+	Format   ProtocolFormat
 	Document []byte
 }
 
+// Validate — страховка от отправки заведомо пустого/битого файла: OpenAPI должен
+// быть похож на контракт, у gRPC достаточно непустого текста — синтаксис .proto
+// проверяет платформа, CLI её разбор не дублирует.
 func (c *CandidateContract) Validate() error {
+	if c.Format == ProtocolFormatGRPC {
+		if len(bytes.TrimSpace(c.Document)) == 0 {
+			return ErrEmptyProtocol
+		}
+		return nil
+	}
 	return validateContractDocument(c.Document)
 }
 

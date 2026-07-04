@@ -28,6 +28,7 @@ type fileManifest struct {
 type fileService struct {
 	Name     string `toml:"name"`
 	Contract string `toml:"contract"`
+	Format   string `toml:"format"`
 }
 
 type fileDependency struct {
@@ -50,6 +51,7 @@ func (r *Reader) Read(_ context.Context, path string) (*entities.Manifest, error
 		manifest.Service = &entities.ManifestService{
 			Name:     file.Service.Name,
 			Contract: file.Service.Contract,
+			Format:   file.Service.Format,
 		}
 	}
 	for _, dep := range file.Dependencies {

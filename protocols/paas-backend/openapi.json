@@ -308,6 +308,9 @@
             "additionalProperties": {},
             "type": "object"
           },
+          "document_text": {
+            "type": "string"
+          },
           "format": {
             "type": "string"
           },
@@ -625,19 +628,31 @@
               "format": "uuid",
               "type": "string"
             }
+          },
+          {
+            "description": "Формат контракта-кандидата",
+            "explode": false,
+            "in": "query",
+            "name": "format",
+            "schema": {
+              "default": "openapi",
+              "description": "Формат контракта-кандидата",
+              "enum": [
+                "openapi",
+                "grpc"
+              ],
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": {},
-                "description": "Контракт-кандидат — OpenAPI-документ",
-                "type": "object"
+                "description": "Контракт-кандидат: OpenAPI — JSON-объект, gRPC — строка с .proto-исходником"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -811,19 +826,31 @@
               "format": "uuid",
               "type": "string"
             }
+          },
+          {
+            "description": "Формат протокола",
+            "explode": false,
+            "in": "query",
+            "name": "format",
+            "schema": {
+              "default": "openapi",
+              "description": "Формат протокола",
+              "enum": [
+                "openapi",
+                "grpc"
+              ],
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": {},
-                "description": "Протокол сервиса — OpenAPI-документ",
-                "type": "object"
+                "description": "Документ контракта: OpenAPI — JSON-объект, gRPC — строка с .proto-исходником"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -854,6 +881,14 @@
       }
     }
   },
+  "security": [
+    {
+      "serviceToken": []
+    },
+    {
+      "kratosSession": []
+    }
+  ],
   "servers": [
     {
       "description": "production",

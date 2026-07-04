@@ -18,6 +18,47 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+const (
+	KratosSessionScopes kratosSessionContextKey = "kratosSession.Scopes"
+	ServiceTokenScopes  serviceTokenContextKey  = "serviceToken.Scopes"
+)
+
+// Defines values for CheckProtocolCompatibilityParamsFormat.
+const (
+	CheckProtocolCompatibilityParamsFormatGrpc    CheckProtocolCompatibilityParamsFormat = "grpc"
+	CheckProtocolCompatibilityParamsFormatOpenapi CheckProtocolCompatibilityParamsFormat = "openapi"
+)
+
+// Valid indicates whether the value is a known member of the CheckProtocolCompatibilityParamsFormat enum.
+func (e CheckProtocolCompatibilityParamsFormat) Valid() bool {
+	switch e {
+	case CheckProtocolCompatibilityParamsFormatGrpc:
+		return true
+	case CheckProtocolCompatibilityParamsFormatOpenapi:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PublishProtocolParamsFormat.
+const (
+	PublishProtocolParamsFormatGrpc    PublishProtocolParamsFormat = "grpc"
+	PublishProtocolParamsFormatOpenapi PublishProtocolParamsFormat = "openapi"
+)
+
+// Valid indicates whether the value is a known member of the PublishProtocolParamsFormat enum.
+func (e PublishProtocolParamsFormat) Valid() bool {
+	switch e {
+	case PublishProtocolParamsFormatGrpc:
+		return true
+	case PublishProtocolParamsFormatOpenapi:
+		return true
+	default:
+		return false
+	}
+}
+
 // CompatibilityChangeResponse defines model for CompatibilityChangeResponse.
 type CompatibilityChangeResponse struct {
 	Breaking    bool    `json:"breaking"`
@@ -118,6 +159,7 @@ type ProtocolView struct {
 	// Schema A URL to the JSON Schema for this object.
 	Schema        *string                 `json:"$schema,omitempty"`
 	Document      *map[string]interface{} `json:"document,omitempty"`
+	DocumentText  *string                 `json:"document_text,omitempty"`
 	Format        *string                 `json:"format,omitempty"`
 	Published     bool                    `json:"published"`
 	PublishedAt   *time.Time              `json:"published_at,omitempty"`
@@ -179,13 +221,31 @@ type ListServicesParams struct {
 }
 
 // CheckProtocolCompatibilityJSONBody defines parameters for CheckProtocolCompatibility.
-type CheckProtocolCompatibilityJSONBody map[string]interface{}
+type CheckProtocolCompatibilityJSONBody = interface{}
+
+// CheckProtocolCompatibilityParams defines parameters for CheckProtocolCompatibility.
+type CheckProtocolCompatibilityParams struct {
+	// Format Формат контракта-кандидата
+	Format *CheckProtocolCompatibilityParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+}
+
+// CheckProtocolCompatibilityParamsFormat defines parameters for CheckProtocolCompatibility.
+type CheckProtocolCompatibilityParamsFormat string
 
 // PublishProtocolJSONBody defines parameters for PublishProtocol.
-type PublishProtocolJSONBody map[string]interface{}
+type PublishProtocolJSONBody = interface{}
+
+// PublishProtocolParams defines parameters for PublishProtocol.
+type PublishProtocolParams struct {
+	// Format Формат протокола
+	Format *PublishProtocolParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+}
+
+// PublishProtocolParamsFormat defines parameters for PublishProtocol.
+type PublishProtocolParamsFormat string
 
 // CheckProtocolCompatibilityJSONRequestBody defines body for CheckProtocolCompatibility for application/json ContentType.
-type CheckProtocolCompatibilityJSONRequestBody CheckProtocolCompatibilityJSONBody
+type CheckProtocolCompatibilityJSONRequestBody = CheckProtocolCompatibilityJSONBody
 
 // PublishVersionJSONRequestBody defines body for PublishVersion for application/json ContentType.
 type PublishVersionJSONRequestBody = PublishVersionInputBody
@@ -194,7 +254,7 @@ type PublishVersionJSONRequestBody = PublishVersionInputBody
 type RegisterProtocolDependencyJSONRequestBody = RegisterProtocolDependencyInputBody
 
 // PublishProtocolJSONRequestBody defines body for PublishProtocol for application/json ContentType.
-type PublishProtocolJSONRequestBody PublishProtocolJSONBody
+type PublishProtocolJSONRequestBody = PublishProtocolJSONBody
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -279,9 +339,9 @@ type ClientInterface interface {
 	GetProtocol(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CheckProtocolCompatibilityWithBody request with any body
-	CheckProtocolCompatibilityWithBody(ctx context.Context, id openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	CheckProtocolCompatibilityWithBody(ctx context.Context, id openapi_types.UUID, params *CheckProtocolCompatibilityParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	CheckProtocolCompatibility(ctx context.Context, id openapi_types.UUID, body CheckProtocolCompatibilityJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	CheckProtocolCompatibility(ctx context.Context, id openapi_types.UUID, params *CheckProtocolCompatibilityParams, body CheckProtocolCompatibilityJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PublishVersionWithBody request with any body
 	PublishVersionWithBody(ctx context.Context, id openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -294,9 +354,9 @@ type ClientInterface interface {
 	RegisterProtocolDependency(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, body RegisterProtocolDependencyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PublishProtocolWithBody request with any body
-	PublishProtocolWithBody(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PublishProtocolWithBody(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, params *PublishProtocolParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	PublishProtocol(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, body PublishProtocolJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PublishProtocol(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, params *PublishProtocolParams, body PublishProtocolJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) ListServices(ctx context.Context, params *ListServicesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -335,8 +395,8 @@ func (c *Client) GetProtocol(ctx context.Context, id openapi_types.UUID, reqEdit
 	return c.Client.Do(req)
 }
 
-func (c *Client) CheckProtocolCompatibilityWithBody(ctx context.Context, id openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCheckProtocolCompatibilityRequestWithBody(c.Server, id, contentType, body)
+func (c *Client) CheckProtocolCompatibilityWithBody(ctx context.Context, id openapi_types.UUID, params *CheckProtocolCompatibilityParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCheckProtocolCompatibilityRequestWithBody(c.Server, id, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -347,8 +407,8 @@ func (c *Client) CheckProtocolCompatibilityWithBody(ctx context.Context, id open
 	return c.Client.Do(req)
 }
 
-func (c *Client) CheckProtocolCompatibility(ctx context.Context, id openapi_types.UUID, body CheckProtocolCompatibilityJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCheckProtocolCompatibilityRequest(c.Server, id, body)
+func (c *Client) CheckProtocolCompatibility(ctx context.Context, id openapi_types.UUID, params *CheckProtocolCompatibilityParams, body CheckProtocolCompatibilityJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCheckProtocolCompatibilityRequest(c.Server, id, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -407,8 +467,8 @@ func (c *Client) RegisterProtocolDependency(ctx context.Context, id openapi_type
 	return c.Client.Do(req)
 }
 
-func (c *Client) PublishProtocolWithBody(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPublishProtocolRequestWithBody(c.Server, id, versionId, contentType, body)
+func (c *Client) PublishProtocolWithBody(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, params *PublishProtocolParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPublishProtocolRequestWithBody(c.Server, id, versionId, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -419,8 +479,8 @@ func (c *Client) PublishProtocolWithBody(ctx context.Context, id openapi_types.U
 	return c.Client.Do(req)
 }
 
-func (c *Client) PublishProtocol(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, body PublishProtocolJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPublishProtocolRequest(c.Server, id, versionId, body)
+func (c *Client) PublishProtocol(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, params *PublishProtocolParams, body PublishProtocolJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPublishProtocolRequest(c.Server, id, versionId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -554,18 +614,18 @@ func NewGetProtocolRequest(server string, id openapi_types.UUID) (*http.Request,
 }
 
 // NewCheckProtocolCompatibilityRequest calls the generic CheckProtocolCompatibility builder with application/json body
-func NewCheckProtocolCompatibilityRequest(server string, id openapi_types.UUID, body CheckProtocolCompatibilityJSONRequestBody) (*http.Request, error) {
+func NewCheckProtocolCompatibilityRequest(server string, id openapi_types.UUID, params *CheckProtocolCompatibilityParams, body CheckProtocolCompatibilityJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewCheckProtocolCompatibilityRequestWithBody(server, id, "application/json", bodyReader)
+	return NewCheckProtocolCompatibilityRequestWithBody(server, id, params, "application/json", bodyReader)
 }
 
 // NewCheckProtocolCompatibilityRequestWithBody generates requests for CheckProtocolCompatibility with any type of body
-func NewCheckProtocolCompatibilityRequestWithBody(server string, id openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+func NewCheckProtocolCompatibilityRequestWithBody(server string, id openapi_types.UUID, params *CheckProtocolCompatibilityParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -588,6 +648,33 @@ func NewCheckProtocolCompatibilityRequestWithBody(server string, id openapi_type
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
@@ -702,18 +789,18 @@ func NewRegisterProtocolDependencyRequestWithBody(server string, id openapi_type
 }
 
 // NewPublishProtocolRequest calls the generic PublishProtocol builder with application/json body
-func NewPublishProtocolRequest(server string, id openapi_types.UUID, versionId openapi_types.UUID, body PublishProtocolJSONRequestBody) (*http.Request, error) {
+func NewPublishProtocolRequest(server string, id openapi_types.UUID, versionId openapi_types.UUID, params *PublishProtocolParams, body PublishProtocolJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewPublishProtocolRequestWithBody(server, id, versionId, "application/json", bodyReader)
+	return NewPublishProtocolRequestWithBody(server, id, versionId, params, "application/json", bodyReader)
 }
 
 // NewPublishProtocolRequestWithBody generates requests for PublishProtocol with any type of body
-func NewPublishProtocolRequestWithBody(server string, id openapi_types.UUID, versionId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+func NewPublishProtocolRequestWithBody(server string, id openapi_types.UUID, versionId openapi_types.UUID, params *PublishProtocolParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -743,6 +830,33 @@ func NewPublishProtocolRequestWithBody(server string, id openapi_types.UUID, ver
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
@@ -808,9 +922,9 @@ type ClientWithResponsesInterface interface {
 	GetProtocolWithResponse(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetProtocolResponse, error)
 
 	// CheckProtocolCompatibilityWithBodyWithResponse request with any body
-	CheckProtocolCompatibilityWithBodyWithResponse(ctx context.Context, id openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CheckProtocolCompatibilityResponse, error)
+	CheckProtocolCompatibilityWithBodyWithResponse(ctx context.Context, id openapi_types.UUID, params *CheckProtocolCompatibilityParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CheckProtocolCompatibilityResponse, error)
 
-	CheckProtocolCompatibilityWithResponse(ctx context.Context, id openapi_types.UUID, body CheckProtocolCompatibilityJSONRequestBody, reqEditors ...RequestEditorFn) (*CheckProtocolCompatibilityResponse, error)
+	CheckProtocolCompatibilityWithResponse(ctx context.Context, id openapi_types.UUID, params *CheckProtocolCompatibilityParams, body CheckProtocolCompatibilityJSONRequestBody, reqEditors ...RequestEditorFn) (*CheckProtocolCompatibilityResponse, error)
 
 	// PublishVersionWithBodyWithResponse request with any body
 	PublishVersionWithBodyWithResponse(ctx context.Context, id openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PublishVersionResponse, error)
@@ -823,9 +937,9 @@ type ClientWithResponsesInterface interface {
 	RegisterProtocolDependencyWithResponse(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, body RegisterProtocolDependencyJSONRequestBody, reqEditors ...RequestEditorFn) (*RegisterProtocolDependencyResponse, error)
 
 	// PublishProtocolWithBodyWithResponse request with any body
-	PublishProtocolWithBodyWithResponse(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PublishProtocolResponse, error)
+	PublishProtocolWithBodyWithResponse(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, params *PublishProtocolParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PublishProtocolResponse, error)
 
-	PublishProtocolWithResponse(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, body PublishProtocolJSONRequestBody, reqEditors ...RequestEditorFn) (*PublishProtocolResponse, error)
+	PublishProtocolWithResponse(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, params *PublishProtocolParams, body PublishProtocolJSONRequestBody, reqEditors ...RequestEditorFn) (*PublishProtocolResponse, error)
 }
 
 type ListServicesResponse struct {
@@ -1073,16 +1187,16 @@ func (c *ClientWithResponses) GetProtocolWithResponse(ctx context.Context, id op
 }
 
 // CheckProtocolCompatibilityWithBodyWithResponse request with arbitrary body returning *CheckProtocolCompatibilityResponse
-func (c *ClientWithResponses) CheckProtocolCompatibilityWithBodyWithResponse(ctx context.Context, id openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CheckProtocolCompatibilityResponse, error) {
-	rsp, err := c.CheckProtocolCompatibilityWithBody(ctx, id, contentType, body, reqEditors...)
+func (c *ClientWithResponses) CheckProtocolCompatibilityWithBodyWithResponse(ctx context.Context, id openapi_types.UUID, params *CheckProtocolCompatibilityParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CheckProtocolCompatibilityResponse, error) {
+	rsp, err := c.CheckProtocolCompatibilityWithBody(ctx, id, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseCheckProtocolCompatibilityResponse(rsp)
 }
 
-func (c *ClientWithResponses) CheckProtocolCompatibilityWithResponse(ctx context.Context, id openapi_types.UUID, body CheckProtocolCompatibilityJSONRequestBody, reqEditors ...RequestEditorFn) (*CheckProtocolCompatibilityResponse, error) {
-	rsp, err := c.CheckProtocolCompatibility(ctx, id, body, reqEditors...)
+func (c *ClientWithResponses) CheckProtocolCompatibilityWithResponse(ctx context.Context, id openapi_types.UUID, params *CheckProtocolCompatibilityParams, body CheckProtocolCompatibilityJSONRequestBody, reqEditors ...RequestEditorFn) (*CheckProtocolCompatibilityResponse, error) {
+	rsp, err := c.CheckProtocolCompatibility(ctx, id, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -1124,16 +1238,16 @@ func (c *ClientWithResponses) RegisterProtocolDependencyWithResponse(ctx context
 }
 
 // PublishProtocolWithBodyWithResponse request with arbitrary body returning *PublishProtocolResponse
-func (c *ClientWithResponses) PublishProtocolWithBodyWithResponse(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PublishProtocolResponse, error) {
-	rsp, err := c.PublishProtocolWithBody(ctx, id, versionId, contentType, body, reqEditors...)
+func (c *ClientWithResponses) PublishProtocolWithBodyWithResponse(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, params *PublishProtocolParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PublishProtocolResponse, error) {
+	rsp, err := c.PublishProtocolWithBody(ctx, id, versionId, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParsePublishProtocolResponse(rsp)
 }
 
-func (c *ClientWithResponses) PublishProtocolWithResponse(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, body PublishProtocolJSONRequestBody, reqEditors ...RequestEditorFn) (*PublishProtocolResponse, error) {
-	rsp, err := c.PublishProtocol(ctx, id, versionId, body, reqEditors...)
+func (c *ClientWithResponses) PublishProtocolWithResponse(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, params *PublishProtocolParams, body PublishProtocolJSONRequestBody, reqEditors ...RequestEditorFn) (*PublishProtocolResponse, error) {
+	rsp, err := c.PublishProtocol(ctx, id, versionId, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}

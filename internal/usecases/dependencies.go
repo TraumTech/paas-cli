@@ -40,10 +40,11 @@ type VersionPublisher interface {
 
 // ProtocolPublisher публикует контракт под версией сервиса в платформе и
 // возвращает итог: к какой версии привязан протокол и его совместимость с
-// потребителями. На отказ платформы (нет сервиса/версии, контракт отклонён)
-// возвращает ошибку с понятным сообщением от платформы.
+// потребителями. Формат доносится до платформы как есть; глубокую проверку
+// документа по формату делает она. На отказ платформы (нет сервиса/версии,
+// контракт отклонён) возвращает ошибку с понятным сообщением от платформы.
 type ProtocolPublisher interface {
-	PublishProtocol(ctx context.Context, serviceID, versionID string, document []byte) (*entities.ProtocolPublication, error)
+	PublishProtocol(ctx context.Context, serviceID, versionID string, format entities.ProtocolFormat, document []byte) (*entities.ProtocolPublication, error)
 }
 
 // DependencyRegistrar регистрирует в платформе зависимость версии потребителя от

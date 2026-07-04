@@ -86,7 +86,7 @@ func TestCommandRun_Incomparable(t *testing.T) {
 
 	var out bytes.Buffer
 	require.NoError(t, run(t, checker, &out))
-	assert.Contains(t, out.String(), "несравнимо (снимок не разобран)")
+	assert.Contains(t, out.String(), "не сверялось (снимок несравним с контрактом)")
 }
 
 func TestCommandRun_RequiresTwoArgs(t *testing.T) {

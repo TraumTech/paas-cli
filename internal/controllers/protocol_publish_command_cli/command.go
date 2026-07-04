@@ -96,7 +96,7 @@ func render(w io.Writer, p *entities.ProtocolPublication) {
 func consumerStatus(c entities.ConsumerCompatibility) string {
 	switch {
 	case !c.Comparable:
-		return "несравнимо (снимок не разобран)"
+		return "не сверялось (снимок несравним с контрактом)"
 	case c.Breaking:
 		return "ЛОМАЕТ"
 	case len(c.Changes) == 0:

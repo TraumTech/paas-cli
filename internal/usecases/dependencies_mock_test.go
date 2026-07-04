@@ -237,18 +237,18 @@ func (m *MockProtocolPublisher) EXPECT() *MockProtocolPublisherMockRecorder {
 }
 
 // PublishProtocol mocks base method.
-func (m *MockProtocolPublisher) PublishProtocol(ctx context.Context, serviceID, versionID string, document []byte) (*entities.ProtocolPublication, error) {
+func (m *MockProtocolPublisher) PublishProtocol(ctx context.Context, serviceID, versionID string, format entities.ProtocolFormat, document []byte) (*entities.ProtocolPublication, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PublishProtocol", ctx, serviceID, versionID, document)
+	ret := m.ctrl.Call(m, "PublishProtocol", ctx, serviceID, versionID, format, document)
 	ret0, _ := ret[0].(*entities.ProtocolPublication)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // PublishProtocol indicates an expected call of PublishProtocol.
-func (mr *MockProtocolPublisherMockRecorder) PublishProtocol(ctx, serviceID, versionID, document any) *gomock.Call {
+func (mr *MockProtocolPublisherMockRecorder) PublishProtocol(ctx, serviceID, versionID, format, document any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PublishProtocol", reflect.TypeOf((*MockProtocolPublisher)(nil).PublishProtocol), ctx, serviceID, versionID, document)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PublishProtocol", reflect.TypeOf((*MockProtocolPublisher)(nil).PublishProtocol), ctx, serviceID, versionID, format, document)
 }
 
 // MockDependencyRegistrar is a mock of DependencyRegistrar interface.
