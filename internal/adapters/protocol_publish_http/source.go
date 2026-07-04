@@ -56,15 +56,23 @@ func (s *Source) PublishProtocol(ctx context.Context, serviceID, versionID strin
 	if err != nil {
 		return nil, fmt.Errorf("платформа недоступна: %w", err)
 	}
-	if resp.StatusCode() != http.StatusCreated {
+	// 201 — протокол опубликован впервые, 200 — заменён у версии, где уже был
+	// (идемпотентный повтор, штатно при перезапуске выкатки); тело одно и то же.
+	var publication *platformapi.ProtocolPublishedResponse
+	switch resp.StatusCode() {
+	case http.StatusCreated:
+		publication = resp.JSON201
+	case http.StatusOK:
+		publication = resp.JSON200
+	default:
 		// Сервис и версия — отдельные сегменты пути, оба дают 404, поэтому
 		// различаем их сообщением платформы, а не кодом статуса.
 		return nil, platformError(resp)
 	}
-	if resp.JSON201 == nil {
+	if publication == nil {
 		return nil, fmt.Errorf("платформа вернула пустой ответ")
 	}
-	return mapPublication(resp.JSON201), nil
+	return mapPublication(publication), nil
 }
 
 func platformError(resp *platformapi.PublishProtocolResponse) error {

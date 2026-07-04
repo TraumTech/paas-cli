@@ -45,6 +45,21 @@ func TestPublishVersion_MapsResponse(t *testing.T) {
 	assert.Equal(t, "abc123", version.CommitRevision)
 }
 
+// Повтор той же ревизии — 200 с уже существующей версией (идемпотентность
+// платформы, VER-02): перезапуск выкатки успешен и возвращает ту же версию.
+func TestPublishVersion_RepeatReturnsExistingOK(t *testing.T) {
+	src := newSource(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"id":"` + svcID + `","number":7,"commit_revision":"abc123","created_at":"2026-06-15T10:00:00Z"}`))
+	})
+
+	version, err := src.PublishVersion(context.Background(), svcID, "abc123")
+	require.NoError(t, err)
+	assert.Equal(t, 7, version.Number)
+	assert.Equal(t, "abc123", version.CommitRevision)
+}
+
 func TestPublishVersion_ServiceNotFound(t *testing.T) {
 	src := newSource(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)

@@ -119,6 +119,20 @@ func TestPublishProtocol_NoConsumers(t *testing.T) {
 	assert.Empty(t, publication.Consumers)
 }
 
+// Повторная публикация для версии, у которой протокол уже был, отвечает 200 —
+// идемпотентный повтор при перезапуске выкатки успешен, как и первая публикация.
+func TestPublishProtocol_RepublishOK(t *testing.T) {
+	src := newSource(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"published": true, "breaking": false, "protocol": {"service_id": "` + svcID + `", "version_id": "` + verID + `", "version_number": 7, "format": "openapi", "published_at": "2026-06-15T00:00:00Z"}, "consumers": []}`))
+	})
+
+	publication, err := src.PublishProtocol(context.Background(), svcID, verID, entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
+	require.NoError(t, err)
+	assert.Equal(t, 7, publication.VersionNumber)
+}
+
 func TestPublishProtocol_NotFoundSurfacesDetail(t *testing.T) {
 	src := newSource(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/problem+json")

@@ -709,6 +709,16 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionResponse"
+                }
+              }
+            },
+            "description": "Версия уже существует — идемпотентный повтор"
+          },
           "201": {
             "content": {
               "application/json": {
@@ -853,6 +863,16 @@
           }
         },
         "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolPublishedResponse"
+                }
+              }
+            },
+            "description": "Протокол версии заменён — идемпотентный повтор"
+          },
           "201": {
             "content": {
               "application/json": {

@@ -1069,6 +1069,7 @@ func (r CheckProtocolCompatibilityResponse) ContentType() string {
 type PublishVersionResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
+	JSON200                       *VersionResponse
 	JSON201                       *VersionResponse
 	ApplicationproblemJSONDefault *ErrorModel
 }
@@ -1131,6 +1132,7 @@ func (r RegisterProtocolDependencyResponse) ContentType() string {
 type PublishProtocolResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
+	JSON200                       *ProtocolPublishedResponse
 	JSON201                       *ProtocolPublishedResponse
 	ApplicationproblemJSONDefault *ErrorModel
 }
@@ -1400,6 +1402,13 @@ func ParsePublishVersionResponse(rsp *http.Response) (*PublishVersionResponse, e
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest VersionResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
 		var dest VersionResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -1466,6 +1475,13 @@ func ParsePublishProtocolResponse(rsp *http.Response) (*PublishProtocolResponse,
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ProtocolPublishedResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
 		var dest ProtocolPublishedResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
