@@ -72,6 +72,7 @@ func (uc *SyncProtocolsUseCase) Execute(ctx context.Context, in SyncProtocolsInp
 		results = append(results, FetchProtocolResult{
 			ServiceName:   protocol.ServiceName,
 			VersionNumber: protocol.VersionNumber,
+			Format:        protocol.Format,
 			Path:          path,
 		})
 	}

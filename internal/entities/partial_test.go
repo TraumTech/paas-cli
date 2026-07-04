@@ -147,3 +147,11 @@ func TestSelectMethods_KeepsSecuritySchemesByName(t *testing.T) {
 	assert.Contains(t, schemes, "bearer")
 	assert.NotContains(t, schemes, "unused")
 }
+
+// Сужение по методам работает только для OpenAPI: у gRPC-контракта — честная
+// ошибка вместо молчаливо полного или испорченного среза.
+func TestSelectMethods_GRPCUnsupported(t *testing.T) {
+	p := &Protocol{Format: ProtocolFormatGRPC, Document: []byte("syntax = \"proto3\";")}
+	_, err := p.SelectMethods([]string{"traumtech.paas_protocols.v1.RegistryService/GetProtocol"})
+	assert.ErrorIs(t, err, ErrMethodsUnsupportedForGRPC)
+}

@@ -6,6 +6,7 @@ import (
 
 	"github.com/urfave/cli/v3"
 
+	"github.com/TraumTech/paas-cli/internal/entities"
 	"github.com/TraumTech/paas-cli/internal/usecases"
 )
 
@@ -64,7 +65,16 @@ func (c *Command) run(ctx context.Context, cmd *cli.Command) error {
 			result.ServiceName, result.VersionNumber, len(methods), result.Path)
 		return nil
 	}
-	fmt.Fprintf(cmd.Root().Writer, "✓ Контракт сервиса %s (версия %d) записан в %s\n",
-		result.ServiceName, result.VersionNumber, result.Path)
+	fmt.Fprintf(cmd.Root().Writer, "✓ Контракт сервиса %s (версия %d%s) записан в %s\n",
+		result.ServiceName, result.VersionNumber, formatLabel(result.Format), result.Path)
 	return nil
+}
+
+// formatLabel — пометка формата в отчёте; прежний формат (OpenAPI) не помечаем,
+// чтобы привычный вывод не менялся.
+func formatLabel(f entities.ProtocolFormat) string {
+	if f == entities.ProtocolFormatGRPC {
+		return ", gRPC"
+	}
+	return ""
 }

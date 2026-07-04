@@ -25,6 +25,8 @@ var (
 	ErrEmptyCommitRevision  = newDomainError("ревизия коммита не указана")
 	ErrNoMethodsSelected    = newDomainError("не указан ни один метод")
 
+	ErrMethodsUnsupportedForGRPC = newDomainError("сужение до методов для gRPC-контракта пока не поддерживается — уберите methods у этой зависимости")
+
 	ErrManifestNoDependencies   = newDomainError("в манифесте не объявлено ни одной зависимости")
 	ErrManifestDependencyNoName = newDomainError("у зависимости в манифесте не указано имя сервиса")
 

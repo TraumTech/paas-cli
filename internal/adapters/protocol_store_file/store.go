@@ -11,9 +11,9 @@ import (
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
-// Store пишет контракт в <destDir>/<service-name>/openapi.json атомарно: сначала
-// во временный файл рядом с целью, затем rename. Если запись падает — ранее
-// полученный рабочий контракт остаётся нетронутым.
+// Store пишет контракт в <destDir>/<service-name>/<файл по формату> атомарно:
+// сначала во временный файл рядом с целью, затем rename. Если запись падает —
+// ранее полученный рабочий контракт остаётся нетронутым.
 type Store struct{}
 
 func New() *Store {
@@ -21,14 +21,23 @@ func New() *Store {
 }
 
 func (s *Store) Save(_ context.Context, protocol *entities.Protocol, destDir string) (string, error) {
+	// Контракт кладётся в родном виде: OpenAPI форматируем как JSON для читаемых
+	// диффов, .proto-исходник gRPC пишем как есть (гарантируя перевод строки в конце).
 	var pretty bytes.Buffer
-	if err := json.Indent(&pretty, protocol.Document, "", "  "); err != nil {
-		return "", fmt.Errorf("форматирование контракта: %w", err)
+	if protocol.Format == entities.ProtocolFormatGRPC {
+		pretty.Write(protocol.Document)
+		if !bytes.HasSuffix(protocol.Document, []byte("\n")) {
+			pretty.WriteByte('\n')
+		}
+	} else {
+		if err := json.Indent(&pretty, protocol.Document, "", "  "); err != nil {
+			return "", fmt.Errorf("форматирование контракта: %w", err)
+		}
+		pretty.WriteByte('\n')
 	}
-	pretty.WriteByte('\n')
 
 	dir := filepath.Join(destDir, protocol.ServiceName)
-	destPath := filepath.Join(dir, entities.ProtocolFileName)
+	destPath := filepath.Join(dir, entities.ProtocolFileNameFor(protocol.Format))
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("создание каталога %s: %w", dir, err)
 	}

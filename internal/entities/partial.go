@@ -25,6 +25,11 @@ var httpMethods = map[string]bool{
 // нет, возвращается *UnknownMethodsError со списком ненайденных — частичный/пустой
 // результат наружу не отдаётся.
 func (p *Protocol) SelectMethods(methods []string) (*Protocol, error) {
+	// Срез работает по HTTP-паттернам OpenAPI; движка разбора gRPC-методов нет —
+	// честная ошибка вместо молчаливо полного или испорченного контракта.
+	if p.Format == ProtocolFormatGRPC {
+		return nil, ErrMethodsUnsupportedForGRPC
+	}
 	// want: канонический ключ "метод путь" → исходный паттерн (для текста ошибки).
 	want := make(map[string]string, len(methods))
 	for _, m := range methods {

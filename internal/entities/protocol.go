@@ -30,20 +30,27 @@ func ParseProtocolFormat(name string) (ProtocolFormat, error) {
 }
 
 // Protocol — актуальный опубликованный контракт сервиса: машиночитаемое описание
-// его API. Document — сырой документ контракта (для OpenAPI это JSON-объект),
-// который потребитель кладёт к себе и строит против него свой код.
+// его API. Document — сырой документ контракта в родном для формата виде
+// (JSON-объект у OpenAPI, .proto-исходник у gRPC), который потребитель кладёт к
+// себе и строит против него свой код.
 type Protocol struct {
 	ServiceID     string
 	ServiceName   string
 	VersionNumber int
-	Format        string
+	Format        ProtocolFormat
 	Document      []byte
 }
 
-// Validate проверяет, что документ действительно похож на OpenAPI-контракт, а не
-// на пустой/битый ответ. Эта проверка — страховка критерия приёмки: рабочий
-// контракт не должен затираться чем попало.
+// Validate — страховка от затирания рабочего контракта пустым/битым ответом:
+// OpenAPI должен быть похож на контракт, у gRPC достаточно непустого текста —
+// глубокий разбор .proto остаётся заботой платформы.
 func (p *Protocol) Validate() error {
+	if p.Format == ProtocolFormatGRPC {
+		if len(bytes.TrimSpace(p.Document)) == 0 {
+			return ErrEmptyProtocol
+		}
+		return nil
+	}
 	return validateContractDocument(p.Document)
 }
 

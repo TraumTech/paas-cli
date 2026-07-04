@@ -65,18 +65,35 @@ func (s *Source) FetchProtocol(ctx context.Context, serviceID string) (*entities
 		return nil, entities.ErrProtocolNotPublished
 	}
 
-	document, err := json.Marshal(view.Document)
+	// Неизвестный CLI формат — честная ошибка, а не контракт, разложенный как
+	// попало: старый бинарь не должен молча портить раскладку нового формата.
+	formatName := ""
+	if view.Format != nil {
+		formatName = *view.Format
+	}
+	format, err := entities.ParseProtocolFormat(formatName)
 	if err != nil {
-		return nil, fmt.Errorf("сериализация контракта: %w", err)
+		return nil, err
+	}
+
+	// Документ приходит в родном для формата виде: OpenAPI — JSON-объектом в
+	// document, gRPC — .proto-исходником в document_text (PRT-17).
+	var document []byte
+	if format == entities.ProtocolFormatGRPC {
+		if view.DocumentText != nil {
+			document = []byte(*view.DocumentText)
+		}
+	} else {
+		if document, err = json.Marshal(view.Document); err != nil {
+			return nil, fmt.Errorf("сериализация контракта: %w", err)
+		}
 	}
 
 	protocol := &entities.Protocol{
 		ServiceID:   serviceID,
 		ServiceName: svc.JSON200.Name,
+		Format:      format,
 		Document:    document,
-	}
-	if view.Format != nil {
-		protocol.Format = *view.Format
 	}
 	if view.VersionNumber != nil {
 		protocol.VersionNumber = int(*view.VersionNumber)

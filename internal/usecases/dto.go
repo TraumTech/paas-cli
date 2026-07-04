@@ -1,5 +1,7 @@
 package usecases
 
+import "github.com/TraumTech/paas-cli/internal/entities"
+
 type FetchProtocolInput struct {
 	ServiceID string
 	// Destination — базовая директория для контрактов; конкретный файл внутри
@@ -15,6 +17,7 @@ type FetchProtocolInput struct {
 type FetchProtocolResult struct {
 	ServiceName   string
 	VersionNumber int
+	Format        entities.ProtocolFormat
 	Path          string
 }
 

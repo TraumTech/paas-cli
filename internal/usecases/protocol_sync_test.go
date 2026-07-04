@@ -166,3 +166,85 @@ func TestSyncProtocolsExecute_ReadError(t *testing.T) {
 		Execute(context.Background(), SyncProtocolsInput{ManifestPath: "protocols.toml"})
 	assert.ErrorIs(t, err, readErr)
 }
+
+// Смешанный манифест: OpenAPI-зависимость кладётся как прежде, gRPC — в родном
+// виде (.proto); в результатах виден формат каждого контракта.
+func TestSyncProtocolsExecute_MixedFormats(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	manifests := NewMockManifestReader(ctrl)
+	resolver := NewMockServiceResolver(ctrl)
+	source := NewMockProtocolSource(ctrl)
+	store := NewMockProtocolStore(ctrl)
+
+	manifests.EXPECT().Read(gomock.Any(), gomock.Any()).Return(&entities.Manifest{
+		Service:      &entities.ManifestService{Name: "paas-backend"},
+		Dependencies: []entities.ManifestDependency{{Name: "billing"}, {Name: "paas-protocols"}},
+	}, nil)
+	resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"billing", "paas-protocols"}).
+		Return(map[string]string{"billing": "id-billing", "paas-protocols": "id-registry"}, nil)
+
+	openapi := &entities.Protocol{ServiceName: "billing", VersionNumber: 2, Format: entities.ProtocolFormatOpenAPI, Document: []byte(validDoc)}
+	grpc := &entities.Protocol{ServiceName: "paas-protocols", VersionNumber: 1, Format: entities.ProtocolFormatGRPC, Document: []byte("syntax = \"proto3\";")}
+	source.EXPECT().FetchProtocol(gomock.Any(), "id-billing").Return(openapi, nil)
+	source.EXPECT().FetchProtocol(gomock.Any(), "id-registry").Return(grpc, nil)
+	store.EXPECT().Save(gomock.Any(), openapi, "protocols").Return("protocols/billing/openapi.json", nil)
+	store.EXPECT().Save(gomock.Any(), grpc, "protocols").Return("protocols/paas-protocols/contract.proto", nil)
+
+	got, err := NewSyncProtocols(manifests, resolver, source, store).
+		Execute(context.Background(), SyncProtocolsInput{ManifestPath: "protocols.toml"})
+
+	require.NoError(t, err)
+	require.Len(t, got.Protocols, 2)
+	assert.Equal(t, entities.ProtocolFormatOpenAPI, got.Protocols[0].Format)
+	assert.Equal(t, entities.ProtocolFormatGRPC, got.Protocols[1].Format)
+	assert.Equal(t, "protocols/paas-protocols/contract.proto", got.Protocols[1].Path)
+}
+
+// methods у gRPC-зависимости — понятная ошибка с именем зависимости; в раскладку
+// ничего не пишется.
+func TestSyncProtocolsExecute_GRPCMethodsUnsupported(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	manifests := NewMockManifestReader(ctrl)
+	resolver := NewMockServiceResolver(ctrl)
+	source := NewMockProtocolSource(ctrl)
+	store := NewMockProtocolStore(ctrl)
+
+	manifests.EXPECT().Read(gomock.Any(), gomock.Any()).Return(&entities.Manifest{
+		Service:      &entities.ManifestService{Name: "paas-backend"},
+		Dependencies: []entities.ManifestDependency{{Name: "paas-protocols", Methods: []string{"Registry/Get"}}},
+	}, nil)
+	resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"paas-protocols"}).
+		Return(map[string]string{"paas-protocols": "id-registry"}, nil)
+	source.EXPECT().FetchProtocol(gomock.Any(), "id-registry").
+		Return(&entities.Protocol{ServiceName: "paas-protocols", Format: entities.ProtocolFormatGRPC, Document: []byte("syntax = \"proto3\";")}, nil)
+	// Save не вызывается — испорченный/полный контракт молча не кладём.
+
+	_, err := NewSyncProtocols(manifests, resolver, source, store).
+		Execute(context.Background(), SyncProtocolsInput{ManifestPath: "protocols.toml"})
+
+	assert.ErrorIs(t, err, entities.ErrMethodsUnsupportedForGRPC)
+	assert.Contains(t, err.Error(), "paas-protocols")
+}
+
+// Пустой gRPC-ответ платформы не доходит до раскладки — валидация отсекает до Save.
+func TestSyncProtocolsExecute_EmptyGRPCDocument_NoSave(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	manifests := NewMockManifestReader(ctrl)
+	resolver := NewMockServiceResolver(ctrl)
+	source := NewMockProtocolSource(ctrl)
+	store := NewMockProtocolStore(ctrl)
+
+	manifests.EXPECT().Read(gomock.Any(), gomock.Any()).Return(&entities.Manifest{
+		Service:      &entities.ManifestService{Name: "paas-backend"},
+		Dependencies: []entities.ManifestDependency{{Name: "paas-protocols"}},
+	}, nil)
+	resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"paas-protocols"}).
+		Return(map[string]string{"paas-protocols": "id-registry"}, nil)
+	source.EXPECT().FetchProtocol(gomock.Any(), "id-registry").
+		Return(&entities.Protocol{ServiceName: "paas-protocols", Format: entities.ProtocolFormatGRPC, Document: []byte("  ")}, nil)
+
+	_, err := NewSyncProtocols(manifests, resolver, source, store).
+		Execute(context.Background(), SyncProtocolsInput{ManifestPath: "protocols.toml"})
+
+	assert.ErrorIs(t, err, entities.ErrEmptyProtocol)
+}

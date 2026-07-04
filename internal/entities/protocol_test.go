@@ -58,3 +58,13 @@ func TestParseProtocolFormat_Unsupported(t *testing.T) {
 	assert.Contains(t, err.Error(), "openapi")
 	assert.Contains(t, err.Error(), "grpc")
 }
+
+// Для gRPC-протокола достаточно непустого текста — JSON-проверка OpenAPI к
+// .proto не применяется; пустой ответ по-прежнему отклоняется.
+func TestProtocolValidate_GRPC(t *testing.T) {
+	valid := &entities.Protocol{Format: entities.ProtocolFormatGRPC, Document: []byte("syntax = \"proto3\";")}
+	assert.NoError(t, valid.Validate())
+
+	empty := &entities.Protocol{Format: entities.ProtocolFormatGRPC, Document: []byte("  \n")}
+	assert.ErrorIs(t, empty.Validate(), entities.ErrEmptyProtocol)
+}

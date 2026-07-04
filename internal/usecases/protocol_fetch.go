@@ -35,6 +35,7 @@ func (uc *FetchProtocolUseCase) Execute(ctx context.Context, in FetchProtocolInp
 	return &FetchProtocolResult{
 		ServiceName:   protocol.ServiceName,
 		VersionNumber: protocol.VersionNumber,
+		Format:        protocol.Format,
 		Path:          path,
 	}, nil
 }

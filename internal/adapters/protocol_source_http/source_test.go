@@ -2,6 +2,7 @@ package protocolsourcehttp_test
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -45,7 +46,7 @@ func TestFetchProtocol_Published(t *testing.T) {
 	assert.Equal(t, svcID, got.ServiceID)
 	assert.Equal(t, "payments", got.ServiceName)
 	assert.Equal(t, 4, got.VersionNumber)
-	assert.Equal(t, "openapi", got.Format)
+	assert.Equal(t, entities.ProtocolFormatOpenAPI, got.Format)
 	assert.JSONEq(t, `{"openapi":"3.1.0","paths":{}}`, string(got.Document))
 }
 
@@ -95,4 +96,46 @@ func TestFetchProtocol_Unreachable(t *testing.T) {
 	require.NoError(t, err)
 	_, err = src.FetchProtocol(context.Background(), svcID)
 	require.Error(t, err)
+}
+
+// gRPC-протокол приходит с document_text (.proto-исходник) и явным форматом.
+func TestFetchProtocol_GRPCFromDocumentText(t *testing.T) {
+	proto := "syntax = \"proto3\";\npackage traumtech.paas_protocols.v1;"
+	src := newSource(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/services/" + svcID:
+			writeJSON(w, `{"id":"`+svcID+`","name":"paas-protocols"}`)
+		case "/services/" + svcID + "/protocol":
+			body, _ := json.Marshal(map[string]any{
+				"published": true, "version_number": 1, "format": "grpc", "document_text": proto,
+			})
+			writeJSON(w, string(body))
+		default:
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+	})
+
+	got, err := src.FetchProtocol(context.Background(), svcID)
+	require.NoError(t, err)
+	assert.Equal(t, entities.ProtocolFormatGRPC, got.Format)
+	assert.Equal(t, proto, string(got.Document))
+	assert.Equal(t, 1, got.VersionNumber)
+}
+
+// Формат, которого CLI не знает, — честная ошибка, а не контракт, разложенный
+// как попало.
+func TestFetchProtocol_UnknownFormat(t *testing.T) {
+	src := newSource(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/services/" + svcID:
+			writeJSON(w, `{"id":"`+svcID+`","name":"payments"}`)
+		case "/services/" + svcID + "/protocol":
+			writeJSON(w, `{"published":true,"version_number":2,"format":"graphql","document_text":"whatever"}`)
+		}
+	})
+
+	_, err := src.FetchProtocol(context.Background(), svcID)
+	var unsupported *entities.UnsupportedProtocolFormatError
+	require.ErrorAs(t, err, &unsupported)
+	assert.Equal(t, "graphql", unsupported.Name)
 }
