@@ -130,6 +130,10 @@ name = "paas-backend"
 [[dependencies]]
 name = "billing"
 methods = ["POST /invoices", "GET /invoices"]   # необязательный частичный контракт (по HTTP-паттерну)
+
+[[dependencies]]
+name = "paas-protocols"   # gRPC-продьюсер: методы — идентичностью package.Service/Method
+methods = ["traumtech.paas_protocols.v1.RegistryService/PublishProtocol"]
 ```
 
 ```sh
@@ -141,8 +145,10 @@ paas-cli protocols sync --manifest deps.toml  # другой путь к ман�
   в родном виде (`openapi.json` у OpenAPI, `contract.proto` у gRPC). Директорию
   задаёт `destination` в манифесте; явный `--destination`/`-d` её переопределяет.
 - На каждую зависимость можно сузить контракт до методов полем `methods` (как `-m` у
-  `fetch`). Для gRPC-зависимостей сужение пока не поддерживается — прогон честно
-  падает, уберите `methods` у такой зависимости.
+  `fetch`). У gRPC-зависимостей методы задаются идентичностью
+  `package.Service/Method` и **объявляют используемые методы** для регистрации
+  зависимостей (`dependencies register`); сужение контракта для gRPC пока не
+  поддерживается — контракт приносится целиком, о чём прогон честно сообщает.
 - Имя сервиса CLI резолвит в его id у платформы. Если объявленный сервис не найден,
   контракт не получить, либо манифест отсутствует/пуст/неразбираем — команда печатает
   понятную ошибку (с именем упавшей зависимости) и завершается ненулевым кодом,

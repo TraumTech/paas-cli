@@ -14,11 +14,14 @@ type FetchProtocolInput struct {
 }
 
 // FetchProtocolResult — итог получения протокола для отчёта пользователю.
+// NarrowingSkipped — у зависимости объявлены methods, но сужение для её формата
+// не поддерживается (gRPC): контракт принесён целиком, отчёт это отражает.
 type FetchProtocolResult struct {
-	ServiceName   string
-	VersionNumber int
-	Format        entities.ProtocolFormat
-	Path          string
+	ServiceName      string
+	VersionNumber    int
+	Format           entities.ProtocolFormat
+	Path             string
+	NarrowingSkipped bool
 }
 
 type SyncProtocolsInput struct {

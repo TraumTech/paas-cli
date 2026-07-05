@@ -18,11 +18,10 @@ func ProtocolFileNameFor(format ProtocolFormat) string {
 	return ProtocolFileName
 }
 
-// ContractSnapshotPath — путь к снимку контракта сервиса в раскладке потребителя.
-// Общая раскладка для записи (sync кладёт контракты сюда) и чтения (регистрация
-// зависимостей из манифеста берёт снимки отсюда же). Регистрация читает только
-// OpenAPI-снимки — зависимости с gRPC-снимками появятся вместе с методами
-// gRPC-идентичности (roadmap EPIC-04).
-func ContractSnapshotPath(destDir, serviceName string) string {
-	return filepath.Join(destDir, serviceName, ProtocolFileName)
+// ContractSnapshotPath — путь к снимку контракта сервиса указанного формата в
+// раскладке потребителя. Общая раскладка для записи (sync кладёт контракты сюда)
+// и чтения (регистрация зависимостей из манифеста берёт снимки отсюда же);
+// формат снимка в раскладке различается именем файла (CLI-19/CLI-20).
+func ContractSnapshotPath(destDir, serviceName string, format ProtocolFormat) string {
+	return filepath.Join(destDir, serviceName, ProtocolFileNameFor(format))
 }

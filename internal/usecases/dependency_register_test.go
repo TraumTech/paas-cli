@@ -3,6 +3,7 @@ package usecases
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -51,8 +52,9 @@ func TestRegisterDependencyExecute_Success(t *testing.T) {
 	m.resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"paas-frontend", "paas-backend"}).
 		Return(map[string]string{"paas-frontend": "consumer", "paas-backend": "prod"}, nil)
 	m.reader.EXPECT().Read(gomock.Any(), "protocols/paas-backend/openapi.json").Return([]byte(validContract), nil)
+	m.reader.EXPECT().Read(gomock.Any(), "protocols/paas-backend/contract.proto").Return(nil, os.ErrNotExist)
 	m.registrar.EXPECT().
-		RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod", []byte(validContract), gomock.Any(), false).
+		RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod", entities.ProtocolFormatOpenAPI, []byte(validContract), gomock.Any(), false).
 		Return(&entities.Dependency{ConsumerVersionID: "ver-1", ProducerServiceID: "prod"}, nil)
 
 	got, err := m.run()
@@ -78,8 +80,9 @@ func TestRegisterDependencyExecute_PassesMethods(t *testing.T) {
 	m.resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"paas-frontend", "paas-backend"}).
 		Return(map[string]string{"paas-frontend": "consumer", "paas-backend": "prod"}, nil)
 	m.reader.EXPECT().Read(gomock.Any(), "protocols/paas-backend/openapi.json").Return([]byte(validContract), nil)
+	m.reader.EXPECT().Read(gomock.Any(), "protocols/paas-backend/contract.proto").Return(nil, os.ErrNotExist)
 	m.registrar.EXPECT().
-		RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod", []byte(validContract),
+		RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod", entities.ProtocolFormatOpenAPI, []byte(validContract),
 			[]string{"GET /services/{id}", "GET /services/{id}/protocol"}, false).
 		Return(&entities.Dependency{}, nil)
 
@@ -96,8 +99,9 @@ func TestRegisterDependencyExecute_SupersedePrevious(t *testing.T) {
 	m.resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"paas-frontend", "paas-backend"}).
 		Return(map[string]string{"paas-frontend": "consumer", "paas-backend": "prod"}, nil)
 	m.reader.EXPECT().Read(gomock.Any(), "protocols/paas-backend/openapi.json").Return([]byte(validContract), nil)
+	m.reader.EXPECT().Read(gomock.Any(), "protocols/paas-backend/contract.proto").Return(nil, os.ErrNotExist)
 	m.registrar.EXPECT().
-		RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod", []byte(validContract), gomock.Any(), true).
+		RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod", entities.ProtocolFormatOpenAPI, []byte(validContract), gomock.Any(), true).
 		Return(&entities.Dependency{}, nil)
 
 	_, err := NewRegisterDependency(m.manifests, m.resolver, m.reader, m.registrar).
@@ -114,9 +118,11 @@ func TestRegisterDependencyExecute_AllDependencies(t *testing.T) {
 	m.resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"paas-frontend", "paas-backend", "billing"}).
 		Return(map[string]string{"paas-frontend": "consumer", "paas-backend": "prod-a", "billing": "prod-b"}, nil)
 	m.reader.EXPECT().Read(gomock.Any(), "protocols/paas-backend/openapi.json").Return([]byte(validContract), nil)
+	m.reader.EXPECT().Read(gomock.Any(), "protocols/paas-backend/contract.proto").Return(nil, os.ErrNotExist)
 	m.reader.EXPECT().Read(gomock.Any(), "protocols/billing/openapi.json").Return([]byte(validContract), nil)
-	m.registrar.EXPECT().RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod-a", gomock.Any(), gomock.Any(), false).Return(&entities.Dependency{}, nil)
-	m.registrar.EXPECT().RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod-b", gomock.Any(), gomock.Any(), false).Return(&entities.Dependency{}, nil)
+	m.reader.EXPECT().Read(gomock.Any(), "protocols/billing/contract.proto").Return(nil, os.ErrNotExist)
+	m.registrar.EXPECT().RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod-a", entities.ProtocolFormatOpenAPI, gomock.Any(), gomock.Any(), false).Return(&entities.Dependency{}, nil)
+	m.registrar.EXPECT().RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod-b", entities.ProtocolFormatOpenAPI, gomock.Any(), gomock.Any(), false).Return(&entities.Dependency{}, nil)
 
 	got, err := m.run()
 
@@ -136,7 +142,8 @@ func TestRegisterDependencyExecute_DestinationFromManifest(t *testing.T) {
 	m.resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"paas-frontend", "paas-backend"}).
 		Return(map[string]string{"paas-frontend": "consumer", "paas-backend": "prod"}, nil)
 	m.reader.EXPECT().Read(gomock.Any(), "vendor/api/paas-backend/openapi.json").Return([]byte(validContract), nil)
-	m.registrar.EXPECT().RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod", gomock.Any(), gomock.Any(), false).Return(&entities.Dependency{}, nil)
+	m.reader.EXPECT().Read(gomock.Any(), "vendor/api/paas-backend/contract.proto").Return(nil, os.ErrNotExist)
+	m.registrar.EXPECT().RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod", entities.ProtocolFormatOpenAPI, gomock.Any(), gomock.Any(), false).Return(&entities.Dependency{}, nil)
 
 	_, err := m.run()
 	require.NoError(t, err)
@@ -198,6 +205,7 @@ func TestRegisterDependencyExecute_SnapshotReadError_Aborts(t *testing.T) {
 		Return(map[string]string{"paas-frontend": "consumer", "paas-backend": "prod"}, nil)
 	readErr := errors.New("no such file")
 	m.reader.EXPECT().Read(gomock.Any(), "protocols/paas-backend/openapi.json").Return(nil, readErr)
+	m.reader.EXPECT().Read(gomock.Any(), "protocols/paas-backend/contract.proto").Return(nil, os.ErrNotExist)
 	// RegisterDependency не вызывается — снимок не прочитан.
 
 	_, err := m.run()
@@ -213,9 +221,68 @@ func TestRegisterDependencyExecute_InvalidSnapshot_Aborts(t *testing.T) {
 	m.resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"paas-frontend", "paas-backend"}).
 		Return(map[string]string{"paas-frontend": "consumer", "paas-backend": "prod"}, nil)
 	m.reader.EXPECT().Read(gomock.Any(), "protocols/paas-backend/openapi.json").Return([]byte(`{"not":"openapi"}`), nil)
+	m.reader.EXPECT().Read(gomock.Any(), "protocols/paas-backend/contract.proto").Return(nil, os.ErrNotExist)
 
 	_, err := m.run()
 	assert.ErrorIs(t, err, entities.ErrInvalidProtocol)
+}
+
+// gRPC-зависимость (CLI-20): формат определяется по раскладке (contract.proto),
+// снимок и методы gRPC-идентичностью уходят в реестр.
+func TestRegisterDependencyExecute_GRPCSnapshotFromLayout(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	m := newRegisterMocks(ctrl)
+
+	manifest := consumerManifest("paas-protocols")
+	manifest.Dependencies[0].Methods = []string{"traumtech.paas_protocols.v1.RegistryService/PublishProtocol"}
+	m.manifests.EXPECT().Read(gomock.Any(), "protocols.toml").Return(manifest, nil)
+	m.resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"paas-frontend", "paas-protocols"}).
+		Return(map[string]string{"paas-frontend": "consumer", "paas-protocols": "prod"}, nil)
+	proto := []byte("syntax = \"proto3\";\npackage traumtech.paas_protocols.v1;")
+	m.reader.EXPECT().Read(gomock.Any(), "protocols/paas-protocols/openapi.json").Return(nil, os.ErrNotExist)
+	m.reader.EXPECT().Read(gomock.Any(), "protocols/paas-protocols/contract.proto").Return(proto, nil)
+	m.registrar.EXPECT().RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod",
+		entities.ProtocolFormatGRPC, proto,
+		[]string{"traumtech.paas_protocols.v1.RegistryService/PublishProtocol"}, false).
+		Return(&entities.Dependency{}, nil)
+
+	res, err := m.run()
+	require.NoError(t, err)
+	assert.Len(t, res.Registered, 1)
+}
+
+// Оба снимка в раскладке — неоднозначность: честная ошибка, а не молчаливый выбор.
+func TestRegisterDependencyExecute_AmbiguousLayout_Aborts(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	m := newRegisterMocks(ctrl)
+
+	m.manifests.EXPECT().Read(gomock.Any(), "protocols.toml").Return(consumerManifest("paas-backend"), nil)
+	m.resolver.EXPECT().ResolveIDs(gomock.Any(), gomock.Any()).
+		Return(map[string]string{"paas-frontend": "consumer", "paas-backend": "prod"}, nil)
+	m.reader.EXPECT().Read(gomock.Any(), "protocols/paas-backend/openapi.json").Return([]byte(validContract), nil)
+	m.reader.EXPECT().Read(gomock.Any(), "protocols/paas-backend/contract.proto").Return([]byte("syntax..."), nil)
+	// Регистрация не вызывается.
+
+	_, err := m.run()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "два снимка")
+	assert.Contains(t, err.Error(), "paas-backend")
+}
+
+// Пустой gRPC-снимок в раскладке — понятная ошибка с именем зависимости.
+func TestRegisterDependencyExecute_EmptyGRPCSnapshot_Aborts(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	m := newRegisterMocks(ctrl)
+
+	m.manifests.EXPECT().Read(gomock.Any(), "protocols.toml").Return(consumerManifest("paas-protocols"), nil)
+	m.resolver.EXPECT().ResolveIDs(gomock.Any(), gomock.Any()).
+		Return(map[string]string{"paas-frontend": "consumer", "paas-protocols": "prod"}, nil)
+	m.reader.EXPECT().Read(gomock.Any(), "protocols/paas-protocols/openapi.json").Return(nil, os.ErrNotExist)
+	m.reader.EXPECT().Read(gomock.Any(), "protocols/paas-protocols/contract.proto").Return([]byte("  \n"), nil)
+
+	_, err := m.run()
+	assert.ErrorIs(t, err, entities.ErrEmptyProtocol)
+	assert.Contains(t, err.Error(), "paas-protocols")
 }
 
 func TestRegisterDependencyExecute_RegistrarError_Aborts(t *testing.T) {
@@ -226,8 +293,9 @@ func TestRegisterDependencyExecute_RegistrarError_Aborts(t *testing.T) {
 	m.resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"paas-frontend", "paas-backend"}).
 		Return(map[string]string{"paas-frontend": "consumer", "paas-backend": "prod"}, nil)
 	m.reader.EXPECT().Read(gomock.Any(), "protocols/paas-backend/openapi.json").Return([]byte(validContract), nil)
+	m.reader.EXPECT().Read(gomock.Any(), "protocols/paas-backend/contract.proto").Return(nil, os.ErrNotExist)
 	srcErr := errors.New("boom")
-	m.registrar.EXPECT().RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod", gomock.Any(), gomock.Any(), false).Return(nil, srcErr)
+	m.registrar.EXPECT().RegisterDependency(gomock.Any(), "consumer", "ver-1", "prod", entities.ProtocolFormatOpenAPI, gomock.Any(), gomock.Any(), false).Return(nil, srcErr)
 
 	_, err := m.run()
 	assert.ErrorIs(t, err, srcErr)

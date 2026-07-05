@@ -375,12 +375,18 @@
             "type": "string"
           },
           "document": {
-            "additionalProperties": {},
-            "description": "Снимок контракта продьюсера, на котором собрана версия (OpenAPI-документ)",
-            "type": "object"
+            "description": "Снимок контракта продьюсера: OpenAPI — JSON-объект, gRPC — строка с .proto-исходником"
+          },
+          "format": {
+            "description": "Формат снимка (пусто — openapi)",
+            "enum": [
+              "openapi",
+              "grpc"
+            ],
+            "type": "string"
           },
           "methods": {
-            "description": "Используемые методы продьюсера (HTTP-паттерны, напр. \"GET /services/{id}\"); пусто — зависимость от всего снимка",
+            "description": "Используемые методы продьюсера: HTTP-паттерн (\"GET /services/{id}\") у OpenAPI, package.Service/Method у gRPC; пусто — зависимость от всего снимка",
             "items": {
               "type": "string"
             },
@@ -784,6 +790,16 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolDependencyResponse"
+                }
+              }
+            },
+            "description": "Снимок зависимости заменён — идемпотентный повтор"
+          },
           "201": {
             "content": {
               "application/json": {

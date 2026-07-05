@@ -200,9 +200,10 @@ func TestSyncProtocolsExecute_MixedFormats(t *testing.T) {
 	assert.Equal(t, "protocols/paas-protocols/contract.proto", got.Protocols[1].Path)
 }
 
-// methods у gRPC-зависимости — понятная ошибка с именем зависимости; в раскладку
-// ничего не пишется.
-func TestSyncProtocolsExecute_GRPCMethodsUnsupported(t *testing.T) {
+// methods у gRPC-зависимости объявляют используемые методы (CLI-20): sync не
+// падает, сужение не выполняется — контракт кладётся целиком, и это видно в
+// результате прогона (уточнение CLI-19).
+func TestSyncProtocolsExecute_GRPCMethodsBringFullContract(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	manifests := NewMockManifestReader(ctrl)
 	resolver := NewMockServiceResolver(ctrl)
@@ -211,19 +212,21 @@ func TestSyncProtocolsExecute_GRPCMethodsUnsupported(t *testing.T) {
 
 	manifests.EXPECT().Read(gomock.Any(), gomock.Any()).Return(&entities.Manifest{
 		Service:      &entities.ManifestService{Name: "paas-backend"},
-		Dependencies: []entities.ManifestDependency{{Name: "paas-protocols", Methods: []string{"Registry/Get"}}},
+		Dependencies: []entities.ManifestDependency{{Name: "paas-protocols", Methods: []string{"traumtech.paas_protocols.v1.RegistryService/PublishProtocol"}}},
 	}, nil)
 	resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"paas-protocols"}).
 		Return(map[string]string{"paas-protocols": "id-registry"}, nil)
-	source.EXPECT().FetchProtocol(gomock.Any(), "id-registry").
-		Return(&entities.Protocol{ServiceName: "paas-protocols", Format: entities.ProtocolFormatGRPC, Document: []byte("syntax = \"proto3\";")}, nil)
-	// Save не вызывается — испорченный/полный контракт молча не кладём.
+	full := &entities.Protocol{ServiceName: "paas-protocols", Format: entities.ProtocolFormatGRPC, Document: []byte("syntax = \"proto3\";")}
+	source.EXPECT().FetchProtocol(gomock.Any(), "id-registry").Return(full, nil)
+	// Кладётся именно полный контракт, без попытки сужения.
+	store.EXPECT().Save(gomock.Any(), full, "protocols").Return("protocols/paas-protocols/contract.proto", nil)
 
-	_, err := NewSyncProtocols(manifests, resolver, source, store).
+	got, err := NewSyncProtocols(manifests, resolver, source, store).
 		Execute(context.Background(), SyncProtocolsInput{ManifestPath: "protocols.toml"})
 
-	assert.ErrorIs(t, err, entities.ErrMethodsUnsupportedForGRPC)
-	assert.Contains(t, err.Error(), "paas-protocols")
+	require.NoError(t, err)
+	require.Len(t, got.Protocols, 1)
+	assert.True(t, got.Protocols[0].NarrowingSkipped, "в отчёте видно, что сужение не выполнено")
 }
 
 // Пустой gRPC-ответ платформы не доходит до раскладки — валидация отсекает до Save.

@@ -27,7 +27,7 @@ func New(baseURL string, httpClient *http.Client) (*Source, error) {
 	return &Source{client: client}, nil
 }
 
-func (s *Source) RegisterDependency(ctx context.Context, serviceID, versionID, producerServiceID string, document []byte, methods []string, supersedePrevious bool) (*entities.Dependency, error) {
+func (s *Source) RegisterDependency(ctx context.Context, serviceID, versionID, producerServiceID string, format entities.ProtocolFormat, document []byte, methods []string, supersedePrevious bool) (*entities.Dependency, error) {
 	id, err := uuid.Parse(serviceID)
 	if err != nil {
 		return nil, fmt.Errorf("неверный id сервиса %q: %w", serviceID, err)
@@ -41,9 +41,21 @@ func (s *Source) RegisterDependency(ctx context.Context, serviceID, versionID, p
 		return nil, fmt.Errorf("неверный id продьюсера %q: %w", producerServiceID, err)
 	}
 
-	var doc map[string]interface{}
-	if err := json.Unmarshal(document, &doc); err != nil {
-		return nil, fmt.Errorf("снимок контракта не разобран как JSON: %w", err)
+	// Снимок уходит в родном виде формата (PRT-19): OpenAPI — JSON-объект,
+	// gRPC — строка с .proto-исходником. Формат прежнего типа не передаём —
+	// запрос не отличается от прежних регистраций без типа.
+	var doc any
+	var formatBody *platformapi.RegisterProtocolDependencyInputBodyFormat
+	if format == entities.ProtocolFormatGRPC {
+		doc = string(document)
+		f := platformapi.RegisterProtocolDependencyInputBodyFormat(format)
+		formatBody = &f
+	} else {
+		var obj map[string]any
+		if err := json.Unmarshal(document, &obj); err != nil {
+			return nil, fmt.Errorf("снимок контракта не разобран как JSON: %w", err)
+		}
+		doc = obj
 	}
 
 	// nil, когда не замещаем, — поле опускается; платформа трактует отсутствие как false.
@@ -58,6 +70,7 @@ func (s *Source) RegisterDependency(ctx context.Context, serviceID, versionID, p
 	}
 	resp, err := s.client.RegisterProtocolDependencyWithResponse(ctx, id, versionUUID, platformapi.RegisterProtocolDependencyJSONRequestBody{
 		ProducerServiceId: producerUUID,
+		Format:            formatBody,
 		Document:          doc,
 		Methods:           methodsBody,
 		SupersedePrevious: supersede,
@@ -65,15 +78,23 @@ func (s *Source) RegisterDependency(ctx context.Context, serviceID, versionID, p
 	if err != nil {
 		return nil, fmt.Errorf("платформа недоступна: %w", err)
 	}
-	if resp.StatusCode() != http.StatusCreated {
+	// 201 — первая регистрация, 200 — снимок заменён (идемпотентный повтор при
+	// перезапуске выкатки); тело в обоих случаях одно.
+	var out *platformapi.ProtocolDependencyResponse
+	switch resp.StatusCode() {
+	case http.StatusCreated:
+		out = resp.JSON201
+	case http.StatusOK:
+		out = resp.JSON200
+	default:
 		// Сервис-потребитель, версия и продьюсер — отдельные сущности, каждая даёт
 		// 404, поэтому различаем их сообщением платформы, а не кодом статуса.
 		return nil, platformError(resp)
 	}
-	if resp.JSON201 == nil {
+	if out == nil {
 		return nil, fmt.Errorf("платформа вернула пустой ответ")
 	}
-	return mapDependency(resp.JSON201), nil
+	return mapDependency(out), nil
 }
 
 func platformError(resp *platformapi.RegisterProtocolDependencyResponse) error {

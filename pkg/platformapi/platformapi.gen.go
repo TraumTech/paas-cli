@@ -23,6 +23,24 @@ const (
 	ServiceTokenScopes  serviceTokenContextKey  = "serviceToken.Scopes"
 )
 
+// Defines values for RegisterProtocolDependencyInputBodyFormat.
+const (
+	RegisterProtocolDependencyInputBodyFormatGrpc    RegisterProtocolDependencyInputBodyFormat = "grpc"
+	RegisterProtocolDependencyInputBodyFormatOpenapi RegisterProtocolDependencyInputBodyFormat = "openapi"
+)
+
+// Valid indicates whether the value is a known member of the RegisterProtocolDependencyInputBodyFormat enum.
+func (e RegisterProtocolDependencyInputBodyFormat) Valid() bool {
+	switch e {
+	case RegisterProtocolDependencyInputBodyFormatGrpc:
+		return true
+	case RegisterProtocolDependencyInputBodyFormatOpenapi:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CheckProtocolCompatibilityParamsFormat.
 const (
 	CheckProtocolCompatibilityParamsFormatGrpc    CheckProtocolCompatibilityParamsFormat = "grpc"
@@ -43,16 +61,16 @@ func (e CheckProtocolCompatibilityParamsFormat) Valid() bool {
 
 // Defines values for PublishProtocolParamsFormat.
 const (
-	PublishProtocolParamsFormatGrpc    PublishProtocolParamsFormat = "grpc"
-	PublishProtocolParamsFormatOpenapi PublishProtocolParamsFormat = "openapi"
+	Grpc    PublishProtocolParamsFormat = "grpc"
+	Openapi PublishProtocolParamsFormat = "openapi"
 )
 
 // Valid indicates whether the value is a known member of the PublishProtocolParamsFormat enum.
 func (e PublishProtocolParamsFormat) Valid() bool {
 	switch e {
-	case PublishProtocolParamsFormatGrpc:
+	case Grpc:
 		return true
-	case PublishProtocolParamsFormatOpenapi:
+	case Openapi:
 		return true
 	default:
 		return false
@@ -182,10 +200,13 @@ type RegisterProtocolDependencyInputBody struct {
 	// Schema A URL to the JSON Schema for this object.
 	Schema *string `json:"$schema,omitempty"`
 
-	// Document Снимок контракта продьюсера, на котором собрана версия (OpenAPI-документ)
-	Document map[string]interface{} `json:"document"`
+	// Document Снимок контракта продьюсера: OpenAPI — JSON-объект, gRPC — строка с .proto-исходником
+	Document interface{} `json:"document"`
 
-	// Methods Используемые методы продьюсера (HTTP-паттерны, напр. "GET /services/{id}"); пусто — зависимость от всего снимка
+	// Format Формат снимка (пусто — openapi)
+	Format *RegisterProtocolDependencyInputBodyFormat `json:"format,omitempty"`
+
+	// Methods Используемые методы продьюсера: HTTP-паттерн ("GET /services/{id}") у OpenAPI, package.Service/Method у gRPC; пусто — зависимость от всего снимка
 	Methods *[]string `json:"methods,omitempty"`
 
 	// ProducerServiceId ID сервиса, на контракте которого собрана версия
@@ -194,6 +215,9 @@ type RegisterProtocolDependencyInputBody struct {
 	// SupersedePrevious Снять зависимости прочих версий этого потребителя от того же продьюсера, оставив только регистрируемую (по умолчанию нет)
 	SupersedePrevious *bool `json:"supersede_previous,omitempty"`
 }
+
+// RegisterProtocolDependencyInputBodyFormat Формат снимка (пусто — openapi)
+type RegisterProtocolDependencyInputBodyFormat string
 
 // ServiceResponse defines model for ServiceResponse.
 type ServiceResponse struct {
@@ -1101,6 +1125,7 @@ func (r PublishVersionResponse) ContentType() string {
 type RegisterProtocolDependencyResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
+	JSON200                       *ProtocolDependencyResponse
 	JSON201                       *ProtocolDependencyResponse
 	ApplicationproblemJSONDefault *ErrorModel
 }
@@ -1442,6 +1467,13 @@ func ParseRegisterProtocolDependencyResponse(rsp *http.Response) (*RegisterProto
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ProtocolDependencyResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
 		var dest ProtocolDependencyResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {

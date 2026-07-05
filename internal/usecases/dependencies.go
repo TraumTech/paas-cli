@@ -48,12 +48,13 @@ type ProtocolPublisher interface {
 }
 
 // DependencyRegistrar регистрирует в платформе зависимость версии потребителя от
-// контракта продьюсера, прикладывая снимок этого контракта. Идемпотентен:
-// повторная регистрация той же версии на того же продьюсера обновляет снимок, а
-// не плодит дубль. На отказ платформы (нет версии-потребителя или продьюсера,
-// снимок отклонён) возвращает ошибку с понятным сообщением от платформы.
+// контракта продьюсера, прикладывая снимок этого контракта в родном виде его
+// формата (PRT-19). Идемпотентен: повторная регистрация той же версии на того же
+// продьюсера обновляет снимок, а не плодит дубль. На отказ платформы (нет
+// версии-потребителя или продьюсера, снимок отклонён) возвращает ошибку с
+// понятным сообщением от платформы.
 type DependencyRegistrar interface {
-	RegisterDependency(ctx context.Context, serviceID, versionID, producerServiceID string, document []byte, methods []string, supersedePrevious bool) (*entities.Dependency, error)
+	RegisterDependency(ctx context.Context, serviceID, versionID, producerServiceID string, format entities.ProtocolFormat, document []byte, methods []string, supersedePrevious bool) (*entities.Dependency, error)
 }
 
 // ManifestReader читает манифест зависимостей из файла в репозитории потребителя.

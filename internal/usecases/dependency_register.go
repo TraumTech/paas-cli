@@ -56,19 +56,40 @@ func (uc *RegisterDependencyUseCase) Execute(ctx context.Context, in RegisterDep
 		if !ok {
 			return nil, fmt.Errorf("зависимость %q: %w", dep.Name, entities.ErrServiceNotFound)
 		}
-		document, err := uc.reader.Read(ctx, entities.ContractSnapshotPath(dest, dep.Name))
+		document, format, err := uc.readSnapshot(ctx, dest, dep.Name)
 		if err != nil {
-			return nil, fmt.Errorf("зависимость %q: read snapshot: %w", dep.Name, err)
+			return nil, fmt.Errorf("зависимость %q: %w", dep.Name, err)
 		}
-		contract := &entities.CandidateContract{Document: document}
+		contract := &entities.CandidateContract{Format: format, Document: document}
 		if err := contract.Validate(); err != nil {
 			return nil, fmt.Errorf("зависимость %q: %w", dep.Name, err)
 		}
-		if _, err := uc.registrar.RegisterDependency(ctx, consumerID, in.VersionID, producerID, contract.Document, dep.Methods, in.SupersedePrevious); err != nil {
+		if _, err := uc.registrar.RegisterDependency(ctx, consumerID, in.VersionID, producerID, format, contract.Document, dep.Methods, in.SupersedePrevious); err != nil {
 			return nil, fmt.Errorf("зависимость %q: %w", dep.Name, err)
 		}
 		registered = append(registered, RegisteredDependency{ProducerName: dep.Name, ProducerServiceID: producerID})
 	}
 
 	return &RegisterDependenciesResult{Registered: registered}, nil
+}
+
+// readSnapshot читает снимок зависимости из раскладки, определяя формат по имени
+// файла, которым его положил sync (CLI-19): openapi.json — прежний формат,
+// contract.proto — gRPC. Оба сразу — неоднозначность, а не молчаливый выбор.
+func (uc *RegisterDependencyUseCase) readSnapshot(ctx context.Context, dest, name string) ([]byte, entities.ProtocolFormat, error) {
+	openapiDoc, openapiErr := uc.reader.Read(ctx, entities.ContractSnapshotPath(dest, name, entities.ProtocolFormatOpenAPI))
+	grpcDoc, grpcErr := uc.reader.Read(ctx, entities.ContractSnapshotPath(dest, name, entities.ProtocolFormatGRPC))
+	switch {
+	case openapiErr == nil && grpcErr == nil:
+		return nil, "", fmt.Errorf("в раскладке два снимка (%s и %s) — оставьте один и повторите",
+			entities.ProtocolFileName, entities.GRPCProtocolFileName)
+	case openapiErr == nil:
+		return openapiDoc, entities.ProtocolFormatOpenAPI, nil
+	case grpcErr == nil:
+		return grpcDoc, entities.ProtocolFormatGRPC, nil
+	default:
+		// Ни одного снимка: показываем ошибку по прежнему формату (привычный путь
+		// в тексте), полная диагностика — выполнить protocols sync.
+		return nil, "", fmt.Errorf("read snapshot: %w (нет и %s; выполните protocols sync)", openapiErr, entities.GRPCProtocolFileName)
+	}
 }
