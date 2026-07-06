@@ -3,6 +3,7 @@ package protocolcompatibilityhttp
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -27,15 +28,25 @@ func New(baseURL string, httpClient *http.Client) (*Source, error) {
 	return &Source{client: client}, nil
 }
 
-func (s *Source) CheckCompatibility(ctx context.Context, serviceID string, document []byte) (*entities.CompatibilityReport, error) {
+func (s *Source) CheckCompatibility(ctx context.Context, serviceID string, format entities.ProtocolFormat, document []byte) (*entities.CompatibilityReport, error) {
 	id, err := uuid.Parse(serviceID)
 	if err != nil {
 		return nil, fmt.Errorf("неверный id сервиса %q: %w", serviceID, err)
 	}
 
-	// Формат не передаём — проверка кандидата пока только для OpenAPI (умолчание
-	// платформы); запрос не отличается от прежних, без параметра.
-	resp, err := s.client.CheckProtocolCompatibilityWithBodyWithResponse(ctx, id, &platformapi.CheckProtocolCompatibilityParams{}, "application/json", bytes.NewReader(document))
+	// Кандидат уходит в родном для формата виде: OpenAPI — JSON-объект как есть,
+	// gRPC — JSON-строка с .proto-исходником. Формат OpenAPI не передаём
+	// (умолчание платформы) — запрос не отличается от прежних, без параметра.
+	params := &platformapi.CheckProtocolCompatibilityParams{}
+	payload := document
+	if format == entities.ProtocolFormatGRPC {
+		f := platformapi.CheckProtocolCompatibilityParamsFormat(format)
+		params.Format = &f
+		if payload, err = json.Marshal(string(document)); err != nil {
+			return nil, fmt.Errorf("кодирование .proto-кандидата: %w", err)
+		}
+	}
+	resp, err := s.client.CheckProtocolCompatibilityWithBodyWithResponse(ctx, id, params, "application/json", bytes.NewReader(payload))
 	if err != nil {
 		return nil, fmt.Errorf("платформа недоступна: %w", err)
 	}

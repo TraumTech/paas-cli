@@ -35,7 +35,7 @@ func TestCommandRun_Compatible(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	checker := NewMockCompatibilityChecker(ctrl)
 	checker.EXPECT().
-		Execute(gomock.Any(), usecases.CheckCompatibilityInput{ServiceID: "svc", CandidatePath: "openapi.json"}).
+		Execute(gomock.Any(), usecases.CheckCompatibilityInput{ServiceID: "svc", Format: entities.ProtocolFormatOpenAPI, CandidatePath: "openapi.json"}).
 		Return(&entities.CompatibilityReport{Breaking: false, Consumers: []entities.ConsumerCompatibility{
 			{ServiceName: "frontend", VersionNumber: 5, Comparable: true, Changes: []entities.CompatibilityChange{
 				{Kind: "operation-added", Operation: "GET /y", Description: "новый эндпоинт"},
@@ -108,4 +108,33 @@ func TestCommandRun_PropagatesUseCaseError(t *testing.T) {
 
 	err := run(t, checker, &bytes.Buffer{})
 	assert.ErrorIs(t, err, entities.ErrServiceNotFound)
+}
+
+// Опечатка в формате — ошибка до чтения файла и похода на платформу.
+func TestCommandRun_UnsupportedFormat(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	checker := NewMockCompatibilityChecker(ctrl)
+	checker.EXPECT().Execute(gomock.Any(), gomock.Any()).Times(0)
+
+	var out bytes.Buffer
+	err := rootWith(checker, &out).Run(context.Background(),
+		[]string{"paas-cli", "protocols", "compatibility", "--format", "graphql", "svc", "x.proto"})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "graphql")
+}
+
+// gRPC-кандидат: формат из флага доходит до use case.
+func TestCommandRun_GRPCFormat(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	checker := NewMockCompatibilityChecker(ctrl)
+	checker.EXPECT().
+		Execute(gomock.Any(), usecases.CheckCompatibilityInput{ServiceID: "svc", Format: entities.ProtocolFormatGRPC, CandidatePath: "registry.proto"}).
+		Return(&entities.CompatibilityReport{}, nil)
+
+	var out bytes.Buffer
+	err := rootWith(checker, &out).Run(context.Background(),
+		[]string{"paas-cli", "protocols", "compatibility", "--format", "grpc", "svc", "registry.proto"})
+
+	require.NoError(t, err)
 }

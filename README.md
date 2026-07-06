@@ -177,7 +177,12 @@ Owner-команда для процесса выкатки: проверить,
 ```sh
 paas-cli protocols compatibility <service-id> <candidate-file>   # напр. ./openapi.json
 paas-cli protocols compat <service-id> <candidate-file>          # короткий алиас
+paas-cli protocols compat --format grpc <service-id> registry.proto   # gRPC-кандидат (.proto)
 ```
+
+Формат кандидата задаёт флаг `--format` (`openapi` по умолчанию — существующие
+пайплайны без изменений, или `grpc` — кандидат читается как `.proto`-исходник).
+Неподдерживаемое значение — понятная ошибка до похода на платформу.
 
 - По каждому потребителю видно, какую его версию затрагивает кандидат, что меняется
   и что из этого ломающее.

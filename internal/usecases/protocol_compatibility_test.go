@@ -12,6 +12,39 @@ import (
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
+// gRPC-кандидат (CLI-21): формат доходит до платформы, .proto не гоняется через
+// JSON-проверку OpenAPI; пустой .proto — честный отказ до платформы.
+func TestCheckCompatibilityExecute_GRPCCandidate(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	reader := NewMockCandidateReader(ctrl)
+	source := NewMockCompatibilitySource(ctrl)
+
+	proto := []byte("syntax = \"proto3\";\npackage traumtech.paas_protocols.v1;")
+	report := &entities.CompatibilityReport{Breaking: false}
+	reader.EXPECT().Read(gomock.Any(), "registry.proto").Return(proto, nil)
+	source.EXPECT().CheckCompatibility(gomock.Any(), "svc", entities.ProtocolFormatGRPC, proto).Return(report, nil)
+
+	got, err := NewCheckCompatibility(reader, source).Execute(context.Background(),
+		CheckCompatibilityInput{ServiceID: "svc", Format: entities.ProtocolFormatGRPC, CandidatePath: "registry.proto"})
+
+	require.NoError(t, err)
+	assert.Same(t, report, got)
+}
+
+func TestCheckCompatibilityExecute_EmptyGRPCCandidate(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	reader := NewMockCandidateReader(ctrl)
+	source := NewMockCompatibilitySource(ctrl)
+
+	reader.EXPECT().Read(gomock.Any(), "registry.proto").Return([]byte("  \n"), nil)
+	// платформа не вызывается.
+
+	_, err := NewCheckCompatibility(reader, source).Execute(context.Background(),
+		CheckCompatibilityInput{ServiceID: "svc", Format: entities.ProtocolFormatGRPC, CandidatePath: "registry.proto"})
+
+	assert.ErrorIs(t, err, entities.ErrEmptyProtocol)
+}
+
 func TestCheckCompatibilityExecute_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	reader := NewMockCandidateReader(ctrl)
@@ -19,10 +52,10 @@ func TestCheckCompatibilityExecute_Success(t *testing.T) {
 
 	report := &entities.CompatibilityReport{Breaking: true}
 	reader.EXPECT().Read(gomock.Any(), "openapi.json").Return([]byte(validDoc), nil)
-	source.EXPECT().CheckCompatibility(gomock.Any(), "svc", []byte(validDoc)).Return(report, nil)
+	source.EXPECT().CheckCompatibility(gomock.Any(), "svc", entities.ProtocolFormatOpenAPI, []byte(validDoc)).Return(report, nil)
 
 	got, err := NewCheckCompatibility(reader, source).Execute(context.Background(),
-		CheckCompatibilityInput{ServiceID: "svc", CandidatePath: "openapi.json"})
+		CheckCompatibilityInput{ServiceID: "svc", Format: entities.ProtocolFormatOpenAPI, CandidatePath: "openapi.json"})
 
 	require.NoError(t, err)
 	assert.Same(t, report, got)
@@ -63,10 +96,10 @@ func TestCheckCompatibilityExecute_SourceError(t *testing.T) {
 	source := NewMockCompatibilitySource(ctrl)
 
 	reader.EXPECT().Read(gomock.Any(), "openapi.json").Return([]byte(validDoc), nil)
-	source.EXPECT().CheckCompatibility(gomock.Any(), "svc", []byte(validDoc)).Return(nil, entities.ErrServiceNotFound)
+	source.EXPECT().CheckCompatibility(gomock.Any(), "svc", entities.ProtocolFormatOpenAPI, []byte(validDoc)).Return(nil, entities.ErrServiceNotFound)
 
 	_, err := NewCheckCompatibility(reader, source).Execute(context.Background(),
-		CheckCompatibilityInput{ServiceID: "svc", CandidatePath: "openapi.json"})
+		CheckCompatibilityInput{ServiceID: "svc", Format: entities.ProtocolFormatOpenAPI, CandidatePath: "openapi.json"})
 
 	assert.ErrorIs(t, err, entities.ErrServiceNotFound)
 }

@@ -159,18 +159,18 @@ func (m *MockCompatibilitySource) EXPECT() *MockCompatibilitySourceMockRecorder 
 }
 
 // CheckCompatibility mocks base method.
-func (m *MockCompatibilitySource) CheckCompatibility(ctx context.Context, serviceID string, document []byte) (*entities.CompatibilityReport, error) {
+func (m *MockCompatibilitySource) CheckCompatibility(ctx context.Context, serviceID string, format entities.ProtocolFormat, document []byte) (*entities.CompatibilityReport, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CheckCompatibility", ctx, serviceID, document)
+	ret := m.ctrl.Call(m, "CheckCompatibility", ctx, serviceID, format, document)
 	ret0, _ := ret[0].(*entities.CompatibilityReport)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CheckCompatibility indicates an expected call of CheckCompatibility.
-func (mr *MockCompatibilitySourceMockRecorder) CheckCompatibility(ctx, serviceID, document any) *gomock.Call {
+func (mr *MockCompatibilitySourceMockRecorder) CheckCompatibility(ctx, serviceID, format, document any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckCompatibility", reflect.TypeOf((*MockCompatibilitySource)(nil).CheckCompatibility), ctx, serviceID, document)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckCompatibility", reflect.TypeOf((*MockCompatibilitySource)(nil).CheckCompatibility), ctx, serviceID, format, document)
 }
 
 // MockVersionPublisher is a mock of VersionPublisher interface.

@@ -2,6 +2,7 @@ package protocolcompatibilityhttp_test
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -48,7 +49,7 @@ func TestCheckCompatibility_MapsReport(t *testing.T) {
 		}`))
 	})
 
-	report, err := src.CheckCompatibility(context.Background(), svcID, []byte(`{"openapi":"3.1.0"}`))
+	report, err := src.CheckCompatibility(context.Background(), svcID, entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"openapi":"3.1.0"}`, gotBody)
 	assert.True(t, report.Breaking)
@@ -70,7 +71,7 @@ func TestCheckCompatibility_NoConsumers(t *testing.T) {
 		w.Write([]byte(`{"breaking": false, "consumers": []}`))
 	})
 
-	report, err := src.CheckCompatibility(context.Background(), svcID, []byte(`{"openapi":"3.1.0"}`))
+	report, err := src.CheckCompatibility(context.Background(), svcID, entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
 	require.NoError(t, err)
 	assert.False(t, report.Breaking)
 	assert.Empty(t, report.Consumers)
@@ -81,7 +82,7 @@ func TestCheckCompatibility_ServiceNotFound(t *testing.T) {
 		w.WriteHeader(http.StatusNotFound)
 	})
 
-	_, err := src.CheckCompatibility(context.Background(), svcID, []byte(`{"openapi":"3.1.0"}`))
+	_, err := src.CheckCompatibility(context.Background(), svcID, entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
 	assert.ErrorIs(t, err, entities.ErrServiceNotFound)
 }
 
@@ -90,7 +91,7 @@ func TestCheckCompatibility_InvalidCandidate(t *testing.T) {
 		w.WriteHeader(http.StatusBadRequest)
 	})
 
-	_, err := src.CheckCompatibility(context.Background(), svcID, []byte(`{}`))
+	_, err := src.CheckCompatibility(context.Background(), svcID, entities.ProtocolFormatOpenAPI, []byte(`{}`))
 	assert.ErrorIs(t, err, entities.ErrInvalidProtocol)
 }
 
@@ -99,13 +100,45 @@ func TestCheckCompatibility_InvalidID(t *testing.T) {
 		t.Errorf("платформа не должна вызываться при неверном id")
 	})
 
-	_, err := src.CheckCompatibility(context.Background(), "not-a-uuid", []byte(`{"openapi":"3.1.0"}`))
+	_, err := src.CheckCompatibility(context.Background(), "not-a-uuid", entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
 	require.Error(t, err)
 }
 
 func TestCheckCompatibility_Unreachable(t *testing.T) {
 	src, err := protocolcompatibilityhttp.New("http://127.0.0.1:0", http.DefaultClient)
 	require.NoError(t, err)
-	_, err = src.CheckCompatibility(context.Background(), svcID, []byte(`{"openapi":"3.1.0"}`))
+	_, err = src.CheckCompatibility(context.Background(), svcID, entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
 	require.Error(t, err)
+}
+
+// gRPC-кандидат уходит с параметром формата, тело — JSON-строка с .proto.
+func TestCheckCompatibility_GRPCFormatAndBody(t *testing.T) {
+	proto := "syntax = \"proto3\";\npackage traumtech.demo.v1;"
+	var gotFormat, gotBody string
+	src := newSource(t, func(w http.ResponseWriter, r *http.Request) {
+		gotFormat = r.URL.Query().Get("format")
+		body, _ := io.ReadAll(r.Body)
+		gotBody = string(body)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"breaking": false, "consumers": []}`))
+	})
+
+	report, err := src.CheckCompatibility(context.Background(), svcID, entities.ProtocolFormatGRPC, []byte(proto))
+	require.NoError(t, err)
+	assert.Equal(t, "grpc", gotFormat)
+	expected, _ := json.Marshal(proto)
+	assert.Equal(t, string(expected), gotBody)
+	assert.False(t, report.Breaking)
+}
+
+// Прежний формат не передаётся в запросе — проверка без типа, как раньше.
+func TestCheckCompatibility_OpenAPIOmitsFormat(t *testing.T) {
+	src := newSource(t, func(w http.ResponseWriter, r *http.Request) {
+		assert.False(t, r.URL.Query().Has("format"))
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"breaking": false, "consumers": []}`))
+	})
+
+	_, err := src.CheckCompatibility(context.Background(), svcID, entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
+	require.NoError(t, err)
 }

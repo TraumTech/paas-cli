@@ -26,8 +26,10 @@ type CandidateReader interface {
 	Read(ctx context.Context, path string) ([]byte, error)
 }
 
+// CompatibilitySource сверяет контракт-кандидата (в родном виде его формата) со
+// снимками потребителей сервиса на платформе, без публикации.
 type CompatibilitySource interface {
-	CheckCompatibility(ctx context.Context, serviceID string, document []byte) (*entities.CompatibilityReport, error)
+	CheckCompatibility(ctx context.Context, serviceID string, format entities.ProtocolFormat, document []byte) (*entities.CompatibilityReport, error)
 }
 
 // VersionPublisher фиксирует версию сервиса в платформе по развёрнутой ревизии

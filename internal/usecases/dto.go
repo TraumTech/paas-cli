@@ -40,7 +40,9 @@ type SyncProtocolsResult struct {
 
 type CheckCompatibilityInput struct {
 	ServiceID string
-	// CandidatePath — путь к файлу контракта-кандидата на диске потребителя.
+	// Format — формат кандидата (OpenAPI или gRPC, CLI-21); Document читается из
+	// CandidatePath — файла контракта-кандидата на диске владельца.
+	Format        entities.ProtocolFormat
 	CandidatePath string
 }
 

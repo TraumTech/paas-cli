@@ -21,11 +21,11 @@ func (uc *CheckCompatibilityUseCase) Execute(ctx context.Context, in CheckCompat
 	if err != nil {
 		return nil, fmt.Errorf("read candidate: %w", err)
 	}
-	candidate := &entities.CandidateContract{Document: document}
+	candidate := &entities.CandidateContract{Format: in.Format, Document: document}
 	if err := candidate.Validate(); err != nil {
 		return nil, fmt.Errorf("validate candidate: %w", err)
 	}
-	report, err := uc.source.CheckCompatibility(ctx, in.ServiceID, candidate.Document)
+	report, err := uc.source.CheckCompatibility(ctx, in.ServiceID, in.Format, candidate.Document)
 	if err != nil {
 		return nil, fmt.Errorf("check compatibility: %w", err)
 	}

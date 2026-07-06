@@ -24,6 +24,8 @@ func New(checker CompatibilityChecker) *Command {
 	return &Command{checker: checker}
 }
 
+const formatFlag = "format"
+
 // CLICommand описывает подкоманду `compatibility` для urfave/cli.
 func (c *Command) CLICommand() *cli.Command {
 	return &cli.Command{
@@ -31,7 +33,13 @@ func (c *Command) CLICommand() *cli.Command {
 		Aliases:   []string{"compat"},
 		Usage:     "проверить совместимость контракта-кандидата с потребителями (без публикации)",
 		ArgsUsage: "<service-id> <candidate-file>",
-		Action:    c.run,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:  formatFlag,
+				Usage: "формат кандидата: openapi (по умолчанию) или grpc (.proto-исходник)",
+			},
+		},
+		Action: c.run,
 	}
 }
 
@@ -39,9 +47,16 @@ func (c *Command) run(ctx context.Context, cmd *cli.Command) error {
 	if cmd.Args().Len() != 2 {
 		return fmt.Errorf("нужно указать <service-id> и путь к файлу контракта-кандидата")
 	}
+	// Формат проверяем до чтения файла и похода на платформу: опечатка — ошибка
+	// сразу, а не молчаливая проверка не тем типом (как в publish, CLI-18).
+	format, err := entities.ParseProtocolFormat(cmd.String(formatFlag))
+	if err != nil {
+		return err
+	}
 
 	report, err := c.checker.Execute(ctx, usecases.CheckCompatibilityInput{
 		ServiceID:     cmd.Args().Get(0),
+		Format:        format,
 		CandidatePath: cmd.Args().Get(1),
 	})
 	if err != nil {
