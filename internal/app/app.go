@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/TraumTech/paas-observability-sdk/sdk/observabilityhttp"
 	"github.com/urfave/cli/v3"
 
 	"github.com/TraumTech/paas-cli/internal/adapters/candidate_reader_file"
@@ -37,6 +38,9 @@ const (
 	defaultAuthURL     = "https://auth.paas.traumtech.ru"
 	defaultDestination = "protocols"
 	httpTimeout        = 30 * time.Second
+	// obsFlushTimeout ограничивает досылку трасс при завершении: без сети
+	// команда завершается с этой задержкой максимум, а не висит.
+	obsFlushTimeout = 3 * time.Second
 	// envAPIToken — машинный креденшел сервиса для неинтерактивного доступа (CI, скрипты).
 	envAPIToken = "PAAS_API_TOKEN"
 	// envAuthURL — адрес identity-провайдера платформы для входа пользователя.
@@ -50,6 +54,13 @@ var Version = "dev"
 // PAAS_API_URL (по умолчанию прод), поэтому команда работает из любого
 // репозитория-потребителя.
 func Run(ctx context.Context, args []string) error {
+	obs, obsFlush := newObserver(Version)
+	defer func() {
+		flushCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), obsFlushTimeout)
+		defer cancel()
+		_ = obsFlush(flushCtx)
+	}()
+
 	baseURL := strings.TrimRight(envOr("PAAS_API_URL", defaultAPIURL), "/")
 	sessions := sessionstorefile.New()
 	// Машинный креденшел сервиса (если задан) уходит со всеми запросами к платформе;
@@ -61,7 +72,7 @@ func Run(ctx context.Context, args []string) error {
 			sessionToken = t
 		}
 	}
-	client := httpClient(serviceToken, sessionToken)
+	client := httpClient(obs, serviceToken, sessionToken)
 
 	source, err := protocolsourcehttp.New(baseURL, client)
 	if err != nil {
@@ -105,7 +116,10 @@ func Run(ctx context.Context, args []string) error {
 	// Identity-провайдер — отдельный хост со своим клиентом: креденшелы платформы
 	// (bearer/сессия) к нему не прикладываются.
 	authURL := strings.TrimRight(envOr(envAuthURL, defaultAuthURL), "/")
-	gateway := sessiongatewayhttp.New(authURL, &http.Client{Timeout: httpTimeout})
+	gateway := sessiongatewayhttp.New(authURL, &http.Client{
+		Timeout:   httpTimeout,
+		Transport: observabilityhttp.NewTransport(obs, nil),
+	})
 	login := authlogincommandcli.New(usecases.NewLogin(gateway, sessions))
 	whoami := authwhoamicommandcli.New(usecases.NewWhoAmI(sessions, gateway))
 	logout := authlogoutcommandcli.New(usecases.NewLogout(sessions, gateway))
@@ -158,6 +172,8 @@ func Run(ctx context.Context, args []string) error {
 			},
 		},
 	}
+
+	instrumentCommands(obs, root.Commands, "")
 
 	return root.Run(ctx, args)
 }

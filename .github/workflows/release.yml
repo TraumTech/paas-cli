@@ -13,6 +13,8 @@ env:
   # регистрирует зависимости этой версии из манифеста (PRT-05/CLI-15) — CLI тоже
   # реальный потребитель контракта. Сервис и состав зависимостей берёт из protocols.toml.
   PAAS_API: https://api.paas.traumtech.ru
+  # paas-observability-sdk — приватный модуль: мимо proxy.golang.org, git с токеном.
+  GOPRIVATE: github.com/TraumTech/*
 
 jobs:
   release:
@@ -24,6 +26,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: stable
+      - name: Доступ к приватным Go-модулям TraumTech
+        run: git config --global url."https://x-access-token:${{ secrets.PAAS_REPOS_TOKEN }}@github.com/".insteadOf "https://github.com/"
       - run: go test ./...
       - uses: goreleaser/goreleaser-action@v6
         with:

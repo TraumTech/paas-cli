@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/TraumTech/paas-observability-sdk/apitest"
 )
 
 func TestHTTPClientSendsBearerTokenWhenSet(t *testing.T) {
@@ -13,7 +15,7 @@ func TestHTTPClientSendsBearerTokenWhenSet(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	resp, err := httpClient("secret-token", "").Get(srv.URL)
+	resp, err := httpClient(apitest.NewObserver(), "secret-token", "").Get(srv.URL)
 	if err != nil {
 		t.Fatalf("запрос не удался: %v", err)
 	}
@@ -31,12 +33,7 @@ func TestHTTPClientOmitsAuthorizationWhenTokenEmpty(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := httpClient("", "")
-	if client.Transport != nil {
-		t.Fatalf("без токена кастомный transport не нужен, получили %T", client.Transport)
-	}
-
-	resp, err := client.Get(srv.URL)
+	resp, err := httpClient(apitest.NewObserver(), "", "").Get(srv.URL)
 	if err != nil {
 		t.Fatalf("запрос не удался: %v", err)
 	}
@@ -54,7 +51,7 @@ func TestHTTPClientSendsSessionTokenWhenNoServiceToken(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	resp, err := httpClient("", "session-token").Get(srv.URL)
+	resp, err := httpClient(apitest.NewObserver(), "", "session-token").Get(srv.URL)
 	if err != nil {
 		t.Fatalf("запрос не удался: %v", err)
 	}
@@ -73,7 +70,7 @@ func TestHTTPClientServiceTokenTakesPrecedenceOverSession(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	resp, err := httpClient("secret-token", "session-token").Get(srv.URL)
+	resp, err := httpClient(apitest.NewObserver(), "secret-token", "session-token").Get(srv.URL)
 	if err != nil {
 		t.Fatalf("запрос не удался: %v", err)
 	}

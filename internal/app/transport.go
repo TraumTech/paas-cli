@@ -1,6 +1,11 @@
 package app
 
-import "net/http"
+import (
+	"net/http"
+
+	observability "github.com/TraumTech/paas-observability-sdk"
+	"github.com/TraumTech/paas-observability-sdk/sdk/observabilityhttp"
+)
 
 // bearerTransport прикладывает к каждому исходящему запросу машинный креденшел
 // сервиса заголовком `Authorization: Bearer <token>`. Прокси платформы
@@ -35,14 +40,15 @@ func (t *sessionTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 // httpClient собирает клиент платформы. Приоритет у машинного креденшела сервиса
 // (CI-сценарий, поведение TKN-06 не меняется); без него запросы идут с токеном
 // сессии вошедшего пользователя (`paas-cli auth login`); без того и другого —
-// анонимно, как прежде.
-func httpClient(serviceToken, sessionToken string) *http.Client {
-	client := &http.Client{Timeout: httpTimeout}
+// анонимно, как прежде. Observability-транспорт — внешним слоем: спан и
+// traceparent появляются до креденшелов, логи и спан покрывают весь запрос.
+func httpClient(obs observability.Observer, serviceToken, sessionToken string) *http.Client {
+	var base http.RoundTripper
 	switch {
 	case serviceToken != "":
-		client.Transport = &bearerTransport{token: serviceToken, base: http.DefaultTransport}
+		base = &bearerTransport{token: serviceToken, base: http.DefaultTransport}
 	case sessionToken != "":
-		client.Transport = &sessionTransport{token: sessionToken, base: http.DefaultTransport}
+		base = &sessionTransport{token: sessionToken, base: http.DefaultTransport}
 	}
-	return client
+	return &http.Client{Timeout: httpTimeout, Transport: observabilityhttp.NewTransport(obs, base)}
 }
