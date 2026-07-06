@@ -17,12 +17,32 @@ func (t *bearerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return t.base.RoundTrip(clone)
 }
 
-// httpClient собирает клиент платформы. Если задан токен сервиса, запросы
-// уходят с ним; без токена клиент обращается к платформе как прежде.
-func httpClient(token string) *http.Client {
+// sessionTransport прикладывает к каждому исходящему запросу токен сессии
+// вошедшего пользователя заголовком `X-Session-Token`. Прокси платформы
+// (Oathkeeper) валидирует сессию у identity-провайдера и связывает запрос с
+// пользователем — сам CLI про схему валидации не знает (auth-агностичные адаптеры).
+type sessionTransport struct {
+	token string
+	base  http.RoundTripper
+}
+
+func (t *sessionTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	clone := req.Clone(req.Context())
+	clone.Header.Set("X-Session-Token", t.token)
+	return t.base.RoundTrip(clone)
+}
+
+// httpClient собирает клиент платформы. Приоритет у машинного креденшела сервиса
+// (CI-сценарий, поведение TKN-06 не меняется); без него запросы идут с токеном
+// сессии вошедшего пользователя (`paas-cli auth login`); без того и другого —
+// анонимно, как прежде.
+func httpClient(serviceToken, sessionToken string) *http.Client {
 	client := &http.Client{Timeout: httpTimeout}
-	if token != "" {
-		client.Transport = &bearerTransport{token: token, base: http.DefaultTransport}
+	switch {
+	case serviceToken != "":
+		client.Transport = &bearerTransport{token: serviceToken, base: http.DefaultTransport}
+	case sessionToken != "":
+		client.Transport = &sessionTransport{token: sessionToken, base: http.DefaultTransport}
 	}
 	return client
 }

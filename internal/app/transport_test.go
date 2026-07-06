@@ -13,7 +13,7 @@ func TestHTTPClientSendsBearerTokenWhenSet(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	resp, err := httpClient("secret-token").Get(srv.URL)
+	resp, err := httpClient("secret-token", "").Get(srv.URL)
 	if err != nil {
 		t.Fatalf("запрос не удался: %v", err)
 	}
@@ -31,7 +31,7 @@ func TestHTTPClientOmitsAuthorizationWhenTokenEmpty(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := httpClient("")
+	client := httpClient("", "")
 	if client.Transport != nil {
 		t.Fatalf("без токена кастомный transport не нужен, получили %T", client.Transport)
 	}
@@ -44,6 +44,46 @@ func TestHTTPClientOmitsAuthorizationWhenTokenEmpty(t *testing.T) {
 
 	if present {
 		t.Fatal("без токена заголовок Authorization не должен отправляться")
+	}
+}
+
+func TestHTTPClientSendsSessionTokenWhenNoServiceToken(t *testing.T) {
+	var got string
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		got = r.Header.Get("X-Session-Token")
+	}))
+	defer srv.Close()
+
+	resp, err := httpClient("", "session-token").Get(srv.URL)
+	if err != nil {
+		t.Fatalf("запрос не удался: %v", err)
+	}
+	resp.Body.Close()
+
+	if got != "session-token" {
+		t.Fatalf("X-Session-Token = %q, ожидался %q", got, "session-token")
+	}
+}
+
+func TestHTTPClientServiceTokenTakesPrecedenceOverSession(t *testing.T) {
+	var auth, session string
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		auth = r.Header.Get("Authorization")
+		session = r.Header.Get("X-Session-Token")
+	}))
+	defer srv.Close()
+
+	resp, err := httpClient("secret-token", "session-token").Get(srv.URL)
+	if err != nil {
+		t.Fatalf("запрос не удался: %v", err)
+	}
+	resp.Body.Close()
+
+	if auth != "Bearer secret-token" {
+		t.Fatalf("Authorization = %q, ожидался машинный токен", auth)
+	}
+	if session != "" {
+		t.Fatal("при машинном токене сессия пользователя не должна отправляться")
 	}
 }
 

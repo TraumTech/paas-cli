@@ -33,6 +33,11 @@ var (
 	ErrManifestNoService         = newDomainError("манифест не объявляет текущий сервис: добавьте секцию [service] с именем сервиса (name)")
 	ErrManifestServiceNoName     = newDomainError("в секции [service] манифеста не указано имя сервиса (name)")
 	ErrManifestServiceNoContract = newDomainError("в секции [service] манифеста не указан путь к контракту (contract)")
+
+	ErrEmptyCredentials   = newDomainError("укажите e-mail и пароль")
+	ErrInvalidCredentials = newDomainError("войти не удалось: проверьте учётные данные")
+	ErrNoSession          = newDomainError("вход не выполнен — выполните `paas-cli auth login`")
+	ErrSessionExpired     = newDomainError("сессия истекла или отозвана — войдите заново: `paas-cli auth login`")
 )
 
 // UnsupportedProtocolFormatError сообщает, какой формат из манифеста CLI не

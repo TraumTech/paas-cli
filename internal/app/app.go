@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -16,7 +17,12 @@ import (
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_source_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_store_file"
 	"github.com/TraumTech/paas-cli/internal/adapters/service_resolver_http"
+	"github.com/TraumTech/paas-cli/internal/adapters/session_gateway_http"
+	"github.com/TraumTech/paas-cli/internal/adapters/session_store_file"
 	"github.com/TraumTech/paas-cli/internal/adapters/version_publisher_http"
+	"github.com/TraumTech/paas-cli/internal/controllers/auth_login_command_cli"
+	"github.com/TraumTech/paas-cli/internal/controllers/auth_logout_command_cli"
+	"github.com/TraumTech/paas-cli/internal/controllers/auth_whoami_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/dependency_register_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/protocol_compatibility_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/protocol_fetch_command_cli"
@@ -28,10 +34,13 @@ import (
 
 const (
 	defaultAPIURL      = "https://api.paas.traumtech.ru"
+	defaultAuthURL     = "https://auth.paas.traumtech.ru"
 	defaultDestination = "protocols"
 	httpTimeout        = 30 * time.Second
 	// envAPIToken — машинный креденшел сервиса для неинтерактивного доступа (CI, скрипты).
 	envAPIToken = "PAAS_API_TOKEN"
+	// envAuthURL — адрес identity-провайдера платформы для входа пользователя.
+	envAuthURL = "PAAS_AUTH_URL"
 )
 
 // Version — версия бинаря; подставляется при сборке релиза (GoReleaser, ldflags).
@@ -42,8 +51,17 @@ var Version = "dev"
 // репозитория-потребителя.
 func Run(ctx context.Context, args []string) error {
 	baseURL := strings.TrimRight(envOr("PAAS_API_URL", defaultAPIURL), "/")
-	// Машинный креденшел сервиса (если задан) уходит со всеми запросами к платформе.
-	client := httpClient(os.Getenv(envAPIToken))
+	sessions := sessionstorefile.New()
+	// Машинный креденшел сервиса (если задан) уходит со всеми запросами к платформе;
+	// без него — локально сохранённый вход пользователя (auth login), если он есть.
+	serviceToken := os.Getenv(envAPIToken)
+	sessionToken := ""
+	if serviceToken == "" {
+		if t, err := sessions.Load(ctx); err == nil {
+			sessionToken = t
+		}
+	}
+	client := httpClient(serviceToken, sessionToken)
 
 	source, err := protocolsourcehttp.New(baseURL, client)
 	if err != nil {
@@ -84,6 +102,14 @@ func Run(ctx context.Context, args []string) error {
 	}
 	registerDependency := dependencyregistercommandcli.New(usecases.NewRegisterDependency(manifests, resolver, candidates, registrar))
 
+	// Identity-провайдер — отдельный хост со своим клиентом: креденшелы платформы
+	// (bearer/сессия) к нему не прикладываются.
+	authURL := strings.TrimRight(envOr(envAuthURL, defaultAuthURL), "/")
+	gateway := sessiongatewayhttp.New(authURL, &http.Client{Timeout: httpTimeout})
+	login := authlogincommandcli.New(usecases.NewLogin(gateway, sessions))
+	whoami := authwhoamicommandcli.New(usecases.NewWhoAmI(sessions, gateway))
+	logout := authlogoutcommandcli.New(usecases.NewLogout(sessions, gateway))
+
 	root := &cli.Command{
 		Name:    "paas-cli",
 		Usage:   "получение контрактов сервисов платформы",
@@ -119,6 +145,15 @@ func Run(ctx context.Context, args []string) error {
 				Usage: "зависимости версий потребителя от контрактов продьюсеров",
 				Commands: []*cli.Command{
 					registerDependency.CLICommand(),
+				},
+			},
+			{
+				Name:  "auth",
+				Usage: "вход в CLI под своей учётной записью платформы",
+				Commands: []*cli.Command{
+					login.CLICommand(),
+					whoami.CLICommand(),
+					logout.CLICommand(),
 				},
 			},
 		},

@@ -6,7 +6,7 @@ import (
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
-//go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=usecases github.com/TraumTech/paas-cli/internal/usecases ProtocolSource,ProtocolStore,CandidateReader,CompatibilitySource,VersionPublisher,ProtocolPublisher,DependencyRegistrar,ManifestReader,ServiceResolver
+//go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=usecases github.com/TraumTech/paas-cli/internal/usecases ProtocolSource,ProtocolStore,CandidateReader,CompatibilitySource,VersionPublisher,ProtocolPublisher,DependencyRegistrar,ManifestReader,ServiceResolver,CredentialAuthenticator,SessionInspector,SessionRevoker,SessionStore
 
 // ProtocolSource достаёт актуальный опубликованный контракт сервиса из платформы.
 // Возвращает entities.ErrServiceNotFound / entities.ErrProtocolNotPublished,
@@ -62,6 +62,36 @@ type DependencyRegistrar interface {
 // ManifestReader читает манифест зависимостей из файла в репозитории потребителя.
 type ManifestReader interface {
 	Read(ctx context.Context, path string) (*entities.Manifest, error)
+}
+
+// CredentialAuthenticator обменивает учётные данные пользователя на сессию у
+// identity-провайдера платформы. Возвращает entities.ErrInvalidCredentials, когда
+// провайдер не признал учётные данные (без уточнения, что именно неверно), — use
+// case транслирует её пользователю как есть.
+type CredentialAuthenticator interface {
+	Authenticate(ctx context.Context, email, password string) (*entities.UserSession, error)
+}
+
+// SessionInspector проверяет токен сессии у identity-провайдера и возвращает,
+// кому сессия принадлежит. Возвращает entities.ErrSessionExpired, когда токен
+// недействителен (истёк или отозван).
+type SessionInspector interface {
+	Inspect(ctx context.Context, token string) (*entities.UserSession, error)
+}
+
+// SessionRevoker завершает сессию по её токену у identity-провайдера. Уже
+// недействительный токен ошибкой не считается: цель — чтобы сессии не стало.
+type SessionRevoker interface {
+	Revoke(ctx context.Context, token string) error
+}
+
+// SessionStore хранит токен сессии локально у пользователя, недоступно другим
+// пользователям машины. Load возвращает entities.ErrNoSession, когда сохранённого
+// входа нет; Delete от отсутствия входа не падает.
+type SessionStore interface {
+	Save(ctx context.Context, token string) error
+	Load(ctx context.Context) (string, error)
+	Delete(ctx context.Context) error
 }
 
 // ServiceResolver находит id сервисов платформы по именам: манифест адресует

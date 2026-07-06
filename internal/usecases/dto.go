@@ -83,3 +83,24 @@ type RegisteredDependency struct {
 	ProducerName      string
 	ProducerServiceID string
 }
+
+type LoginInput struct {
+	Email    string
+	Password string
+}
+
+// LoginResult — итог входа для отчёта пользователю: под кем выполнен вход.
+type LoginResult struct {
+	Email string
+}
+
+// WhoAmIResult — кому принадлежит текущая сохранённая сессия.
+type WhoAmIResult struct {
+	Email string
+}
+
+// LogoutResult — итог выхода. WasLoggedIn=false — сохранённого входа и не было:
+// выходить не из чего, но это не ошибка.
+type LogoutResult struct {
+	WasLoggedIn bool
+}
