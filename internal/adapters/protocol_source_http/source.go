@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/TraumTech/paas-cli/internal/adapters/platformhttp"
 	"github.com/TraumTech/paas-cli/internal/entities"
 	"github.com/TraumTech/paas-cli/pkg/platformapi"
 )
@@ -36,7 +37,7 @@ func (s *Source) FetchProtocol(ctx context.Context, serviceID string) (*entities
 
 	svc, err := s.client.GetServiceWithResponse(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("платформа недоступна: %w", err)
+		return nil, platformhttp.RequestError(err)
 	}
 	switch svc.StatusCode() {
 	case http.StatusOK:
@@ -51,7 +52,7 @@ func (s *Source) FetchProtocol(ctx context.Context, serviceID string) (*entities
 
 	proto, err := s.client.GetProtocolWithResponse(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("платформа недоступна: %w", err)
+		return nil, platformhttp.RequestError(err)
 	}
 	switch proto.StatusCode() {
 	case http.StatusOK:

@@ -1,11 +1,14 @@
 package app
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/TraumTech/paas-observability-sdk/apitest"
+
+	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
 func TestHTTPClientSendsBearerTokenWhenSet(t *testing.T) {
@@ -95,6 +98,32 @@ func TestBearerTransportDoesNotMutateOriginalRequest(t *testing.T) {
 	}
 	if got := req.Header.Get("Authorization"); got != "" {
 		t.Fatalf("исходный запрос мутировал: Authorization = %q", got)
+	}
+}
+
+func TestHTTPClientTranslatesUnauthorizedByCredential(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer srv.Close()
+
+	cases := []struct {
+		name         string
+		serviceToken string
+		sessionToken string
+		want         error
+	}{
+		{name: "аноним — предлагаем войти или задать токен", want: entities.ErrLoginRequired},
+		{name: "сессия — предлагаем войти заново", sessionToken: "session-token", want: entities.ErrSessionExpired},
+		{name: "токен сервиса — сообщаем, что не принят", serviceToken: "secret-token", want: entities.ErrServiceTokenRejected},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := httpClient(apitest.NewObserver(), tc.serviceToken, tc.sessionToken).Get(srv.URL)
+			if !errors.Is(err, tc.want) {
+				t.Fatalf("err = %v, ожидалась %v", err, tc.want)
+			}
+		})
 	}
 }
 

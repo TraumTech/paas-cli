@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/TraumTech/paas-cli/internal/adapters/platformhttp"
 	"github.com/TraumTech/paas-cli/internal/entities"
 	"github.com/TraumTech/paas-cli/pkg/platformapi"
 )
@@ -54,7 +55,7 @@ func (s *Source) PublishProtocol(ctx context.Context, serviceID, versionID strin
 
 	resp, err := s.client.PublishProtocolWithBodyWithResponse(ctx, id, versionUUID, params, "application/json", bytes.NewReader(payload))
 	if err != nil {
-		return nil, fmt.Errorf("платформа недоступна: %w", err)
+		return nil, platformhttp.RequestError(err)
 	}
 	// 201 — протокол опубликован впервые, 200 — заменён у версии, где уже был
 	// (идемпотентный повтор, штатно при перезапуске выкатки); тело одно и то же.

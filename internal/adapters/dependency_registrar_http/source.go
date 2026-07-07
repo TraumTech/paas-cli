@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/TraumTech/paas-cli/internal/adapters/platformhttp"
 	"github.com/TraumTech/paas-cli/internal/entities"
 	"github.com/TraumTech/paas-cli/pkg/platformapi"
 )
@@ -76,7 +77,7 @@ func (s *Source) RegisterDependency(ctx context.Context, serviceID, versionID, p
 		SupersedePrevious: supersede,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("платформа недоступна: %w", err)
+		return nil, platformhttp.RequestError(err)
 	}
 	// 201 — первая регистрация, 200 — снимок заменён (идемпотентный повтор при
 	// перезапуске выкатки); тело в обоих случаях одно.

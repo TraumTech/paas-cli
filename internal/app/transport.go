@@ -5,6 +5,8 @@ import (
 
 	observability "github.com/TraumTech/paas-observability-sdk"
 	"github.com/TraumTech/paas-observability-sdk/sdk/observabilityhttp"
+
+	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
 // bearerTransport прикладывает к каждому исходящему запросу машинный креденшел
@@ -37,18 +39,38 @@ func (t *sessionTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	return t.base.RoundTrip(clone)
 }
 
+// unauthorizedTransport переводит отказ платформы «не аутентифицирован» на язык
+// пользователя: какой креденшел предъявлялся и, значит, что делать, знает только
+// composition root — поэтому перевод живёт здесь, а не в адаптерах (AUTH-17).
+type unauthorizedTransport struct {
+	base   http.RoundTripper
+	reason error
+}
+
+func (t *unauthorizedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	resp, err := t.base.RoundTrip(req)
+	if err != nil || resp.StatusCode != http.StatusUnauthorized {
+		return resp, err
+	}
+	resp.Body.Close()
+	return nil, t.reason
+}
+
 // httpClient собирает клиент платформы. Приоритет у машинного креденшела сервиса
 // (CI-сценарий, поведение TKN-06 не меняется); без него запросы идут с токеном
 // сессии вошедшего пользователя (`paas-cli auth login`); без того и другого —
 // анонимно, как прежде. Observability-транспорт — внешним слоем: спан и
 // traceparent появляются до креденшелов, логи и спан покрывают весь запрос.
 func httpClient(obs observability.Observer, serviceToken, sessionToken string) *http.Client {
-	var base http.RoundTripper
+	base, reason := http.RoundTripper(http.DefaultTransport), error(entities.ErrLoginRequired)
 	switch {
 	case serviceToken != "":
 		base = &bearerTransport{token: serviceToken, base: http.DefaultTransport}
+		reason = entities.ErrServiceTokenRejected
 	case sessionToken != "":
 		base = &sessionTransport{token: sessionToken, base: http.DefaultTransport}
+		reason = entities.ErrSessionExpired
 	}
-	return &http.Client{Timeout: httpTimeout, Transport: observabilityhttp.NewTransport(obs, base)}
+	unauthorized := &unauthorizedTransport{base: base, reason: reason}
+	return &http.Client{Timeout: httpTimeout, Transport: observabilityhttp.NewTransport(obs, unauthorized)}
 }

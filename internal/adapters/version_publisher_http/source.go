@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/TraumTech/paas-cli/internal/adapters/platformhttp"
 	"github.com/TraumTech/paas-cli/internal/entities"
 	"github.com/TraumTech/paas-cli/pkg/platformapi"
 )
@@ -36,7 +37,7 @@ func (s *Source) PublishVersion(ctx context.Context, serviceID, commitRevision s
 		CommitRevision: commitRevision,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("платформа недоступна: %w", err)
+		return nil, platformhttp.RequestError(err)
 	}
 	// 201 — версия создана, 200 — уже существовала (идемпотентный повтор той же
 	// ревизии, штатно при перезапуске выкатки); тело в обоих случаях одно.

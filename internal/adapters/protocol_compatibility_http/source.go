@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/TraumTech/paas-cli/internal/adapters/platformhttp"
 	"github.com/TraumTech/paas-cli/internal/entities"
 	"github.com/TraumTech/paas-cli/pkg/platformapi"
 )
@@ -48,7 +49,7 @@ func (s *Source) CheckCompatibility(ctx context.Context, serviceID string, forma
 	}
 	resp, err := s.client.CheckProtocolCompatibilityWithBodyWithResponse(ctx, id, params, "application/json", bytes.NewReader(payload))
 	if err != nil {
-		return nil, fmt.Errorf("платформа недоступна: %w", err)
+		return nil, platformhttp.RequestError(err)
 	}
 	switch resp.StatusCode() {
 	case http.StatusOK:

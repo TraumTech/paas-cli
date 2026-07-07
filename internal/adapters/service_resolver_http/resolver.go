@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/TraumTech/paas-cli/internal/adapters/platformhttp"
 	"github.com/TraumTech/paas-cli/pkg/platformapi"
 )
 
@@ -26,7 +27,7 @@ func New(baseURL string, httpClient *http.Client) (*Resolver, error) {
 func (r *Resolver) ResolveIDs(ctx context.Context, names []string) (map[string]string, error) {
 	resp, err := r.client.ListServicesWithResponse(ctx, &platformapi.ListServicesParams{Name: &names})
 	if err != nil {
-		return nil, fmt.Errorf("платформа недоступна: %w", err)
+		return nil, platformhttp.RequestError(err)
 	}
 	if resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
 		return nil, fmt.Errorf("платформа ответила %s", resp.Status())

@@ -38,6 +38,9 @@ var (
 	ErrInvalidCredentials = newDomainError("войти не удалось: проверьте учётные данные")
 	ErrNoSession          = newDomainError("вход не выполнен — выполните `paas-cli auth login`")
 	ErrSessionExpired     = newDomainError("сессия истекла или отозвана — войдите заново: `paas-cli auth login`")
+
+	ErrLoginRequired        = newDomainError("платформа требует вход: выполните `paas-cli auth login` или задайте токен сервиса в PAAS_API_TOKEN")
+	ErrServiceTokenRejected = newDomainError("токен сервиса не принят платформой (отозван или неверен) — проверьте PAAS_API_TOKEN")
 )
 
 // UnsupportedProtocolFormatError сообщает, какой формат из манифеста CLI не
