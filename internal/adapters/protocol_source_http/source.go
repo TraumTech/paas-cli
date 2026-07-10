@@ -16,7 +16,8 @@ import (
 // Source тянет опубликованный протокол сервиса из API платформы через
 // сгенерированный из контракта клиент (pkg/platformapi). Имя сервиса (для
 // раскладки на диске) берётся из GET /services/{id}, сам контракт — из
-// GET /services/{id}/protocol.
+// GET /services/{id}/protocol. Сужение до методов выполняет платформа (CLI-09):
+// methods уходят параметром запроса, CLI получает уже частичный контракт.
 type Source struct {
 	client *platformapi.ClientWithResponses
 }
@@ -29,41 +30,52 @@ func New(baseURL string, httpClient *http.Client) (*Source, error) {
 	return &Source{client: client}, nil
 }
 
-func (s *Source) FetchProtocol(ctx context.Context, serviceID string) (*entities.Protocol, error) {
+func (s *Source) FetchProtocol(ctx context.Context, serviceID string, methods []string) (*entities.Protocol, bool, error) {
 	id, err := uuid.Parse(serviceID)
 	if err != nil {
-		return nil, fmt.Errorf("неверный id сервиса %q: %w", serviceID, err)
+		return nil, false, fmt.Errorf("неверный id сервиса %q: %w", serviceID, err)
 	}
 
 	svc, err := s.client.GetServiceWithResponse(ctx, id)
 	if err != nil {
-		return nil, platformhttp.RequestError(err)
+		return nil, false, platformhttp.RequestError(err)
 	}
 	switch svc.StatusCode() {
 	case http.StatusOK:
 	case http.StatusNotFound:
-		return nil, entities.ErrServiceNotFound
+		return nil, false, entities.ErrServiceNotFound
 	default:
-		return nil, fmt.Errorf("платформа ответила %s", svc.Status())
+		return nil, false, fmt.Errorf("платформа ответила %s", svc.Status())
 	}
 	if svc.JSON200 == nil || svc.JSON200.Name == "" {
-		return nil, fmt.Errorf("платформа не вернула имя сервиса")
+		return nil, false, fmt.Errorf("платформа не вернула имя сервиса")
 	}
 
-	proto, err := s.client.GetProtocolWithResponse(ctx, id)
+	params := &platformapi.GetProtocolParams{}
+	if len(methods) > 0 {
+		params.Methods = &methods
+	}
+	proto, err := s.client.GetProtocolWithResponse(ctx, id, params)
 	if err != nil {
-		return nil, platformhttp.RequestError(err)
+		return nil, false, platformhttp.RequestError(err)
 	}
 	switch proto.StatusCode() {
 	case http.StatusOK:
+	case http.StatusBadRequest:
+		// Платформа отклонила сужение (метод не найден в контракте) — доносим её
+		// сообщение, а не молча неполный срез.
+		if p := proto.ApplicationproblemJSONDefault; p != nil && p.Detail != nil && *p.Detail != "" {
+			return nil, false, fmt.Errorf("платформа отклонила запрос контракта: %s", *p.Detail)
+		}
+		return nil, false, fmt.Errorf("платформа ответила %s", proto.Status())
 	case http.StatusNotFound:
-		return nil, entities.ErrServiceNotFound
+		return nil, false, entities.ErrServiceNotFound
 	default:
-		return nil, fmt.Errorf("платформа ответила %s", proto.Status())
+		return nil, false, fmt.Errorf("платформа ответила %s", proto.Status())
 	}
 	view := proto.JSON200
 	if view == nil || !view.Published {
-		return nil, entities.ErrProtocolNotPublished
+		return nil, false, entities.ErrProtocolNotPublished
 	}
 
 	// Неизвестный CLI формат — честная ошибка, а не контракт, разложенный как
@@ -74,7 +86,7 @@ func (s *Source) FetchProtocol(ctx context.Context, serviceID string) (*entities
 	}
 	format, err := entities.ParseProtocolFormat(formatName)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	// Документ приходит в родном для формата виде: OpenAPI — JSON-объектом в
@@ -86,7 +98,7 @@ func (s *Source) FetchProtocol(ctx context.Context, serviceID string) (*entities
 		}
 	} else {
 		if document, err = json.Marshal(view.Document); err != nil {
-			return nil, fmt.Errorf("сериализация контракта: %w", err)
+			return nil, false, fmt.Errorf("сериализация контракта: %w", err)
 		}
 	}
 
@@ -99,5 +111,6 @@ func (s *Source) FetchProtocol(ctx context.Context, serviceID string) (*entities
 	if view.VersionNumber != nil {
 		protocol.VersionNumber = int(*view.VersionNumber)
 	}
-	return protocol, nil
+	narrowingSkipped := view.NarrowingSkipped != nil && *view.NarrowingSkipped
+	return protocol, narrowingSkipped, nil
 }

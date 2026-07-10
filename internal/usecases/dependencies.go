@@ -9,10 +9,14 @@ import (
 //go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=usecases github.com/TraumTech/paas-cli/internal/usecases ProtocolSource,ProtocolStore,CandidateReader,CompatibilitySource,VersionPublisher,ProtocolPublisher,DependencyRegistrar,ManifestReader,ServiceResolver,CredentialAuthenticator,SessionInspector,SessionRevoker,SessionStore
 
 // ProtocolSource достаёт актуальный опубликованный контракт сервиса из платформы.
-// Возвращает entities.ErrServiceNotFound / entities.ErrProtocolNotPublished,
-// когда контракта нет — use case транслирует их пользователю как есть.
+// Непустой methods — контракт, суженный платформой до этих методов (CLI-09);
+// narrowingSkipped — сужение для формата контракта не поддерживается, контракт
+// пришёл целиком. Возвращает entities.ErrServiceNotFound /
+// entities.ErrProtocolNotPublished, когда контракта нет — use case транслирует
+// их пользователю как есть; отказ платформы в сужении (метод не найден в
+// контракте) приходит ошибкой с её сообщением.
 type ProtocolSource interface {
-	FetchProtocol(ctx context.Context, serviceID string) (*entities.Protocol, error)
+	FetchProtocol(ctx context.Context, serviceID string, methods []string) (protocol *entities.Protocol, narrowingSkipped bool, err error)
 }
 
 // ProtocolStore сохраняет контракт к потребителю в директорию destDir и

@@ -29,8 +29,8 @@ func TestSyncProtocolsExecute_FetchesAllDependencies(t *testing.T) {
 
 	backend := &entities.Protocol{ServiceName: "paas-backend", VersionNumber: 5, Document: []byte(validDoc)}
 	billing := &entities.Protocol{ServiceName: "billing", VersionNumber: 2, Document: []byte(validDoc)}
-	source.EXPECT().FetchProtocol(gomock.Any(), "id-backend").Return(backend, nil)
-	source.EXPECT().FetchProtocol(gomock.Any(), "id-billing").Return(billing, nil)
+	source.EXPECT().FetchProtocol(gomock.Any(), "id-backend", gomock.Nil()).Return(backend, false, nil)
+	source.EXPECT().FetchProtocol(gomock.Any(), "id-billing", gomock.Nil()).Return(billing, false, nil)
 	store.EXPECT().Save(gomock.Any(), backend, "protocols").Return("protocols/paas-backend/openapi.json", nil)
 	store.EXPECT().Save(gomock.Any(), billing, "protocols").Return("protocols/billing/openapi.json", nil)
 
@@ -45,6 +45,8 @@ func TestSyncProtocolsExecute_FetchesAllDependencies(t *testing.T) {
 }
 
 func TestSyncProtocolsExecute_PartialPerDependency(t *testing.T) {
+	// Сужение выполняет платформа: methods зависимости уходят в запрос, к себе
+	// приходит и кладётся уже частичный контракт (CLI-09).
 	ctrl := gomock.NewController(t)
 	manifests := NewMockManifestReader(ctrl)
 	resolver := NewMockServiceResolver(ctrl)
@@ -57,18 +59,16 @@ func TestSyncProtocolsExecute_PartialPerDependency(t *testing.T) {
 	}, nil)
 	resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"billing"}).
 		Return(map[string]string{"billing": "id-billing"}, nil)
-	source.EXPECT().FetchProtocol(gomock.Any(), "id-billing").
-		Return(&entities.Protocol{ServiceName: "billing", Document: []byte(twoOpDoc)}, nil)
-	store.EXPECT().Save(gomock.Any(), gomock.Any(), "protocols").
-		DoAndReturn(func(_ context.Context, saved *entities.Protocol, _ string) (string, error) {
-			assert.Contains(t, string(saved.Document), "op-a")
-			assert.NotContains(t, string(saved.Document), "op-b")
-			return "protocols/billing/openapi.json", nil
-		})
+	partial := &entities.Protocol{ServiceName: "billing", Document: []byte(partialDoc)}
+	source.EXPECT().FetchProtocol(gomock.Any(), "id-billing", []string{"GET /a"}).
+		Return(partial, false, nil)
+	store.EXPECT().Save(gomock.Any(), partial, "protocols").Return("protocols/billing/openapi.json", nil)
 
-	_, err := NewSyncProtocols(manifests, resolver, source, store).
+	got, err := NewSyncProtocols(manifests, resolver, source, store).
 		Execute(context.Background(), SyncProtocolsInput{ManifestPath: "protocols.toml"})
 	require.NoError(t, err)
+	require.Len(t, got.Protocols, 1)
+	assert.False(t, got.Protocols[0].NarrowingSkipped)
 }
 
 func TestSyncProtocolsExecute_DestinationFromManifest(t *testing.T) {
@@ -85,8 +85,8 @@ func TestSyncProtocolsExecute_DestinationFromManifest(t *testing.T) {
 	}, nil)
 	resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"billing"}).
 		Return(map[string]string{"billing": "id-billing"}, nil)
-	source.EXPECT().FetchProtocol(gomock.Any(), "id-billing").
-		Return(&entities.Protocol{ServiceName: "billing", Document: []byte(validDoc)}, nil)
+	source.EXPECT().FetchProtocol(gomock.Any(), "id-billing", gomock.Nil()).
+		Return(&entities.Protocol{ServiceName: "billing", Document: []byte(validDoc)}, false, nil)
 	store.EXPECT().Save(gomock.Any(), gomock.Any(), "vendor/api").Return("vendor/api/billing/openapi.json", nil)
 
 	got, err := NewSyncProtocols(manifests, resolver, source, store).
@@ -109,8 +109,8 @@ func TestSyncProtocolsExecute_OverrideBeatsManifest(t *testing.T) {
 	}, nil)
 	resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"billing"}).
 		Return(map[string]string{"billing": "id-billing"}, nil)
-	source.EXPECT().FetchProtocol(gomock.Any(), "id-billing").
-		Return(&entities.Protocol{ServiceName: "billing", Document: []byte(validDoc)}, nil)
+	source.EXPECT().FetchProtocol(gomock.Any(), "id-billing", gomock.Nil()).
+		Return(&entities.Protocol{ServiceName: "billing", Document: []byte(validDoc)}, false, nil)
 	store.EXPECT().Save(gomock.Any(), gomock.Any(), "flag-dir").Return("flag-dir/billing/openapi.json", nil)
 
 	got, err := NewSyncProtocols(manifests, resolver, source, store).
@@ -185,8 +185,8 @@ func TestSyncProtocolsExecute_MixedFormats(t *testing.T) {
 
 	openapi := &entities.Protocol{ServiceName: "billing", VersionNumber: 2, Format: entities.ProtocolFormatOpenAPI, Document: []byte(validDoc)}
 	grpc := &entities.Protocol{ServiceName: "paas-protocols", VersionNumber: 1, Format: entities.ProtocolFormatGRPC, Document: []byte("syntax = \"proto3\";")}
-	source.EXPECT().FetchProtocol(gomock.Any(), "id-billing").Return(openapi, nil)
-	source.EXPECT().FetchProtocol(gomock.Any(), "id-registry").Return(grpc, nil)
+	source.EXPECT().FetchProtocol(gomock.Any(), "id-billing", gomock.Nil()).Return(openapi, false, nil)
+	source.EXPECT().FetchProtocol(gomock.Any(), "id-registry", gomock.Nil()).Return(grpc, false, nil)
 	store.EXPECT().Save(gomock.Any(), openapi, "protocols").Return("protocols/billing/openapi.json", nil)
 	store.EXPECT().Save(gomock.Any(), grpc, "protocols").Return("protocols/paas-protocols/contract.proto", nil)
 
@@ -201,8 +201,8 @@ func TestSyncProtocolsExecute_MixedFormats(t *testing.T) {
 }
 
 // methods у gRPC-зависимости объявляют используемые методы (CLI-20): sync не
-// падает, сужение не выполняется — контракт кладётся целиком, и это видно в
-// результате прогона (уточнение CLI-19).
+// падает — платформа приносит контракт целиком с narrowingSkipped, и это видно
+// в результате прогона (уточнение CLI-19).
 func TestSyncProtocolsExecute_GRPCMethodsBringFullContract(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	manifests := NewMockManifestReader(ctrl)
@@ -217,8 +217,10 @@ func TestSyncProtocolsExecute_GRPCMethodsBringFullContract(t *testing.T) {
 	resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"paas-protocols"}).
 		Return(map[string]string{"paas-protocols": "id-registry"}, nil)
 	full := &entities.Protocol{ServiceName: "paas-protocols", Format: entities.ProtocolFormatGRPC, Document: []byte("syntax = \"proto3\";")}
-	source.EXPECT().FetchProtocol(gomock.Any(), "id-registry").Return(full, nil)
-	// Кладётся именно полный контракт, без попытки сужения.
+	source.EXPECT().FetchProtocol(gomock.Any(), "id-registry", []string{"traumtech.paas_protocols.v1.RegistryService/PublishProtocol"}).
+		Return(full, true, nil)
+	// Кладётся именно полный контракт — платформа честно сообщила, что сужение
+	// для формата не поддерживается.
 	store.EXPECT().Save(gomock.Any(), full, "protocols").Return("protocols/paas-protocols/contract.proto", nil)
 
 	got, err := NewSyncProtocols(manifests, resolver, source, store).
@@ -243,8 +245,8 @@ func TestSyncProtocolsExecute_EmptyGRPCDocument_NoSave(t *testing.T) {
 	}, nil)
 	resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"paas-protocols"}).
 		Return(map[string]string{"paas-protocols": "id-registry"}, nil)
-	source.EXPECT().FetchProtocol(gomock.Any(), "id-registry").
-		Return(&entities.Protocol{ServiceName: "paas-protocols", Format: entities.ProtocolFormatGRPC, Document: []byte("  ")}, nil)
+	source.EXPECT().FetchProtocol(gomock.Any(), "id-registry", gomock.Nil()).
+		Return(&entities.Protocol{ServiceName: "paas-protocols", Format: entities.ProtocolFormatGRPC, Document: []byte("  ")}, false, nil)
 
 	_, err := NewSyncProtocols(manifests, resolver, source, store).
 		Execute(context.Background(), SyncProtocolsInput{ManifestPath: "protocols.toml"})

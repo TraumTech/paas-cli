@@ -266,6 +266,9 @@
           "format": {
             "type": "string"
           },
+          "name": {
+            "type": "string"
+          },
           "published_at": {
             "format": "date-time",
             "type": "string"
@@ -287,6 +290,7 @@
           "service_id",
           "version_id",
           "version_number",
+          "name",
           "format",
           "published_at"
         ],
@@ -313,6 +317,12 @@
           },
           "format": {
             "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "narrowing_skipped": {
+            "type": "boolean"
           },
           "published": {
             "type": "boolean"
@@ -590,6 +600,29 @@
               "format": "uuid",
               "type": "string"
             }
+          },
+          {
+            "description": "Имя (alias) протокола; пусто — протокол по умолчанию",
+            "explode": false,
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "description": "Имя (alias) протокола; пусто — протокол по умолчанию",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Оставить в контракте только эти методы (\"МЕТОД /путь\" у OpenAPI); пусто — контракт целиком",
+            "explode": false,
+            "in": "query",
+            "name": "methods",
+            "schema": {
+              "description": "Оставить в контракте только эти методы (\"МЕТОД /путь\" у OpenAPI); пусто — контракт целиком",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
           }
         ],
         "responses": {
@@ -865,6 +898,16 @@
                 "openapi",
                 "grpc"
               ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Имя (alias) протокола; пусто — имя по умолчанию",
+            "explode": false,
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "description": "Имя (alias) протокола; пусто — имя по умолчанию",
               "type": "string"
             }
           }

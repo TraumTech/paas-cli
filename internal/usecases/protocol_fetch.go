@@ -3,6 +3,8 @@ package usecases
 import (
 	"context"
 	"fmt"
+
+	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
 type FetchProtocolUseCase struct {
@@ -15,18 +17,19 @@ func NewFetchProtocol(source ProtocolSource, store ProtocolStore) *FetchProtocol
 }
 
 func (uc *FetchProtocolUseCase) Execute(ctx context.Context, in FetchProtocolInput) (*FetchProtocolResult, error) {
-	protocol, err := uc.source.FetchProtocol(ctx, in.ServiceID)
+	// Сужение до методов выполняет платформа (CLI-09) — CLI получает уже
+	// частичный контракт.
+	protocol, narrowingSkipped, err := uc.source.FetchProtocol(ctx, in.ServiceID, in.Methods)
 	if err != nil {
 		return nil, fmt.Errorf("fetch protocol: %w", err)
 	}
+	// Формат без поддержки сужения (gRPC) у явного fetch -m — ошибка, как и
+	// раньше: пользователь просил срез, молча класть целиком нельзя.
+	if narrowingSkipped {
+		return nil, entities.ErrMethodsUnsupportedForGRPC
+	}
 	if err := protocol.Validate(); err != nil {
 		return nil, fmt.Errorf("validate protocol: %w", err)
-	}
-	if len(in.Methods) > 0 {
-		protocol, err = protocol.SelectMethods(in.Methods)
-		if err != nil {
-			return nil, fmt.Errorf("select methods: %w", err)
-		}
 	}
 	path, err := uc.store.Save(ctx, protocol, in.Destination)
 	if err != nil {

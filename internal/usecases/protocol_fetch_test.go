@@ -14,43 +14,54 @@ import (
 
 const validDoc = `{"openapi":"3.1.0","paths":{"/x":{}}}`
 
-const twoOpDoc = `{"openapi":"3.1.0","paths":{` +
-	`"/a":{"get":{"operationId":"op-a","responses":{"200":{"description":"ok"}}}},` +
-	`"/b":{"get":{"operationId":"op-b","responses":{"200":{"description":"ok"}}}}}}`
+const partialDoc = `{"openapi":"3.1.0","paths":{` +
+	`"/a":{"get":{"operationId":"op-a","responses":{"200":{"description":"ok"}}}}}}`
 
-func TestFetchProtocolExecute_PartialSavesSelectedSubset(t *testing.T) {
+func TestFetchProtocolExecute_PartialPassesMethodsToPlatform(t *testing.T) {
+	// Сужение выполняет платформа: methods уходят в источник, к себе приходит и
+	// сохраняется уже частичный контракт (CLI-09).
 	ctrl := gomock.NewController(t)
 	source := NewMockProtocolSource(ctrl)
 	store := NewMockProtocolStore(ctrl)
 
-	protocol := &entities.Protocol{ServiceID: "svc", ServiceName: "svc-name", Document: []byte(twoOpDoc)}
-	source.EXPECT().FetchProtocol(gomock.Any(), "svc").Return(protocol, nil)
-	store.EXPECT().Save(gomock.Any(), gomock.Any(), "protocols").
-		DoAndReturn(func(_ context.Context, saved *entities.Protocol, _ string) (string, error) {
-			assert.Contains(t, string(saved.Document), "op-a")
-			assert.NotContains(t, string(saved.Document), "op-b")
-			return "protocols/svc-name/openapi.json", nil
-		})
+	partial := &entities.Protocol{ServiceID: "svc", ServiceName: "svc-name", Document: []byte(partialDoc)}
+	source.EXPECT().FetchProtocol(gomock.Any(), "svc", []string{"GET /a"}).Return(partial, false, nil)
+	store.EXPECT().Save(gomock.Any(), partial, "protocols").Return("protocols/svc-name/openapi.json", nil)
 
 	_, err := NewFetchProtocol(source, store).Execute(context.Background(),
 		FetchProtocolInput{ServiceID: "svc", Destination: "protocols", Methods: []string{"GET /a"}})
 	require.NoError(t, err)
 }
 
-func TestFetchProtocolExecute_UnknownMethod_NoSave(t *testing.T) {
+func TestFetchProtocolExecute_PlatformRejectsMethods_NoSave(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	source := NewMockProtocolSource(ctrl)
 	store := NewMockProtocolStore(ctrl)
 
-	protocol := &entities.Protocol{ServiceID: "svc", Document: []byte(twoOpDoc)}
-	source.EXPECT().FetchProtocol(gomock.Any(), "svc").Return(protocol, nil)
+	rejected := errors.New("платформа отклонила запрос контракта: methods not found in protocol: GET /x")
+	source.EXPECT().FetchProtocol(gomock.Any(), "svc", []string{"GET /x"}).Return(nil, false, rejected)
 	// store.Save не вызывается — несуществующий метод не даёт записать неполный срез.
 
 	_, err := NewFetchProtocol(source, store).Execute(context.Background(),
 		FetchProtocolInput{ServiceID: "svc", Destination: "protocols", Methods: []string{"GET /x"}})
 
-	var unknown *entities.UnknownMethodsError
-	assert.ErrorAs(t, err, &unknown)
+	assert.ErrorIs(t, err, rejected)
+}
+
+func TestFetchProtocolExecute_NarrowingSkipped_ErrorsNoSave(t *testing.T) {
+	// Явный fetch -m по контракту без поддержки сужения (gRPC) — ошибка, как и
+	// раньше: пользователь просил срез, целиком молча не кладём.
+	ctrl := gomock.NewController(t)
+	source := NewMockProtocolSource(ctrl)
+	store := NewMockProtocolStore(ctrl)
+
+	whole := &entities.Protocol{ServiceID: "svc", Format: entities.ProtocolFormatGRPC, Document: []byte(`syntax = "proto3";`)}
+	source.EXPECT().FetchProtocol(gomock.Any(), "svc", []string{"pkg.Svc/Method"}).Return(whole, true, nil)
+
+	_, err := NewFetchProtocol(source, store).Execute(context.Background(),
+		FetchProtocolInput{ServiceID: "svc", Destination: "protocols", Methods: []string{"pkg.Svc/Method"}})
+
+	assert.ErrorIs(t, err, entities.ErrMethodsUnsupportedForGRPC)
 }
 
 func TestFetchProtocolExecute_Success(t *testing.T) {
@@ -59,7 +70,7 @@ func TestFetchProtocolExecute_Success(t *testing.T) {
 	store := NewMockProtocolStore(ctrl)
 
 	protocol := &entities.Protocol{ServiceID: "svc", ServiceName: "svc-name", VersionNumber: 3, Document: []byte(validDoc)}
-	source.EXPECT().FetchProtocol(gomock.Any(), "svc").Return(protocol, nil)
+	source.EXPECT().FetchProtocol(gomock.Any(), "svc", gomock.Nil()).Return(protocol, false, nil)
 	store.EXPECT().Save(gomock.Any(), protocol, "protocols").Return("protocols/svc-name/openapi.json", nil)
 
 	got, err := NewFetchProtocol(source, store).Execute(context.Background(),
@@ -76,7 +87,7 @@ func TestFetchProtocolExecute_SourceError_NoSave(t *testing.T) {
 	source := NewMockProtocolSource(ctrl)
 	store := NewMockProtocolStore(ctrl)
 
-	source.EXPECT().FetchProtocol(gomock.Any(), "svc").Return(nil, entities.ErrProtocolNotPublished)
+	source.EXPECT().FetchProtocol(gomock.Any(), "svc", gomock.Nil()).Return(nil, false, entities.ErrProtocolNotPublished)
 	// store.Save не должен вызываться — рабочий контракт не затирается.
 
 	_, err := NewFetchProtocol(source, store).Execute(context.Background(),
@@ -91,7 +102,7 @@ func TestFetchProtocolExecute_InvalidProtocol_NoSave(t *testing.T) {
 	store := NewMockProtocolStore(ctrl)
 
 	bad := &entities.Protocol{ServiceID: "svc", Document: []byte("<html>")}
-	source.EXPECT().FetchProtocol(gomock.Any(), "svc").Return(bad, nil)
+	source.EXPECT().FetchProtocol(gomock.Any(), "svc", gomock.Nil()).Return(bad, false, nil)
 	// невалидный контракт не сохраняется.
 
 	_, err := NewFetchProtocol(source, store).Execute(context.Background(),
@@ -107,7 +118,7 @@ func TestFetchProtocolExecute_StoreError(t *testing.T) {
 
 	protocol := &entities.Protocol{ServiceID: "svc", Document: []byte(validDoc)}
 	storeErr := errors.New("disk full")
-	source.EXPECT().FetchProtocol(gomock.Any(), "svc").Return(protocol, nil)
+	source.EXPECT().FetchProtocol(gomock.Any(), "svc", gomock.Nil()).Return(protocol, false, nil)
 	store.EXPECT().Save(gomock.Any(), protocol, "protocols").Return("", storeErr)
 
 	_, err := NewFetchProtocol(source, store).Execute(context.Background(),

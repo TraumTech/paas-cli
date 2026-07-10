@@ -52,26 +52,16 @@ func (uc *SyncProtocolsUseCase) Execute(ctx context.Context, in SyncProtocolsInp
 		if !ok {
 			return nil, fmt.Errorf("зависимость %q: %w", dep.Name, entities.ErrServiceNotFound)
 		}
-		protocol, err := uc.source.FetchProtocol(ctx, serviceID)
+		// Сужение до методов выполняет платформа (CLI-09). methods у
+		// gRPC-зависимости объявляют используемые методы для регистрации (CLI-20),
+		// а сужение контракта для gRPC не поддерживается — платформа приносит его
+		// целиком с narrowingSkipped, что честно отражаем в отчёте (CLI-19).
+		protocol, narrowingSkipped, err := uc.source.FetchProtocol(ctx, serviceID, dep.Methods)
 		if err != nil {
 			return nil, fmt.Errorf("зависимость %q: %w", dep.Name, err)
 		}
 		if err := protocol.Validate(); err != nil {
 			return nil, fmt.Errorf("зависимость %q: %w", dep.Name, err)
-		}
-		// methods у gRPC-зависимости объявляют используемые методы для регистрации
-		// (CLI-20), а сужение контракта для gRPC не поддерживается — приносим
-		// целиком и честно отражаем это в отчёте (уточнение CLI-19).
-		narrowingSkipped := false
-		if len(dep.Methods) > 0 {
-			if protocol.Format == entities.ProtocolFormatGRPC {
-				narrowingSkipped = true
-			} else {
-				protocol, err = protocol.SelectMethods(dep.Methods)
-				if err != nil {
-					return nil, fmt.Errorf("зависимость %q: %w", dep.Name, err)
-				}
-			}
 		}
 		path, err := uc.store.Save(ctx, protocol, dest)
 		if err != nil {

@@ -42,18 +42,19 @@ func (m *MockProtocolSource) EXPECT() *MockProtocolSourceMockRecorder {
 }
 
 // FetchProtocol mocks base method.
-func (m *MockProtocolSource) FetchProtocol(ctx context.Context, serviceID string) (*entities.Protocol, error) {
+func (m *MockProtocolSource) FetchProtocol(ctx context.Context, serviceID string, methods []string) (*entities.Protocol, bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FetchProtocol", ctx, serviceID)
+	ret := m.ctrl.Call(m, "FetchProtocol", ctx, serviceID, methods)
 	ret0, _ := ret[0].(*entities.Protocol)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(bool)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // FetchProtocol indicates an expected call of FetchProtocol.
-func (mr *MockProtocolSourceMockRecorder) FetchProtocol(ctx, serviceID any) *gomock.Call {
+func (mr *MockProtocolSourceMockRecorder) FetchProtocol(ctx, serviceID, methods any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchProtocol", reflect.TypeOf((*MockProtocolSource)(nil).FetchProtocol), ctx, serviceID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchProtocol", reflect.TypeOf((*MockProtocolSource)(nil).FetchProtocol), ctx, serviceID, methods)
 }
 
 // MockProtocolStore is a mock of ProtocolStore interface.

@@ -1,9 +1,6 @@
 package entities
 
-import (
-	"fmt"
-	"strings"
-)
+import "fmt"
 
 type DomainError struct {
 	message string
@@ -23,7 +20,6 @@ var (
 	ErrEmptyProtocol        = newDomainError("контракт пуст")
 	ErrInvalidProtocol      = newDomainError("ответ не похож на OpenAPI-контракт")
 	ErrEmptyCommitRevision  = newDomainError("ревизия коммита не указана")
-	ErrNoMethodsSelected    = newDomainError("не указан ни один метод")
 
 	ErrMethodsUnsupportedForGRPC = newDomainError("сужение до методов для gRPC-контракта пока не поддерживается — уберите methods у этой зависимости")
 
@@ -52,14 +48,4 @@ type UnsupportedProtocolFormatError struct {
 
 func (e *UnsupportedProtocolFormatError) Error() string {
 	return fmt.Sprintf("формат протокола %q не поддерживается (поддерживаются: %s, %s)", e.Name, ProtocolFormatOpenAPI, ProtocolFormatGRPC)
-}
-
-// UnknownMethodsError сообщает, какие именно запрошенные методы не нашлись в
-// контракте, — чтобы пользователь видел причину, а не молча получал неполный срез.
-type UnknownMethodsError struct {
-	Methods []string
-}
-
-func (e *UnknownMethodsError) Error() string {
-	return fmt.Sprintf("методы не найдены в контракте: %s", strings.Join(e.Methods, ", "))
 }
