@@ -61,7 +61,7 @@ func (c *Command) run(ctx context.Context, cmd *cli.Command) error {
 	for _, p := range result.Protocols {
 		note := ""
 		if p.NarrowingSkipped {
-			note = " — целиком: сужение по методам для gRPC не поддерживается, methods учитываются при регистрации зависимостей"
+			note = " — целиком: сужение по методам для этого формата не поддерживается, methods учитываются при регистрации зависимостей"
 		}
 		fmt.Fprintf(cmd.Root().Writer, "✓ Контракт сервиса %s (версия %d%s) записан в %s%s\n",
 			p.ServiceName, p.VersionNumber, formatLabel(p.Format), p.Path, note)

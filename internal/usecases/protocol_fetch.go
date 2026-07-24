@@ -23,10 +23,10 @@ func (uc *FetchProtocolUseCase) Execute(ctx context.Context, in FetchProtocolInp
 	if err != nil {
 		return nil, fmt.Errorf("fetch protocol: %w", err)
 	}
-	// Формат без поддержки сужения (gRPC) у явного fetch -m — ошибка, как и
-	// раньше: пользователь просил срез, молча класть целиком нельзя.
+	// Формат без движка сужения у явного fetch -m — ошибка: пользователь просил
+	// срез, молча класть целиком нельзя.
 	if narrowingSkipped {
-		return nil, entities.ErrMethodsUnsupportedForGRPC
+		return nil, entities.ErrMethodsUnsupportedForFormat
 	}
 	if err := protocol.Validate(); err != nil {
 		return nil, fmt.Errorf("validate protocol: %w", err)

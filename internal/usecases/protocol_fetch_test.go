@@ -61,7 +61,7 @@ func TestFetchProtocolExecute_NarrowingSkipped_ErrorsNoSave(t *testing.T) {
 	_, err := NewFetchProtocol(source, store).Execute(context.Background(),
 		FetchProtocolInput{ServiceID: "svc", Destination: "protocols", Methods: []string{"pkg.Svc/Method"}})
 
-	assert.ErrorIs(t, err, entities.ErrMethodsUnsupportedForGRPC)
+	assert.ErrorIs(t, err, entities.ErrMethodsUnsupportedForFormat)
 }
 
 func TestFetchProtocolExecute_Success(t *testing.T) {

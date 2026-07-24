@@ -52,10 +52,9 @@ func (uc *SyncProtocolsUseCase) Execute(ctx context.Context, in SyncProtocolsInp
 		if !ok {
 			return nil, fmt.Errorf("зависимость %q: %w", dep.Name, entities.ErrServiceNotFound)
 		}
-		// Сужение до методов выполняет платформа (CLI-09). methods у
-		// gRPC-зависимости объявляют используемые методы для регистрации (CLI-20),
-		// а сужение контракта для gRPC не поддерживается — платформа приносит его
-		// целиком с narrowingSkipped, что честно отражаем в отчёте (CLI-19).
+		// Сужение до методов выполняет платформа (CLI-09). Если движка сужения для
+		// формата нет, платформа приносит контракт целиком с narrowingSkipped —
+		// честно отражаем это в отчёте, а не молчим.
 		protocol, narrowingSkipped, err := uc.source.FetchProtocol(ctx, serviceID, dep.Methods)
 		if err != nil {
 			return nil, fmt.Errorf("зависимость %q: %w", dep.Name, err)
