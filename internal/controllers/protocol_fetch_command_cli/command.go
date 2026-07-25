@@ -35,7 +35,7 @@ func (c *Command) CLICommand() *cli.Command {
 			&cli.StringSliceFlag{
 				Name:    methodFlag,
 				Aliases: []string{"m"},
-				Usage:   `оставить в контракте только указанные методы по HTTP-паттерну ("МЕТОД /путь", напр. "GET /services/{id}"); можно повторять или через запятую`,
+				Usage:   `оставить в контракте только указанные методы: HTTP-паттерн ("GET /services/{id}") у OpenAPI, package.Service/Method у gRPC; можно повторять или через запятую`,
 			},
 		},
 		Action: c.run,

@@ -36,7 +36,8 @@ type ManifestService struct {
 
 // ManifestDependency — одна объявленная зависимость: контракт сервиса-продьюсера по
 // имени. Methods — необязательное сужение контракта до перечисленных методов,
-// заданных HTTP-паттерном ("МЕТОД /путь"); пусто — берётся контракт целиком.
+// заданных идентичностью формата (HTTP-паттерн у OpenAPI, package.Service/Method
+// у gRPC); пусто — берётся контракт целиком.
 type ManifestDependency struct {
 	Name    string
 	Methods []string
