@@ -41,6 +41,24 @@ methods = ["GET /a", "POST /b"]
 	assert.Equal(t, []string{"GET /a", "POST /b"}, got.Dependencies[1].Methods)
 }
 
+// PRT-26: отказы от атрибутов читаются рядом с методами; их отсутствие — пусто.
+func TestRead_WaivedAttributes(t *testing.T) {
+	path := writeManifest(t, `
+[[dependencies]]
+name = "paas-backend"
+
+[[dependencies]]
+name = "paas-services"
+waived = ["traumtech.paas_services.v1.Service.owner_id"]
+`)
+
+	got, err := manifestreaderfile.New().Read(context.Background(), path)
+	require.NoError(t, err)
+	require.Len(t, got.Dependencies, 2)
+	assert.Empty(t, got.Dependencies[0].Waived)
+	assert.Equal(t, []string{"traumtech.paas_services.v1.Service.owner_id"}, got.Dependencies[1].Waived)
+}
+
 func TestRead_Service(t *testing.T) {
 	path := writeManifest(t, `
 [service]

@@ -277,18 +277,18 @@ func (m *MockDependencyRegistrar) EXPECT() *MockDependencyRegistrarMockRecorder 
 }
 
 // RegisterDependency mocks base method.
-func (m *MockDependencyRegistrar) RegisterDependency(ctx context.Context, serviceID, versionID, producerServiceID string, format entities.ProtocolFormat, document []byte, methods []string, supersedePrevious bool) (*entities.Dependency, error) {
+func (m *MockDependencyRegistrar) RegisterDependency(ctx context.Context, in DependencyRegistration) (*entities.Dependency, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RegisterDependency", ctx, serviceID, versionID, producerServiceID, format, document, methods, supersedePrevious)
+	ret := m.ctrl.Call(m, "RegisterDependency", ctx, in)
 	ret0, _ := ret[0].(*entities.Dependency)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // RegisterDependency indicates an expected call of RegisterDependency.
-func (mr *MockDependencyRegistrarMockRecorder) RegisterDependency(ctx, serviceID, versionID, producerServiceID, format, document, methods, supersedePrevious any) *gomock.Call {
+func (mr *MockDependencyRegistrarMockRecorder) RegisterDependency(ctx, in any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterDependency", reflect.TypeOf((*MockDependencyRegistrar)(nil).RegisterDependency), ctx, serviceID, versionID, producerServiceID, format, document, methods, supersedePrevious)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterDependency", reflect.TypeOf((*MockDependencyRegistrar)(nil).RegisterDependency), ctx, in)
 }
 
 // MockManifestReader is a mock of ManifestReader interface.

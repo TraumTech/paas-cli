@@ -34,6 +34,7 @@ type fileService struct {
 type fileDependency struct {
 	Name    string   `toml:"name"`
 	Methods []string `toml:"methods"`
+	Waived  []string `toml:"waived"`
 }
 
 func (r *Reader) Read(_ context.Context, path string) (*entities.Manifest, error) {
@@ -58,6 +59,7 @@ func (r *Reader) Read(_ context.Context, path string) (*entities.Manifest, error
 		manifest.Dependencies = append(manifest.Dependencies, entities.ManifestDependency{
 			Name:    dep.Name,
 			Methods: dep.Methods,
+			Waived:  dep.Waived,
 		})
 	}
 	return manifest, nil

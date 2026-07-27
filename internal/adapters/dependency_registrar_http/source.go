@@ -10,6 +10,7 @@ import (
 
 	"github.com/TraumTech/paas-cli/internal/adapters/platformhttp"
 	"github.com/TraumTech/paas-cli/internal/entities"
+	"github.com/TraumTech/paas-cli/internal/usecases"
 	"github.com/TraumTech/paas-cli/pkg/platformapi"
 )
 
@@ -28,18 +29,18 @@ func New(baseURL string, httpClient *http.Client) (*Source, error) {
 	return &Source{client: client}, nil
 }
 
-func (s *Source) RegisterDependency(ctx context.Context, serviceID, versionID, producerServiceID string, format entities.ProtocolFormat, document []byte, methods []string, supersedePrevious bool) (*entities.Dependency, error) {
-	id, err := uuid.Parse(serviceID)
+func (s *Source) RegisterDependency(ctx context.Context, in usecases.DependencyRegistration) (*entities.Dependency, error) {
+	id, err := uuid.Parse(in.ServiceID)
 	if err != nil {
-		return nil, fmt.Errorf("неверный id сервиса %q: %w", serviceID, err)
+		return nil, fmt.Errorf("неверный id сервиса %q: %w", in.ServiceID, err)
 	}
-	versionUUID, err := uuid.Parse(versionID)
+	versionUUID, err := uuid.Parse(in.VersionID)
 	if err != nil {
-		return nil, fmt.Errorf("неверный id версии %q: %w", versionID, err)
+		return nil, fmt.Errorf("неверный id версии %q: %w", in.VersionID, err)
 	}
-	producerUUID, err := uuid.Parse(producerServiceID)
+	producerUUID, err := uuid.Parse(in.ProducerServiceID)
 	if err != nil {
-		return nil, fmt.Errorf("неверный id продьюсера %q: %w", producerServiceID, err)
+		return nil, fmt.Errorf("неверный id продьюсера %q: %w", in.ProducerServiceID, err)
 	}
 
 	// Снимок уходит в родном виде формата (PRT-19): OpenAPI — JSON-объект,
@@ -47,13 +48,13 @@ func (s *Source) RegisterDependency(ctx context.Context, serviceID, versionID, p
 	// запрос не отличается от прежних регистраций без типа.
 	var doc any
 	var formatBody *platformapi.RegisterProtocolDependencyInputBodyFormat
-	if format == entities.ProtocolFormatGRPC {
-		doc = string(document)
-		f := platformapi.RegisterProtocolDependencyInputBodyFormat(format)
+	if in.Format == entities.ProtocolFormatGRPC {
+		doc = string(in.Document)
+		f := platformapi.RegisterProtocolDependencyInputBodyFormat(in.Format)
 		formatBody = &f
 	} else {
 		var obj map[string]any
-		if err := json.Unmarshal(document, &obj); err != nil {
+		if err := json.Unmarshal(in.Document, &obj); err != nil {
 			return nil, fmt.Errorf("снимок контракта не разобран как JSON: %w", err)
 		}
 		doc = obj
@@ -61,19 +62,25 @@ func (s *Source) RegisterDependency(ctx context.Context, serviceID, versionID, p
 
 	// nil, когда не замещаем, — поле опускается; платформа трактует отсутствие как false.
 	var supersede *bool
-	if supersedePrevious {
-		supersede = &supersedePrevious
+	if in.SupersedePrevious {
+		supersede = &in.SupersedePrevious
 	}
 	// Пустой перечень опускаем — платформа трактует отсутствие как «зависит от всего снимка».
 	var methodsBody *[]string
-	if len(methods) > 0 {
-		methodsBody = &methods
+	if len(in.Methods) > 0 {
+		methodsBody = &in.Methods
+	}
+	// Пустой перечень отказов опускаем — платформа трактует отсутствие как «отказов нет».
+	var waivedBody *[]string
+	if len(in.Waived) > 0 {
+		waivedBody = &in.Waived
 	}
 	resp, err := s.client.RegisterProtocolDependencyWithResponse(ctx, id, versionUUID, platformapi.RegisterProtocolDependencyJSONRequestBody{
 		ProducerServiceId: producerUUID,
 		Format:            formatBody,
 		Document:          doc,
 		Methods:           methodsBody,
+		WaivedAttributes:  waivedBody,
 		SupersedePrevious: supersede,
 	})
 	if err != nil {

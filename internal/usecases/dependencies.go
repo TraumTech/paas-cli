@@ -60,7 +60,23 @@ type ProtocolPublisher interface {
 // версии-потребителя или продьюсера, снимок отклонён) возвращает ошибку с
 // понятным сообщением от платформы.
 type DependencyRegistrar interface {
-	RegisterDependency(ctx context.Context, serviceID, versionID, producerServiceID string, format entities.ProtocolFormat, document []byte, methods []string, supersedePrevious bool) (*entities.Dependency, error)
+	RegisterDependency(ctx context.Context, in DependencyRegistration) (*entities.Dependency, error)
+}
+
+// DependencyRegistration — одна регистрация в платформе. Структурой, а не
+// позиционными аргументами: Methods и Waived — соседние перечни строк,
+// перепутать их местами было бы молча.
+type DependencyRegistration struct {
+	ServiceID         string
+	VersionID         string
+	ProducerServiceID string
+	Format            entities.ProtocolFormat
+	Document          []byte
+	// Methods — используемые методы продьюсера; пусто — зависимость от всего снимка.
+	Methods []string
+	// Waived — атрибуты продьюсера, от которых потребитель отказался (PRT-26).
+	Waived            []string
+	SupersedePrevious bool
 }
 
 // ManifestReader читает манифест зависимостей из файла в репозитории потребителя.

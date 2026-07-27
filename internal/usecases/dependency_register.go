@@ -64,7 +64,16 @@ func (uc *RegisterDependencyUseCase) Execute(ctx context.Context, in RegisterDep
 		if err := contract.Validate(); err != nil {
 			return nil, fmt.Errorf("зависимость %q: %w", dep.Name, err)
 		}
-		if _, err := uc.registrar.RegisterDependency(ctx, consumerID, in.VersionID, producerID, format, contract.Document, dep.Methods, in.SupersedePrevious); err != nil {
+		if _, err := uc.registrar.RegisterDependency(ctx, DependencyRegistration{
+			ServiceID:         consumerID,
+			VersionID:         in.VersionID,
+			ProducerServiceID: producerID,
+			Format:            format,
+			Document:          contract.Document,
+			Methods:           dep.Methods,
+			Waived:            dep.Waived,
+			SupersedePrevious: in.SupersedePrevious,
+		}); err != nil {
 			return nil, fmt.Errorf("зависимость %q: %w", dep.Name, err)
 		}
 		registered = append(registered, RegisteredDependency{ProducerName: dep.Name, ProducerServiceID: producerID})

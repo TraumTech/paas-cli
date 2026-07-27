@@ -212,6 +212,12 @@
           "registered_at": {
             "format": "date-time",
             "type": "string"
+          },
+          "waived_attributes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -221,6 +227,7 @@
           "producer_service_id",
           "format",
           "methods",
+          "waived_attributes",
           "registered_at"
         ],
         "type": "object"
@@ -410,6 +417,13 @@
           "supersede_previous": {
             "description": "Снять зависимости прочих версий этого потребителя от того же продьюсера, оставив только регистрируемую (по умолчанию нет)",
             "type": "boolean"
+          },
+          "waived_attributes": {
+            "description": "Атрибуты продьюсера, от которых потребитель отказался: \"полное.имя.Типа.поле\", у вокабуляра — \"полное.имя.Типа.ЗНАЧЕНИЕ\"; пусто — зависимость от всех атрибутов используемых методов",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -439,6 +453,9 @@
             "type": "string"
           },
           "name": {
+            "type": "string"
+          },
+          "repo_url": {
             "type": "string"
           }
         },
