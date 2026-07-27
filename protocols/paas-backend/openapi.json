@@ -4,6 +4,9 @@
       "CompatibilityChangeResponse": {
         "additionalProperties": false,
         "properties": {
+          "attribute": {
+            "type": "string"
+          },
           "breaking": {
             "type": "boolean"
           },
@@ -15,6 +18,9 @@
           },
           "operation": {
             "type": "string"
+          },
+          "waived": {
+            "type": "boolean"
           }
         },
         "required": [

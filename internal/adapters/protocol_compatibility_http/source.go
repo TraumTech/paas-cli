@@ -75,11 +75,17 @@ func mapReport(r *platformapi.CompatibilityReportResponse) *entities.Compatibili
 			if ch.Operation != nil {
 				operation = *ch.Operation
 			}
+			attribute := ""
+			if ch.Attribute != nil {
+				attribute = *ch.Attribute
+			}
 			changes = append(changes, entities.CompatibilityChange{
 				Breaking:    ch.Breaking,
 				Kind:        ch.Kind,
 				Operation:   operation,
 				Description: ch.Description,
+				Attribute:   attribute,
+				Waived:      ch.Waived != nil && *ch.Waived,
 			})
 		}
 		consumers = append(consumers, entities.ConsumerCompatibility{

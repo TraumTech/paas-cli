@@ -43,9 +43,14 @@ type ConsumerCompatibility struct {
 }
 
 // CompatibilityChange — одно изменение контракта относительно снимка потребителя.
+// Attribute — машинная координата затронутого атрибута (пусто у изменений уровня
+// метода); Waived — потребитель от этого атрибута отказался (PRT-27), поэтому
+// изменение видно, но его не ломает.
 type CompatibilityChange struct {
 	Breaking    bool
 	Kind        string
 	Operation   string
 	Description string
+	Attribute   string
+	Waived      bool
 }

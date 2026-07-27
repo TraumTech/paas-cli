@@ -48,6 +48,25 @@ func TestCommandRun_Compatible(t *testing.T) {
 	assert.Contains(t, out.String(), "[compatible] operation-added GET /y — новый эндпоинт")
 }
 
+// PRT-27: изменение отпущенного атрибута видно в отчёте, но помечено отказом и
+// потребителя не ломает.
+func TestCommandRun_WaivedAttribute(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	checker := NewMockCompatibilityChecker(ctrl)
+	checker.EXPECT().Execute(gomock.Any(), gomock.Any()).
+		Return(&entities.CompatibilityReport{Breaking: false, Consumers: []entities.ConsumerCompatibility{
+			{ServiceName: "frontend", VersionNumber: 5, Comparable: true, Changes: []entities.CompatibilityChange{
+				{Kind: "removed", Operation: "shop.v1.Svc/Get", Description: "поле shop.v1.Order.note (№5) удалено",
+					Attribute: "shop.v1.Order.note", Waived: true},
+			}},
+		}}, nil)
+
+	var out bytes.Buffer
+	require.NoError(t, run(t, checker, &out))
+	assert.Contains(t, out.String(), "frontend v5: совместимо")
+	assert.Contains(t, out.String(), "[отказ] removed shop.v1.Svc/Get — поле shop.v1.Order.note (№5) удалено")
+}
+
 func TestCommandRun_NoConsumers(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	checker := NewMockCompatibilityChecker(ctrl)

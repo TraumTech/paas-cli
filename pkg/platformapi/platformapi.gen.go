@@ -74,10 +74,12 @@ func (e PublishProtocolParamsFormat) Valid() bool {
 
 // CompatibilityChangeResponse defines model for CompatibilityChangeResponse.
 type CompatibilityChangeResponse struct {
+	Attribute   *string `json:"attribute,omitempty"`
 	Breaking    bool    `json:"breaking"`
 	Description string  `json:"description"`
 	Kind        string  `json:"kind"`
 	Operation   *string `json:"operation,omitempty"`
+	Waived      *bool   `json:"waived,omitempty"`
 }
 
 // CompatibilityReportResponse defines model for CompatibilityReportResponse.

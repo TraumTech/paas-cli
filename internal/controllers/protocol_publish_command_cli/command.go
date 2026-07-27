@@ -77,8 +77,13 @@ func render(w io.Writer, p *entities.ProtocolPublication) {
 		fmt.Fprintf(w, "• %s v%d: %s\n", consumer.ServiceName, consumer.VersionNumber, consumerStatus(consumer))
 		for _, change := range consumer.Changes {
 			label := "compatible"
-			if change.Breaking {
+			switch {
+			case change.Breaking:
 				label = "BREAKING"
+			case change.Waived:
+				// Изменение осталось видно, но потребитель от этого атрибута
+				// отказался (PRT-27) — его оно уже не ломает.
+				label = "отказ"
 			}
 			operation := change.Operation
 			if operation != "" {
