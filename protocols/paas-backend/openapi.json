@@ -1,6 +1,86 @@
 {
   "components": {
     "schemas": {
+      "AccessRuleResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "api_groups": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "comment": {
+            "type": "string"
+          },
+          "resources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "verbs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "api_groups",
+          "resources",
+          "verbs",
+          "comment"
+        ],
+        "type": "object"
+      },
+      "ClusterResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://api.paas.traumtech.ru/schemas/ClusterResponse.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "connected": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "endpoint": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "last_contact_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "endpoint",
+          "connected",
+          "created_at"
+        ],
+        "type": "object"
+      },
       "CompatibilityChangeResponse": {
         "additionalProperties": false,
         "properties": {
@@ -55,6 +135,43 @@
         "required": [
           "breaking",
           "consumers"
+        ],
+        "type": "object"
+      },
+      "ConnectClusterInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://api.paas.traumtech.ru/schemas/ConnectClusterInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "ca_certificate": {
+            "description": "Корневой сертификат кластера в PEM",
+            "type": "string"
+          },
+          "endpoint": {
+            "description": "Адрес API кластера (только https)",
+            "type": "string"
+          },
+          "name": {
+            "description": "Имя кластера в организации (kebab-case)",
+            "type": "string"
+          },
+          "token": {
+            "description": "Токен доступа ограниченного ServiceAccount",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "endpoint",
+          "ca_certificate",
+          "token"
         ],
         "type": "object"
       },
@@ -438,6 +555,30 @@
         ],
         "type": "object"
       },
+      "RequiredAccessOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://api.paas.traumtech.ru/schemas/RequiredAccessOutputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/AccessRuleResponse"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "rules"
+        ],
+        "type": "object"
+      },
       "ServiceResponse": {
         "additionalProperties": false,
         "properties": {
@@ -516,6 +657,80 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/organizations/current/clusters": {
+      "post": {
+        "description": "Подключает кластер Kubernetes организации по выданному доступу (CLS-01). Связь проверяется до сохранения: недостижимый кластер или нехватка прав не сохраняются молча. Токен доступа наружу больше не возвращается никогда.",
+        "operationId": "connect-cluster",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectClusterInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClusterResponse"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Подключить кластер организации",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/organizations/current/clusters/required-access": {
+      "get": {
+        "description": "Единственный источник для интерфейса и CLI: первый показывает набор владельцу, второй строит из него роль и применяет в кластере (CLS-02). Отдаётся структурой, а не текстом манифеста.",
+        "operationId": "get-cluster-required-access",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequiredAccessOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Права, которые платформа запрашивает в кластере",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
     "/services": {
       "get": {
         "operationId": "list-services",

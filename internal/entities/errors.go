@@ -35,6 +35,11 @@ var (
 	ErrNoSession          = newDomainError("вход не выполнен — выполните `paas-cli auth login`")
 	ErrSessionExpired     = newDomainError("сессия истекла или отозвана — войдите заново: `paas-cli auth login`")
 
+	ErrCancelled           = newDomainError("отменено — в кластере ничего не изменено")
+	ErrEmptyClusterName    = newDomainError("укажите имя кластера: --name")
+	ErrNoKubeContext       = newDomainError("не удалось определить кластер: в kubeconfig нет активного контекста")
+	ErrClusterAccessDenied = newDomainError("вашего доступа не хватает, чтобы выдать права платформе — нужен доступ уровня администратора кластера")
+
 	ErrLoginRequired        = newDomainError("платформа требует вход: выполните `paas-cli auth login` или задайте токен сервиса в PAAS_API_TOKEN")
 	ErrServiceTokenRejected = newDomainError("токен сервиса не принят платформой (отозван или неверен) — проверьте PAAS_API_TOKEN")
 )

@@ -72,6 +72,29 @@ func (e PublishProtocolParamsFormat) Valid() bool {
 	}
 }
 
+// AccessRuleResponse defines model for AccessRuleResponse.
+type AccessRuleResponse struct {
+	ApiGroups []string `json:"api_groups"`
+	Comment   string   `json:"comment"`
+	Resources []string `json:"resources"`
+	Verbs     []string `json:"verbs"`
+}
+
+// ClusterResponse defines model for ClusterResponse.
+type ClusterResponse struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: https://api.paas.traumtech.ru/schemas/ClusterResponse.json
+	Schema        *string            `json:"$schema,omitempty"`
+	Connected     bool               `json:"connected"`
+	CreatedAt     time.Time          `json:"created_at"`
+	Endpoint      string             `json:"endpoint"`
+	Id            openapi_types.UUID `json:"id"`
+	Kind          string             `json:"kind"`
+	LastContactAt *time.Time         `json:"last_contact_at,omitempty"`
+	Name          string             `json:"name"`
+}
+
 // CompatibilityChangeResponse defines model for CompatibilityChangeResponse.
 type CompatibilityChangeResponse struct {
 	Attribute   *string `json:"attribute,omitempty"`
@@ -90,6 +113,26 @@ type CompatibilityReportResponse struct {
 	Schema    *string                         `json:"$schema,omitempty"`
 	Breaking  bool                            `json:"breaking"`
 	Consumers []ConsumerCompatibilityResponse `json:"consumers"`
+}
+
+// ConnectClusterInputBody defines model for ConnectClusterInputBody.
+type ConnectClusterInputBody struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: https://api.paas.traumtech.ru/schemas/ConnectClusterInputBody.json
+	Schema *string `json:"$schema,omitempty"`
+
+	// CaCertificate Корневой сертификат кластера в PEM
+	CaCertificate string `json:"ca_certificate"`
+
+	// Endpoint Адрес API кластера (только https)
+	Endpoint string `json:"endpoint"`
+
+	// Name Имя кластера в организации (kebab-case)
+	Name string `json:"name"`
+
+	// Token Токен доступа ограниченного ServiceAccount
+	Token string `json:"token"`
 }
 
 // ConsumerCompatibilityResponse defines model for ConsumerCompatibilityResponse.
@@ -247,6 +290,15 @@ type RegisterProtocolDependencyInputBody struct {
 // RegisterProtocolDependencyInputBodyFormat Формат снимка (пусто — openapi)
 type RegisterProtocolDependencyInputBodyFormat string
 
+// RequiredAccessOutputBody defines model for RequiredAccessOutputBody.
+type RequiredAccessOutputBody struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: https://api.paas.traumtech.ru/schemas/RequiredAccessOutputBody.json
+	Schema *string              `json:"$schema,omitempty"`
+	Rules  []AccessRuleResponse `json:"rules"`
+}
+
 // ServiceResponse defines model for ServiceResponse.
 type ServiceResponse struct {
 	// Schema A URL to the JSON Schema for this object.
@@ -312,6 +364,9 @@ type PublishProtocolParams struct {
 
 // PublishProtocolParamsFormat defines parameters for PublishProtocol.
 type PublishProtocolParamsFormat string
+
+// ConnectClusterJSONRequestBody defines body for ConnectCluster for application/json ContentType.
+type ConnectClusterJSONRequestBody = ConnectClusterInputBody
 
 // CheckProtocolCompatibilityJSONRequestBody defines body for CheckProtocolCompatibility for application/json ContentType.
 type CheckProtocolCompatibilityJSONRequestBody = CheckProtocolCompatibilityJSONBody
@@ -399,6 +454,31 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 // The interface specification for the client above.
 type ClientInterface interface {
 
+	// ConnectClusterWithBody Подключить кластер организации
+	//
+	// Подключает кластер Kubernetes организации по выданному доступу (CLS-01). Связь проверяется до сохранения: недостижимый кластер или нехватка прав не сохраняются молча. Токен доступа наружу больше не возвращается никогда.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /organizations/current/clusters (the `ConnectCluster` operationId).
+	ConnectClusterWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConnectCluster Подключить кластер организации
+	//
+	// Подключает кластер Kubernetes организации по выданному доступу (CLS-01). Связь проверяется до сохранения: недостижимый кластер или нехватка прав не сохраняются молча. Токен доступа наружу больше не возвращается никогда.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /organizations/current/clusters (the `ConnectCluster` operationId).
+	ConnectCluster(ctx context.Context, body ConnectClusterJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetClusterRequiredAccess Права, которые платформа запрашивает в кластере
+	//
+	// Единственный источник для интерфейса и CLI: первый показывает набор владельцу, второй строит из него роль и применяет в кластере (CLS-02). Отдаётся структурой, а не текстом манифеста.
+	//
+	// Corresponds with GET /organizations/current/clusters/required-access (the `GetClusterRequiredAccess` operationId).
+	GetClusterRequiredAccess(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListServices Список сервисов
 	//
 	// Corresponds with GET /services (the `ListServices` operationId).
@@ -469,6 +549,61 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /services/{id}/versions/{version_id}/protocol (the `PublishProtocol` operationId).
 	PublishProtocol(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, params *PublishProtocolParams, body PublishProtocolJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+// ConnectClusterWithBody Подключить кластер организации
+//
+// Подключает кластер Kubernetes организации по выданному доступу (CLS-01). Связь проверяется до сохранения: недостижимый кластер или нехватка прав не сохраняются молча. Токен доступа наружу больше не возвращается никогда.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /organizations/current/clusters (the `ConnectCluster` operationId).
+func (c *Client) ConnectClusterWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConnectClusterRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConnectCluster Подключить кластер организации
+//
+// Подключает кластер Kubernetes организации по выданному доступу (CLS-01). Связь проверяется до сохранения: недостижимый кластер или нехватка прав не сохраняются молча. Токен доступа наружу больше не возвращается никогда.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /organizations/current/clusters (the `ConnectCluster` operationId).
+func (c *Client) ConnectCluster(ctx context.Context, body ConnectClusterJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConnectClusterRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetClusterRequiredAccess Права, которые платформа запрашивает в кластере
+//
+// Единственный источник для интерфейса и CLI: первый показывает набор владельцу, второй строит из него роль и применяет в кластере (CLS-02). Отдаётся структурой, а не текстом манифеста.
+//
+// Corresponds with GET /organizations/current/clusters/required-access (the `GetClusterRequiredAccess` operationId).
+func (c *Client) GetClusterRequiredAccess(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetClusterRequiredAccessRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 // ListServices Список сервисов
@@ -650,6 +785,73 @@ func (c *Client) PublishProtocol(ctx context.Context, id openapi_types.UUID, ver
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewConnectClusterRequest calls the generic ConnectCluster builder with application/json body
+func NewConnectClusterRequest(server string, body ConnectClusterJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewConnectClusterRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewConnectClusterRequestWithBody constructs an http.Request for the ConnectCluster method, with any body, and a specified content type
+func NewConnectClusterRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/organizations/current/clusters")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetClusterRequiredAccessRequest constructs an http.Request for the GetClusterRequiredAccess method
+func NewGetClusterRequiredAccessRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/organizations/current/clusters/required-access")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
 // NewListServicesRequest constructs an http.Request for the ListServices method
@@ -1125,6 +1327,33 @@ func WithBaseURL(baseURL string) ClientOption {
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
 
+	// ConnectClusterWithBodyWithResponse Подключить кластер организации
+	//
+	// Подключает кластер Kubernetes организации по выданному доступу (CLS-01). Связь проверяется до сохранения: недостижимый кластер или нехватка прав не сохраняются молча. Токен доступа наружу больше не возвращается никогда.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /organizations/current/clusters (the `ConnectCluster` operationId).
+	ConnectClusterWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConnectClusterResponse, error)
+
+	// ConnectClusterWithResponse Подключить кластер организации
+	//
+	// Подключает кластер Kubernetes организации по выданному доступу (CLS-01). Связь проверяется до сохранения: недостижимый кластер или нехватка прав не сохраняются молча. Токен доступа наружу больше не возвращается никогда.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /organizations/current/clusters (the `ConnectCluster` operationId).
+	ConnectClusterWithResponse(ctx context.Context, body ConnectClusterJSONRequestBody, reqEditors ...RequestEditorFn) (*ConnectClusterResponse, error)
+
+	// GetClusterRequiredAccessWithResponse Права, которые платформа запрашивает в кластере
+	//
+	// Единственный источник для интерфейса и CLI: первый показывает набор владельцу, второй строит из него роль и применяет в кластере (CLS-02). Отдаётся структурой, а не текстом манифеста.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /organizations/current/clusters/required-access (the `GetClusterRequiredAccess` operationId).
+	GetClusterRequiredAccessWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetClusterRequiredAccessResponse, error)
+
 	// ListServicesWithResponse Список сервисов
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -1201,6 +1430,102 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PUT /services/{id}/versions/{version_id}/protocol (the `PublishProtocol` operationId).
 	PublishProtocolWithResponse(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, params *PublishProtocolParams, body PublishProtocolJSONRequestBody, reqEditors ...RequestEditorFn) (*PublishProtocolResponse, error)
+}
+
+type ConnectClusterResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *ClusterResponse
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r ConnectClusterResponse) GetJSON201() *ClusterResponse {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r ConnectClusterResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ConnectClusterResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ConnectClusterResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ConnectClusterResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ConnectClusterResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetClusterRequiredAccessResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *RequiredAccessOutputBody
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetClusterRequiredAccessResponse) GetJSON200() *RequiredAccessOutputBody {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r GetClusterRequiredAccessResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GetClusterRequiredAccessResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetClusterRequiredAccessResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetClusterRequiredAccessResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetClusterRequiredAccessResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
 }
 
 type ListServicesResponse struct {
@@ -1560,6 +1885,51 @@ func (r PublishProtocolResponse) ContentType() string {
 	return ""
 }
 
+// ConnectClusterWithBodyWithResponse Подключить кластер организации
+//
+// Подключает кластер Kubernetes организации по выданному доступу (CLS-01). Связь проверяется до сохранения: недостижимый кластер или нехватка прав не сохраняются молча. Токен доступа наружу больше не возвращается никогда.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /organizations/current/clusters (the `ConnectCluster` operationId).
+func (c *ClientWithResponses) ConnectClusterWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConnectClusterResponse, error) {
+	rsp, err := c.ConnectClusterWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConnectClusterResponse(rsp)
+}
+
+// ConnectClusterWithResponse Подключить кластер организации
+//
+// Подключает кластер Kubernetes организации по выданному доступу (CLS-01). Связь проверяется до сохранения: недостижимый кластер или нехватка прав не сохраняются молча. Токен доступа наружу больше не возвращается никогда.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /organizations/current/clusters (the `ConnectCluster` operationId).
+func (c *ClientWithResponses) ConnectClusterWithResponse(ctx context.Context, body ConnectClusterJSONRequestBody, reqEditors ...RequestEditorFn) (*ConnectClusterResponse, error) {
+	rsp, err := c.ConnectCluster(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConnectClusterResponse(rsp)
+}
+
+// GetClusterRequiredAccessWithResponse Права, которые платформа запрашивает в кластере
+//
+// Единственный источник для интерфейса и CLI: первый показывает набор владельцу, второй строит из него роль и применяет в кластере (CLS-02). Отдаётся структурой, а не текстом манифеста.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /organizations/current/clusters/required-access (the `GetClusterRequiredAccess` operationId).
+func (c *ClientWithResponses) GetClusterRequiredAccessWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetClusterRequiredAccessResponse, error) {
+	rsp, err := c.GetClusterRequiredAccess(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetClusterRequiredAccessResponse(rsp)
+}
+
 // ListServicesWithResponse Список сервисов
 //
 // Returns a wrapper object for the known response body format(s).
@@ -1701,6 +2071,72 @@ func (c *ClientWithResponses) PublishProtocolWithResponse(ctx context.Context, i
 		return nil, err
 	}
 	return ParsePublishProtocolResponse(rsp)
+}
+
+// ParseConnectClusterResponse parses an HTTP response from a ConnectClusterWithResponse call
+func ParseConnectClusterResponse(rsp *http.Response) (*ConnectClusterResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ConnectClusterResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ClusterResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetClusterRequiredAccessResponse parses an HTTP response from a GetClusterRequiredAccessWithResponse call
+func ParseGetClusterRequiredAccessResponse(rsp *http.Response) (*GetClusterRequiredAccessResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetClusterRequiredAccessResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest RequiredAccessOutputBody
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParseListServicesResponse parses an HTTP response from a ListServicesWithResponse call

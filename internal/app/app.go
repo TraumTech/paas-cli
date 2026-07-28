@@ -11,6 +11,9 @@ import (
 	"github.com/urfave/cli/v3"
 
 	"github.com/TraumTech/paas-cli/internal/adapters/candidate_reader_file"
+	clusteraccesshttp "github.com/TraumTech/paas-cli/internal/adapters/cluster_access_http"
+	clusterprovisionerk8s "github.com/TraumTech/paas-cli/internal/adapters/cluster_provisioner_k8s"
+	clusterregistrarhttp "github.com/TraumTech/paas-cli/internal/adapters/cluster_registrar_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/dependency_registrar_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/manifest_reader_file"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_compatibility_http"
@@ -24,6 +27,7 @@ import (
 	"github.com/TraumTech/paas-cli/internal/controllers/auth_login_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/auth_logout_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/auth_whoami_command_cli"
+	clusterconnectcommandcli "github.com/TraumTech/paas-cli/internal/controllers/cluster_connect_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/dependency_register_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/protocol_compatibility_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/protocol_fetch_command_cli"
@@ -113,6 +117,18 @@ func Run(ctx context.Context, args []string) error {
 	}
 	registerDependency := dependencyregistercommandcli.New(usecases.NewRegisterDependency(manifests, resolver, candidates, registrar))
 
+	clusterAccess, err := clusteraccesshttp.New(baseURL, client)
+	if err != nil {
+		return err
+	}
+	clusterRegistrar, err := clusterregistrarhttp.New(baseURL, client)
+	if err != nil {
+		return err
+	}
+	connectCluster := clusterconnectcommandcli.New(
+		usecases.NewConnectCluster(clusterAccess, clusterprovisionerk8s.New(), clusterRegistrar),
+	)
+
 	// Identity-провайдер — отдельный хост со своим клиентом: креденшелы платформы
 	// (bearer/сессия) к нему не прикладываются.
 	authURL := strings.TrimRight(envOr(envAuthURL, defaultAuthURL), "/")
@@ -159,6 +175,13 @@ func Run(ctx context.Context, args []string) error {
 				Usage: "зависимости версий потребителя от контрактов продьюсеров",
 				Commands: []*cli.Command{
 					registerDependency.CLICommand(),
+				},
+			},
+			{
+				Name:  "clusters",
+				Usage: "подключение кластеров Kubernetes организации",
+				Commands: []*cli.Command{
+					connectCluster.CLICommand(),
 				},
 			},
 			{

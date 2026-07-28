@@ -5,6 +5,8 @@ name = "paas-cli"
 [[dependencies]]
 name = "paas-backend"  # продьюсер, на контракте которого собран клиент платформы
 methods = [
+    "GET /organizations/current/clusters/required-access", # cluster_access_http: какие права платформа просит в кластере
+    "POST /organizations/current/clusters", # cluster_registrar_http: регистрация подключённого кластера
     "GET /services", # service_resolver_http: резолв имени продьюсера в id
     "GET /services/{id}", # protocol_source_http: метаданные сервиса перед получением контракта
     "GET /services/{id}/protocol", # protocol_source_http: получение контракта (sync/fetch)
