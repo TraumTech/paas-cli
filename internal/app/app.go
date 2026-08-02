@@ -15,6 +15,7 @@ import (
 	clusterprovisionerk8s "github.com/TraumTech/paas-cli/internal/adapters/cluster_provisioner_k8s"
 	clusterregistrarhttp "github.com/TraumTech/paas-cli/internal/adapters/cluster_registrar_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/dependency_registrar_http"
+	formreaderfile "github.com/TraumTech/paas-cli/internal/adapters/form_reader_file"
 	"github.com/TraumTech/paas-cli/internal/adapters/manifest_reader_file"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_compatibility_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_publish_http"
@@ -103,7 +104,7 @@ func Run(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	publishVersion := versionpublishcommandcli.New(usecases.NewPublishVersion(manifests, resolver, publisher))
+	publishVersion := versionpublishcommandcli.New(usecases.NewPublishVersion(manifests, formreaderfile.New(), resolver, publisher))
 
 	publishSource, err := protocolpublishhttp.New(baseURL, client)
 	if err != nil {

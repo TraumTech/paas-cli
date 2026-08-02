@@ -16,80 +16,120 @@ func nameManifest() *entities.Manifest {
 	return &entities.Manifest{Service: &entities.ManifestService{Name: "paas-backend"}}
 }
 
-func TestPublishVersionExecute_Success(t *testing.T) {
+type publishFixture struct {
+	manifests *MockManifestReader
+	forms     *MockFormReader
+	resolver  *MockServiceResolver
+	publisher *MockVersionPublisher
+	uc        *PublishVersionUseCase
+}
+
+func newPublishFixture(t *testing.T) *publishFixture {
+	t.Helper()
 	ctrl := gomock.NewController(t)
-	manifests := NewMockManifestReader(ctrl)
-	resolver := NewMockServiceResolver(ctrl)
-	publisher := NewMockVersionPublisher(ctrl)
+	f := &publishFixture{
+		manifests: NewMockManifestReader(ctrl),
+		forms:     NewMockFormReader(ctrl),
+		resolver:  NewMockServiceResolver(ctrl),
+		publisher: NewMockVersionPublisher(ctrl),
+	}
+	f.uc = NewPublishVersion(f.manifests, f.forms, f.resolver, f.publisher)
+	return f
+}
 
+func (f *publishFixture) input() PublishVersionInput {
+	return PublishVersionInput{CommitRevision: "abc123", ManifestPath: "protocols.toml", FormPath: "paas.toml"}
+}
+
+func (f *publishFixture) expectResolved() {
+	f.manifests.EXPECT().Read(gomock.Any(), "protocols.toml").Return(nameManifest(), nil)
+	f.resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"paas-backend"}).Return(map[string]string{"paas-backend": "svc"}, nil)
+}
+
+func TestPublishVersionExecute_Success(t *testing.T) {
+	f := newPublishFixture(t)
 	version := &entities.Version{ID: "ver-1", Number: 7, CommitRevision: "abc123"}
-	manifests.EXPECT().Read(gomock.Any(), "protocols.toml").Return(nameManifest(), nil)
-	resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"paas-backend"}).Return(map[string]string{"paas-backend": "svc"}, nil)
-	publisher.EXPECT().PublishVersion(gomock.Any(), "svc", "abc123").Return(version, nil)
 
-	got, err := NewPublishVersion(manifests, resolver, publisher).Execute(context.Background(),
-		PublishVersionInput{CommitRevision: "abc123", ManifestPath: "protocols.toml"})
+	f.expectResolved()
+	// paas.toml отсутствует — публикация без формы, как раньше.
+	f.forms.EXPECT().Read(gomock.Any(), "paas.toml").Return(nil, nil)
+	f.publisher.EXPECT().PublishVersion(gomock.Any(), "svc", "abc123", "", nil).Return(version, nil)
+
+	got, err := f.uc.Execute(context.Background(), f.input())
 
 	require.NoError(t, err)
 	assert.Same(t, version, got)
 }
 
-func TestPublishVersionExecute_EmptyRevision_NoManifest(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	// Манифест/резолвер/публикацию не трогаем — без ревизии останавливаемся сразу.
-	manifests := NewMockManifestReader(ctrl)
-	resolver := NewMockServiceResolver(ctrl)
-	publisher := NewMockVersionPublisher(ctrl)
+// Форма из paas.toml едет с версией вместе с адресом образа (DEP-02).
+func TestPublishVersionExecute_WithForm(t *testing.T) {
+	f := newPublishFixture(t)
+	form := &entities.VersionForm{Processes: []entities.ProcessForm{{Name: "server", Listen: 8080}}}
+	version := &entities.Version{ID: "ver-1", Number: 8, CommitRevision: "abc123"}
 
-	_, err := NewPublishVersion(manifests, resolver, publisher).Execute(context.Background(),
-		PublishVersionInput{CommitRevision: "  ", ManifestPath: "protocols.toml"})
+	f.expectResolved()
+	f.forms.EXPECT().Read(gomock.Any(), "paas.toml").Return(form, nil)
+	f.publisher.EXPECT().PublishVersion(gomock.Any(), "svc", "abc123", "ghcr.io/traumtech/svc:sha", form).Return(version, nil)
+
+	in := f.input()
+	in.Image = "ghcr.io/traumtech/svc:sha"
+	_, err := f.uc.Execute(context.Background(), in)
+
+	require.NoError(t, err)
+}
+
+// Форма без образа не имеет смысла — отказ до обращения к сети.
+func TestPublishVersionExecute_FormRequiresImage(t *testing.T) {
+	f := newPublishFixture(t)
+
+	f.expectResolved()
+	f.forms.EXPECT().Read(gomock.Any(), "paas.toml").Return(&entities.VersionForm{}, nil)
+
+	_, err := f.uc.Execute(context.Background(), f.input())
+
+	assert.ErrorIs(t, err, entities.ErrFormRequiresImage)
+}
+
+func TestPublishVersionExecute_EmptyRevision_NoManifest(t *testing.T) {
+	f := newPublishFixture(t)
+	// Манифест/резолвер/публикацию не трогаем — без ревизии останавливаемся сразу.
+	in := f.input()
+	in.CommitRevision = "  "
+
+	_, err := f.uc.Execute(context.Background(), in)
 
 	assert.ErrorIs(t, err, entities.ErrEmptyCommitRevision)
 }
 
 func TestPublishVersionExecute_NoServiceDeclared_NoPublish(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	manifests := NewMockManifestReader(ctrl)
-	resolver := NewMockServiceResolver(ctrl)
-	publisher := NewMockVersionPublisher(ctrl)
-
-	manifests.EXPECT().Read(gomock.Any(), "protocols.toml").Return(&entities.Manifest{}, nil)
+	f := newPublishFixture(t)
+	f.manifests.EXPECT().Read(gomock.Any(), "protocols.toml").Return(&entities.Manifest{}, nil)
 	// резолвер/публикация не вызываются — манифест не объявляет сервис.
 
-	_, err := NewPublishVersion(manifests, resolver, publisher).Execute(context.Background(),
-		PublishVersionInput{CommitRevision: "abc123", ManifestPath: "protocols.toml"})
+	_, err := f.uc.Execute(context.Background(), f.input())
 
 	assert.ErrorIs(t, err, entities.ErrManifestNoService)
 }
 
 func TestPublishVersionExecute_ServiceNotFound_NoPublish(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	manifests := NewMockManifestReader(ctrl)
-	resolver := NewMockServiceResolver(ctrl)
-	publisher := NewMockVersionPublisher(ctrl)
+	f := newPublishFixture(t)
+	f.manifests.EXPECT().Read(gomock.Any(), "protocols.toml").Return(nameManifest(), nil)
+	f.resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"paas-backend"}).Return(map[string]string{}, nil)
 
-	manifests.EXPECT().Read(gomock.Any(), "protocols.toml").Return(nameManifest(), nil)
-	resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"paas-backend"}).Return(map[string]string{}, nil)
-
-	_, err := NewPublishVersion(manifests, resolver, publisher).Execute(context.Background(),
-		PublishVersionInput{CommitRevision: "abc123", ManifestPath: "protocols.toml"})
+	_, err := f.uc.Execute(context.Background(), f.input())
 
 	assert.ErrorIs(t, err, entities.ErrServiceNotFound)
 }
 
 func TestPublishVersionExecute_SourceError(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	manifests := NewMockManifestReader(ctrl)
-	resolver := NewMockServiceResolver(ctrl)
-	publisher := NewMockVersionPublisher(ctrl)
-
+	f := newPublishFixture(t)
 	srcErr := errors.New("boom")
-	manifests.EXPECT().Read(gomock.Any(), "protocols.toml").Return(nameManifest(), nil)
-	resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"paas-backend"}).Return(map[string]string{"paas-backend": "svc"}, nil)
-	publisher.EXPECT().PublishVersion(gomock.Any(), "svc", "abc123").Return(nil, srcErr)
 
-	_, err := NewPublishVersion(manifests, resolver, publisher).Execute(context.Background(),
-		PublishVersionInput{CommitRevision: "abc123", ManifestPath: "protocols.toml"})
+	f.expectResolved()
+	f.forms.EXPECT().Read(gomock.Any(), "paas.toml").Return(nil, nil)
+	f.publisher.EXPECT().PublishVersion(gomock.Any(), "svc", "abc123", "", nil).Return(nil, srcErr)
+
+	_, err := f.uc.Execute(context.Background(), f.input())
 
 	assert.ErrorIs(t, err, srcErr)
 }

@@ -27,15 +27,18 @@ func New(baseURL string, httpClient *http.Client) (*Source, error) {
 	return &Source{client: client}, nil
 }
 
-func (s *Source) PublishVersion(ctx context.Context, serviceID, commitRevision string) (*entities.Version, error) {
+func (s *Source) PublishVersion(ctx context.Context, serviceID, commitRevision, image string, form *entities.VersionForm) (*entities.Version, error) {
 	id, err := uuid.Parse(serviceID)
 	if err != nil {
 		return nil, fmt.Errorf("неверный id сервиса %q: %w", serviceID, err)
 	}
 
-	resp, err := s.client.PublishVersionWithResponse(ctx, id, platformapi.PublishVersionJSONRequestBody{
-		CommitRevision: commitRevision,
-	})
+	body := platformapi.PublishVersionJSONRequestBody{CommitRevision: commitRevision}
+	if image != "" {
+		body.Image = &image
+	}
+	body.Form = formToAPI(form)
+	resp, err := s.client.PublishVersionWithResponse(ctx, id, body)
 	if err != nil {
 		return nil, platformhttp.RequestError(err)
 	}
@@ -56,6 +59,35 @@ func (s *Source) PublishVersion(ctx context.Context, serviceID, commitRevision s
 		return nil, fmt.Errorf("платформа вернула пустой ответ")
 	}
 	return mapVersion(version), nil
+}
+
+// formToAPI: nil остаётся nil — «формы нет» не превращается в пустую форму.
+func formToAPI(form *entities.VersionForm) *platformapi.VersionFormBody {
+	if form == nil {
+		return nil
+	}
+	out := &platformapi.VersionFormBody{Processes: make([]platformapi.ProcessFormBody, 0, len(form.Processes))}
+	for _, p := range form.Processes {
+		body := platformapi.ProcessFormBody{Name: p.Name}
+		if p.Listen != 0 {
+			port := int64(p.Listen)
+			body.ListenPort = &port
+		}
+		if len(p.Command) > 0 {
+			command := p.Command
+			body.Command = &command
+		}
+		if p.CPU != "" {
+			cpu := p.CPU
+			body.Cpu = &cpu
+		}
+		if p.Memory != "" {
+			memory := p.Memory
+			body.Memory = &memory
+		}
+		out.Processes = append(out.Processes, body)
+	}
+	return out
 }
 
 func mapVersion(v *platformapi.VersionResponse) *entities.Version {

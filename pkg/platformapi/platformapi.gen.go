@@ -18,6 +18,27 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for ClusterResponseEnvironment.
+const (
+	Dev   ClusterResponseEnvironment = "dev"
+	Prod  ClusterResponseEnvironment = "prod"
+	Stage ClusterResponseEnvironment = "stage"
+)
+
+// Valid indicates whether the value is a known member of the ClusterResponseEnvironment enum.
+func (e ClusterResponseEnvironment) Valid() bool {
+	switch e {
+	case Dev:
+		return true
+	case Prod:
+		return true
+	case Stage:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RegisterProtocolDependencyInputBodyFormat.
 const (
 	RegisterProtocolDependencyInputBodyFormatGrpc    RegisterProtocolDependencyInputBodyFormat = "grpc"
@@ -85,15 +106,19 @@ type ClusterResponse struct {
 	// Schema A URL to the JSON Schema for this object.
 	//
 	// Examples: https://api.paas.traumtech.ru/schemas/ClusterResponse.json
-	Schema        *string            `json:"$schema,omitempty"`
-	Connected     bool               `json:"connected"`
-	CreatedAt     time.Time          `json:"created_at"`
-	Endpoint      string             `json:"endpoint"`
-	Id            openapi_types.UUID `json:"id"`
-	Kind          string             `json:"kind"`
-	LastContactAt *time.Time         `json:"last_contact_at,omitempty"`
-	Name          string             `json:"name"`
+	Schema        *string                     `json:"$schema,omitempty"`
+	Connected     bool                        `json:"connected"`
+	CreatedAt     time.Time                   `json:"created_at"`
+	Endpoint      string                      `json:"endpoint"`
+	Environment   *ClusterResponseEnvironment `json:"environment,omitempty"`
+	Id            openapi_types.UUID          `json:"id"`
+	Kind          string                      `json:"kind"`
+	LastContactAt *time.Time                  `json:"last_contact_at,omitempty"`
+	Name          string                      `json:"name"`
 }
+
+// ClusterResponseEnvironment defines model for ClusterResponse.Environment.
+type ClusterResponseEnvironment string
 
 // CompatibilityChangeResponse defines model for CompatibilityChangeResponse.
 type CompatibilityChangeResponse struct {
@@ -194,6 +219,24 @@ type ErrorModel struct {
 	Type *string `json:"type,omitempty"`
 }
 
+// ProcessFormBody defines model for ProcessFormBody.
+type ProcessFormBody struct {
+	// Command Переопределение команды образа
+	Command *[]string `json:"command,omitempty"`
+
+	// Cpu Коробка CPU по умолчанию (нотация Kubernetes, например 100m)
+	Cpu *string `json:"cpu,omitempty"`
+
+	// ListenPort Порт, который слушает процесс; отсутствие — воркер
+	ListenPort *int64 `json:"listen_port,omitempty"`
+
+	// Memory Коробка памяти по умолчанию (например 128Mi)
+	Memory *string `json:"memory,omitempty"`
+
+	// Name Имя процесса (kebab-case)
+	Name string `json:"name"`
+}
+
 // ProtocolDependencyResponse defines model for ProtocolDependencyResponse.
 type ProtocolDependencyResponse struct {
 	// Schema A URL to the JSON Schema for this object.
@@ -259,6 +302,12 @@ type PublishVersionInputBody struct {
 
 	// CommitRevision Идентификатор коммита
 	CommitRevision string `json:"commit_revision"`
+
+	// Form Форма сервиса: процессы и их коробки
+	Form *VersionFormBody `json:"form,omitempty"`
+
+	// Image Адрес образа этой версии
+	Image *string `json:"image,omitempty"`
 }
 
 // RegisterProtocolDependencyInputBody defines model for RegisterProtocolDependencyInputBody.
@@ -311,6 +360,12 @@ type ServiceResponse struct {
 	RepoUrl   *string            `json:"repo_url,omitempty"`
 }
 
+// VersionFormBody defines model for VersionFormBody.
+type VersionFormBody struct {
+	// Processes Процессы сервиса
+	Processes []ProcessFormBody `json:"processes"`
+}
+
 // VersionResponse defines model for VersionResponse.
 type VersionResponse struct {
 	// Schema A URL to the JSON Schema for this object.
@@ -319,7 +374,9 @@ type VersionResponse struct {
 	Schema         *string            `json:"$schema,omitempty"`
 	CommitRevision string             `json:"commit_revision"`
 	CreatedAt      time.Time          `json:"created_at"`
+	Form           *VersionFormBody   `json:"form,omitempty"`
 	Id             openapi_types.UUID `json:"id"`
+	Image          *string            `json:"image,omitempty"`
 	Number         int64              `json:"number"`
 }
 

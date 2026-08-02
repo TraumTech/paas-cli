@@ -6,7 +6,7 @@ import (
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
-//go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=usecases github.com/TraumTech/paas-cli/internal/usecases ProtocolSource,ProtocolStore,CandidateReader,CompatibilitySource,VersionPublisher,ProtocolPublisher,DependencyRegistrar,ManifestReader,ServiceResolver,CredentialAuthenticator,SessionInspector,SessionRevoker,SessionStore
+//go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=usecases github.com/TraumTech/paas-cli/internal/usecases ProtocolSource,ProtocolStore,CandidateReader,CompatibilitySource,VersionPublisher,ProtocolPublisher,DependencyRegistrar,ManifestReader,FormReader,ServiceResolver,CredentialAuthenticator,SessionInspector,SessionRevoker,SessionStore
 
 // ProtocolSource достаёт актуальный опубликованный контракт сервиса из платформы.
 // Непустой methods — контракт, суженный платформой до этих методов (CLI-09);
@@ -41,7 +41,7 @@ type CompatibilitySource interface {
 // уже существующую версию, а не создаёт дубликат. Возвращает
 // entities.ErrServiceNotFound, когда сервиса нет.
 type VersionPublisher interface {
-	PublishVersion(ctx context.Context, serviceID, commitRevision string) (*entities.Version, error)
+	PublishVersion(ctx context.Context, serviceID, commitRevision, image string, form *entities.VersionForm) (*entities.Version, error)
 }
 
 // ProtocolPublisher публикует контракт под версией сервиса в платформе и
@@ -82,6 +82,12 @@ type DependencyRegistration struct {
 // ManifestReader читает манифест зависимостей из файла в репозитории потребителя.
 type ManifestReader interface {
 	Read(ctx context.Context, path string) (*entities.Manifest, error)
+}
+
+// FormReader читает форму сервиса из paas.toml (DEP-02). Отсутствие файла —
+// штатная ветка (nil, nil): версия публикуется без формы.
+type FormReader interface {
+	Read(ctx context.Context, path string) (*entities.VersionForm, error)
 }
 
 // CredentialAuthenticator обменивает учётные данные пользователя на сессию у

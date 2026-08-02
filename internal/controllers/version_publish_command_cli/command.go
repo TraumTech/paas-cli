@@ -9,10 +9,17 @@ import (
 	"github.com/TraumTech/paas-cli/internal/usecases"
 )
 
-const manifestFlag = "manifest"
+const (
+	manifestFlag = "manifest"
+	formFlag     = "form"
+	imageFlag    = "image"
+)
 
-// defaultManifestPath — манифест по умолчанию ищется в корне репозитория.
-const defaultManifestPath = "protocols.toml"
+// Манифесты по умолчанию ищутся в корне репозитория.
+const (
+	defaultManifestPath = "protocols.toml"
+	defaultFormPath     = "paas.toml"
+)
 
 type Command struct {
 	publisher VersionPublisher
@@ -36,6 +43,15 @@ func (c *Command) CLICommand() *cli.Command {
 				Value:   defaultManifestPath,
 				Usage:   "путь к манифесту с секцией [service] (имя сервиса)",
 			},
+			&cli.StringFlag{
+				Name:  formFlag,
+				Value: defaultFormPath,
+				Usage: "путь к форме сервиса (DEP-02); файла нет — версия публикуется без формы",
+			},
+			&cli.StringFlag{
+				Name:  imageFlag,
+				Usage: "адрес образа этой версии; обязателен вместе с формой",
+			},
 		},
 		Action: c.run,
 	}
@@ -49,6 +65,8 @@ func (c *Command) run(ctx context.Context, cmd *cli.Command) error {
 	version, err := c.publisher.Execute(ctx, usecases.PublishVersionInput{
 		CommitRevision: cmd.Args().Get(0),
 		ManifestPath:   cmd.String(manifestFlag),
+		FormPath:       cmd.String(formFlag),
+		Image:          cmd.String(imageFlag),
 	})
 	if err != nil {
 		return err

@@ -56,6 +56,14 @@
           "endpoint": {
             "type": "string"
           },
+          "environment": {
+            "enum": [
+              "dev",
+              "stage",
+              "prod"
+            ],
+            "type": "string"
+          },
           "id": {
             "format": "uuid",
             "type": "string"
@@ -295,6 +303,39 @@
         },
         "type": "object"
       },
+      "ProcessFormBody": {
+        "additionalProperties": false,
+        "properties": {
+          "command": {
+            "description": "Переопределение команды образа",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "cpu": {
+            "description": "Коробка CPU по умолчанию (нотация Kubernetes, например 100m)",
+            "type": "string"
+          },
+          "listen_port": {
+            "description": "Порт, который слушает процесс; отсутствие — воркер",
+            "format": "int64",
+            "type": "integer"
+          },
+          "memory": {
+            "description": "Коробка памяти по умолчанию (например 128Mi)",
+            "type": "string"
+          },
+          "name": {
+            "description": "Имя процесса (kebab-case)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
       "ProtocolDependencyResponse": {
         "additionalProperties": false,
         "properties": {
@@ -495,6 +536,14 @@
           "commit_revision": {
             "description": "Идентификатор коммита",
             "type": "string"
+          },
+          "form": {
+            "$ref": "#/components/schemas/VersionFormBody",
+            "description": "Форма сервиса: процессы и их коробки"
+          },
+          "image": {
+            "description": "Адрес образа этой версии",
+            "type": "string"
           }
         },
         "required": [
@@ -613,6 +662,22 @@
         ],
         "type": "object"
       },
+      "VersionFormBody": {
+        "additionalProperties": false,
+        "properties": {
+          "processes": {
+            "description": "Процессы сервиса",
+            "items": {
+              "$ref": "#/components/schemas/ProcessFormBody"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "processes"
+        ],
+        "type": "object"
+      },
       "VersionResponse": {
         "additionalProperties": false,
         "properties": {
@@ -632,8 +697,14 @@
             "format": "date-time",
             "type": "string"
           },
+          "form": {
+            "$ref": "#/components/schemas/VersionFormBody"
+          },
           "id": {
             "format": "uuid",
+            "type": "string"
+          },
+          "image": {
             "type": "string"
           },
           "number": {

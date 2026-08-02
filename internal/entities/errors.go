@@ -20,6 +20,9 @@ var (
 	ErrEmptyProtocol        = newDomainError("контракт пуст")
 	ErrInvalidProtocol      = newDomainError("ответ не похож на OpenAPI-контракт")
 	ErrEmptyCommitRevision  = newDomainError("ревизия коммита не указана")
+	// Форма без образа не даст платформе сгенерировать манифесты — отказываем
+	// до обращения к сети (DEP-02).
+	ErrFormRequiresImage = newDomainError("paas.toml найден — укажите адрес образа флагом --image")
 
 	ErrMethodsUnsupportedForFormat = newDomainError("сужение до методов для контракта этого формата не поддерживается — уберите methods у этой зависимости")
 
