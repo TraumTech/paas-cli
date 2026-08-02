@@ -49,6 +49,12 @@ func (r *Reader) Read(_ context.Context, path string) (*entities.VersionForm, er
 		return nil, fmt.Errorf("форма %s не разобрана как TOML: %w", path, err)
 	}
 
+	// paas.toml — единый манифест (CLI-22): файл есть у каждого сервиса, но
+	// форма — только у объявивших процессы. Нет процессов — нет формы.
+	if len(file.Processes) == 0 {
+		return nil, nil
+	}
+
 	form := &entities.VersionForm{}
 	for _, p := range file.Processes {
 		form.Processes = append(form.Processes, entities.ProcessForm{

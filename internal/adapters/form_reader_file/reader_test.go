@@ -54,3 +54,16 @@ func TestReadFormBadTOML(t *testing.T) {
 
 	assert.Error(t, err)
 }
+
+// Единый манифест: paas.toml без [[processes]] (только [service]/deps) — это
+// «формы нет», а не пустая форма, требующая образ.
+func TestReadFormManifestWithoutProcesses(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "paas.toml")
+	require.NoError(t, os.WriteFile(path, []byte("[service]\nname = \"svc\"\n"), 0o644))
+
+	form, err := New().Read(context.Background(), path)
+
+	require.NoError(t, err)
+	assert.Nil(t, form)
+}
