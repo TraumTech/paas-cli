@@ -129,3 +129,43 @@ func TestRead_InvalidTOML(t *testing.T) {
 	_, err := manifestreaderfile.New().Read(context.Background(), path)
 	require.Error(t, err)
 }
+
+// Резолюция манифеста без явного пути (CLI-22): paas.toml предпочитается,
+// protocols.toml остаётся переходным, полупереезд — явная ошибка.
+func TestRead_ResolvesUnifiedManifest(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	require.NoError(t, os.WriteFile("paas.toml", []byte("[service]\nname = \"svc-new\"\n"), 0o644))
+	require.NoError(t, os.WriteFile("protocols.toml", []byte("[service]\nname = \"svc-old\"\n"), 0o644))
+
+	got, err := manifestreaderfile.New().Read(context.Background(), "")
+	require.NoError(t, err)
+	name, err := got.ServiceName()
+	require.NoError(t, err)
+	assert.Equal(t, "svc-new", name)
+}
+
+func TestRead_FallsBackToLegacyManifest(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	require.NoError(t, os.WriteFile("protocols.toml", []byte("[service]\nname = \"svc-old\"\n"), 0o644))
+
+	got, err := manifestreaderfile.New().Read(context.Background(), "")
+	require.NoError(t, err)
+	name, err := got.ServiceName()
+	require.NoError(t, err)
+	assert.Equal(t, "svc-old", name)
+}
+
+// paas.toml есть (форма), но секции манифеста остались в protocols.toml —
+// молча читать старый файл нельзя: правки нового молча не действовали бы.
+func TestRead_HalfMigratedIsExplicitError(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	require.NoError(t, os.WriteFile("paas.toml", []byte("[[processes]]\nname = \"server\"\n"), 0o644))
+	require.NoError(t, os.WriteFile("protocols.toml", []byte("[service]\nname = \"svc-old\"\n"), 0o644))
+
+	_, err := manifestreaderfile.New().Read(context.Background(), "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "перенесите")
+}

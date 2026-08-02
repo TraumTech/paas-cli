@@ -31,7 +31,7 @@ func TestCommandRun_RegistersAndConfirms(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	registrar := NewMockDependencyRegistrar(ctrl)
 	registrar.EXPECT().
-		Execute(gomock.Any(), usecases.RegisterDependencyInput{VersionID: "ver-1", ManifestPath: "protocols.toml"}).
+		Execute(gomock.Any(), usecases.RegisterDependencyInput{VersionID: "ver-1", ManifestPath: ""}).
 		Return(&usecases.RegisterDependenciesResult{Registered: []usecases.RegisteredDependency{
 			{ProducerName: "paas-backend", ProducerServiceID: "prod"},
 		}}, nil)
@@ -49,7 +49,7 @@ func TestCommandRun_PruneSetsSupersede(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	registrar := NewMockDependencyRegistrar(ctrl)
 	registrar.EXPECT().
-		Execute(gomock.Any(), usecases.RegisterDependencyInput{VersionID: "ver-1", ManifestPath: "protocols.toml", SupersedePrevious: true}).
+		Execute(gomock.Any(), usecases.RegisterDependencyInput{VersionID: "ver-1", ManifestPath: "", SupersedePrevious: true}).
 		Return(&usecases.RegisterDependenciesResult{}, nil)
 
 	var out, errOut bytes.Buffer

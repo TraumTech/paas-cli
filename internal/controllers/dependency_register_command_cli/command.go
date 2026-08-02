@@ -14,7 +14,9 @@ const manifestFlag = "manifest"
 const pruneFlag = "prune"
 
 // defaultManifestPath — манифест по умолчанию ищется в корне репозитория.
-const defaultManifestPath = "protocols.toml"
+// Пустой путь — выбор манифеста за читателем: paas.toml, при его
+// отсутствии — переходный protocols.toml (CLI-22).
+const defaultManifestPath = ""
 
 type Command struct {
 	registrar DependencyRegistrar
@@ -37,7 +39,7 @@ func (c *Command) CLICommand() *cli.Command {
 				Name:    manifestFlag,
 				Aliases: []string{"f"},
 				Value:   defaultManifestPath,
-				Usage:   "путь к манифесту зависимостей с секцией [service]",
+				Usage:   "путь к манифесту (по умолчанию paas.toml, при его отсутствии protocols.toml)",
 			},
 			&cli.BoolFlag{
 				Name:  pruneFlag,

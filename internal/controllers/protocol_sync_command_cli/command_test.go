@@ -34,7 +34,7 @@ func TestCommandRun_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	syncer := NewMockProtocolSyncer(ctrl)
 	syncer.EXPECT().
-		Execute(gomock.Any(), usecases.SyncProtocolsInput{ManifestPath: "protocols.toml"}).
+		Execute(gomock.Any(), usecases.SyncProtocolsInput{ManifestPath: ""}).
 		Return(&usecases.SyncProtocolsResult{
 			Destination: "protocols",
 			Protocols: []usecases.FetchProtocolResult{
@@ -65,7 +65,7 @@ func TestCommandRun_DestinationOverrideOnlyWhenSet(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	syncer := NewMockProtocolSyncer(ctrl)
 	syncer.EXPECT().
-		Execute(gomock.Any(), usecases.SyncProtocolsInput{ManifestPath: "protocols.toml", DestinationOverride: "vendor/api"}).
+		Execute(gomock.Any(), usecases.SyncProtocolsInput{ManifestPath: "", DestinationOverride: "vendor/api"}).
 		Return(&usecases.SyncProtocolsResult{Destination: "vendor/api"}, nil)
 
 	root := rootWith(syncer, &bytes.Buffer{})

@@ -31,7 +31,7 @@ func TestCommandRun_PrintsBareIDToStdout(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	publisher := NewMockVersionPublisher(ctrl)
 	publisher.EXPECT().
-		Execute(gomock.Any(), usecases.PublishVersionInput{CommitRevision: "abc123", ManifestPath: "protocols.toml", FormPath: "paas.toml"}).
+		Execute(gomock.Any(), usecases.PublishVersionInput{CommitRevision: "abc123", ManifestPath: "", FormPath: "paas.toml"}).
 		Return(&entities.Version{ID: "ver-1", Number: 7, CommitRevision: "abc123"}, nil)
 
 	var out, errOut bytes.Buffer

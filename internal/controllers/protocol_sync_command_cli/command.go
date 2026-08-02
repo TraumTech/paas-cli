@@ -17,7 +17,9 @@ const DestinationFlag = "destination"
 const manifestFlag = "manifest"
 
 // defaultManifestPath — манифест по умолчанию ищется в корне репозитория потребителя.
-const defaultManifestPath = "protocols.toml"
+// Пустой путь — выбор манифеста за читателем: paas.toml, при его
+// отсутствии — переходный protocols.toml (CLI-22).
+const defaultManifestPath = ""
 
 type Command struct {
 	syncer ProtocolSyncer
@@ -37,7 +39,7 @@ func (c *Command) CLICommand() *cli.Command {
 				Name:    manifestFlag,
 				Aliases: []string{"f"},
 				Value:   defaultManifestPath,
-				Usage:   "путь к манифесту зависимостей",
+				Usage:   "путь к манифесту (по умолчанию paas.toml, при его отсутствии protocols.toml)",
 			},
 		},
 		Action: c.run,

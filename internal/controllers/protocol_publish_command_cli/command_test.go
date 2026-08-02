@@ -35,7 +35,7 @@ func TestCommandRun_PublishesAndShowsCompatibility(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	publisher := NewMockProtocolPublisher(ctrl)
 	publisher.EXPECT().
-		Execute(gomock.Any(), usecases.PublishProtocolInput{VersionID: "ver", ManifestPath: "protocols.toml"}).
+		Execute(gomock.Any(), usecases.PublishProtocolInput{VersionID: "ver", ManifestPath: ""}).
 		Return(&entities.ProtocolPublication{VersionNumber: 7, Breaking: false, Consumers: []entities.ConsumerCompatibility{
 			{ServiceName: "frontend", VersionNumber: 5, Comparable: true, Changes: []entities.CompatibilityChange{
 				{Kind: "operation-added", Operation: "GET /y", Description: "новый эндпоинт"},

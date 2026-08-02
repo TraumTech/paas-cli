@@ -17,7 +17,9 @@ const (
 
 // Манифесты по умолчанию ищутся в корне репозитория.
 const (
-	defaultManifestPath = "protocols.toml"
+	// Пустой путь — выбор за читателем: paas.toml, при его отсутствии —
+	// переходный protocols.toml (CLI-22).
+	defaultManifestPath = ""
 	defaultFormPath     = "paas.toml"
 )
 
@@ -41,7 +43,7 @@ func (c *Command) CLICommand() *cli.Command {
 				Name:    manifestFlag,
 				Aliases: []string{"f"},
 				Value:   defaultManifestPath,
-				Usage:   "путь к манифесту с секцией [service] (имя сервиса)",
+				Usage:   "путь к манифесту (по умолчанию paas.toml, при его отсутствии protocols.toml)",
 			},
 			&cli.StringFlag{
 				Name:  formFlag,
