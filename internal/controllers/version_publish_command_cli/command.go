@@ -10,10 +10,15 @@ import (
 )
 
 const (
-	manifestFlag = "manifest"
-	formFlag     = "form"
-	imageFlag    = "image"
+	manifestFlag    = "manifest"
+	formFlag        = "form"
+	imageFlag       = "image"
+	environmentFlag = "environment"
 )
+
+// Версия принадлежит окружению (DEP-08); без флага публикуем в prod, поэтому
+// пайплайны до DEP-08 продолжают работать без правок.
+const defaultEnvironment = "prod"
 
 // Манифесты по умолчанию ищутся в корне репозитория.
 const (
@@ -54,6 +59,12 @@ func (c *Command) CLICommand() *cli.Command {
 				Name:  imageFlag,
 				Usage: "адрес образа этой версии; обязателен вместе с формой",
 			},
+			&cli.StringFlag{
+				Name:    environmentFlag,
+				Aliases: []string{"e"},
+				Value:   defaultEnvironment,
+				Usage:   "окружение публикации: dev, stage или prod",
+			},
 		},
 		Action: c.run,
 	}
@@ -66,6 +77,7 @@ func (c *Command) run(ctx context.Context, cmd *cli.Command) error {
 
 	version, err := c.publisher.Execute(ctx, usecases.PublishVersionInput{
 		CommitRevision: cmd.Args().Get(0),
+		Environment:    cmd.String(environmentFlag),
 		ManifestPath:   cmd.String(manifestFlag),
 		FormPath:       cmd.String(formFlag),
 		Image:          cmd.String(imageFlag),
@@ -78,7 +90,7 @@ func (c *Command) run(ctx context.Context, cmd *cli.Command) error {
 	// подхватывает следующий шаг выкатки (`id=$(paas-cli versions publish …)`).
 	// Человекочитаемое подтверждение уходит на stderr, чтобы не мешать автоматике.
 	fmt.Fprintln(cmd.Root().Writer, version.ID)
-	fmt.Fprintf(cmd.Root().ErrWriter, "✓ Версия %d зафиксирована для ревизии %s\n",
-		version.Number, version.CommitRevision)
+	fmt.Fprintf(cmd.Root().ErrWriter, "✓ Версия %d (%s) зафиксирована для ревизии %s\n",
+		version.Number, version.Environment, version.CommitRevision)
 	return nil
 }

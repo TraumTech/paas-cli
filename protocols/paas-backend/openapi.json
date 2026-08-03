@@ -537,6 +537,16 @@
             "description": "Идентификатор коммита",
             "type": "string"
           },
+          "environment": {
+            "default": "prod",
+            "description": "Окружение публикации; по умолчанию prod",
+            "enum": [
+              "dev",
+              "stage",
+              "prod"
+            ],
+            "type": "string"
+          },
           "form": {
             "$ref": "#/components/schemas/VersionFormBody",
             "description": "Форма сервиса: процессы и их коробки"
@@ -697,6 +707,14 @@
             "format": "date-time",
             "type": "string"
           },
+          "environment": {
+            "enum": [
+              "dev",
+              "stage",
+              "prod"
+            ],
+            "type": "string"
+          },
           "form": {
             "$ref": "#/components/schemas/VersionFormBody"
           },
@@ -714,6 +732,7 @@
         },
         "required": [
           "id",
+          "environment",
           "number",
           "commit_revision",
           "created_at"

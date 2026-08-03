@@ -5,14 +5,29 @@ import (
 	"time"
 )
 
-// Version — зафиксированная в реестре версия сервиса: одна развёрнутая ревизия
-// коммита соответствует ровно одной версии. CLI публикует её из процесса выкатки
-// и отдаёт ID следующему шагу (привязке протокола к версии).
+// Version — зафиксированная в реестре версия сервиса. Версия принадлежит
+// окружению (DEP-08): одна развёрнутая ревизия — одна версия окружения. CLI
+// публикует её из процесса выкатки и отдаёт ID следующему шагу (привязке
+// протокола к версии).
 type Version struct {
 	ID             string
+	Environment    string
 	Number         int
 	CommitRevision string
 	CreatedAt      time.Time
+}
+
+// Environments — окружения платформы; словарь совпадает с DEP-01.
+var Environments = []string{"dev", "stage", "prod"}
+
+// ValidateEnvironment отсекает неизвестное окружение до обращения к платформе.
+func ValidateEnvironment(environment string) error {
+	for _, env := range Environments {
+		if environment == env {
+			return nil
+		}
+	}
+	return ErrUnknownEnvironment
 }
 
 // VersionForm — форма сервиса из paas.toml (DEP-02): набор процессов, из

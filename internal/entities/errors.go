@@ -24,6 +24,8 @@ var (
 	// до обращения к сети (DEP-02).
 	ErrFormRequiresImage = newDomainError("paas.toml найден — укажите адрес образа флагом --image")
 
+	ErrUnknownEnvironment = newDomainError("окружение должно быть одним из: dev, stage, prod")
+
 	ErrMethodsUnsupportedForFormat = newDomainError("сужение до методов для контракта этого формата не поддерживается — уберите methods у этой зависимости")
 
 	ErrManifestNoDependencies   = newDomainError("в манифесте не объявлено ни одной зависимости")

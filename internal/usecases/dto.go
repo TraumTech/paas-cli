@@ -59,6 +59,8 @@ type PublishProtocolInput struct {
 type PublishVersionInput struct {
 	// CommitRevision — развёрнутая ревизия коммита, по которой фиксируется версия.
 	CommitRevision string
+	// Environment — окружение публикации (DEP-08); дефолт prod задаёт команда.
+	Environment string
 	// ManifestPath — манифест, из которого берём имя текущего сервиса.
 	ManifestPath string
 	// FormPath — paas.toml с формой сервиса (DEP-02); отсутствие файла — штатно,

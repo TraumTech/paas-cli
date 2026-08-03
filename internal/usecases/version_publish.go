@@ -23,6 +23,9 @@ func (uc *PublishVersionUseCase) Execute(ctx context.Context, in PublishVersionI
 	if err := request.Validate(); err != nil {
 		return nil, fmt.Errorf("validate version request: %w", err)
 	}
+	if err := entities.ValidateEnvironment(in.Environment); err != nil {
+		return nil, err
+	}
 	manifest, err := uc.manifests.Read(ctx, in.ManifestPath)
 	if err != nil {
 		return nil, fmt.Errorf("read manifest: %w", err)
@@ -44,7 +47,7 @@ func (uc *PublishVersionUseCase) Execute(ctx context.Context, in PublishVersionI
 	if form != nil && in.Image == "" {
 		return nil, entities.ErrFormRequiresImage
 	}
-	version, err := uc.publisher.PublishVersion(ctx, serviceID, request.CommitRevision, in.Image, form)
+	version, err := uc.publisher.PublishVersion(ctx, serviceID, in.Environment, request.CommitRevision, in.Image, form)
 	if err != nil {
 		return nil, fmt.Errorf("publish version: %w", err)
 	}

@@ -37,7 +37,7 @@ func TestPublishVersion_MapsResponse(t *testing.T) {
 		w.Write([]byte(`{"id":"` + svcID + `","number":7,"commit_revision":"abc123","created_at":"2026-06-15T10:00:00Z"}`))
 	})
 
-	version, err := src.PublishVersion(context.Background(), svcID, "abc123", "", nil)
+	version, err := src.PublishVersion(context.Background(), svcID, "prod", "abc123", "", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "abc123", gotBody["commit_revision"])
 	assert.Equal(t, svcID, version.ID)
@@ -54,7 +54,7 @@ func TestPublishVersion_RepeatReturnsExistingOK(t *testing.T) {
 		w.Write([]byte(`{"id":"` + svcID + `","number":7,"commit_revision":"abc123","created_at":"2026-06-15T10:00:00Z"}`))
 	})
 
-	version, err := src.PublishVersion(context.Background(), svcID, "abc123", "", nil)
+	version, err := src.PublishVersion(context.Background(), svcID, "prod", "abc123", "", nil)
 	require.NoError(t, err)
 	assert.Equal(t, 7, version.Number)
 	assert.Equal(t, "abc123", version.CommitRevision)
@@ -65,7 +65,7 @@ func TestPublishVersion_ServiceNotFound(t *testing.T) {
 		w.WriteHeader(http.StatusNotFound)
 	})
 
-	_, err := src.PublishVersion(context.Background(), svcID, "abc123", "", nil)
+	_, err := src.PublishVersion(context.Background(), svcID, "prod", "abc123", "", nil)
 	assert.ErrorIs(t, err, entities.ErrServiceNotFound)
 }
 
@@ -74,7 +74,7 @@ func TestPublishVersion_UnexpectedStatus(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 	})
 
-	_, err := src.PublishVersion(context.Background(), svcID, "abc123", "", nil)
+	_, err := src.PublishVersion(context.Background(), svcID, "prod", "abc123", "", nil)
 	require.Error(t, err)
 	assert.NotErrorIs(t, err, entities.ErrServiceNotFound)
 }
@@ -84,13 +84,13 @@ func TestPublishVersion_InvalidID(t *testing.T) {
 		t.Errorf("платформа не должна вызываться при неверном id")
 	})
 
-	_, err := src.PublishVersion(context.Background(), "not-a-uuid", "abc123", "", nil)
+	_, err := src.PublishVersion(context.Background(), "not-a-uuid", "prod", "abc123", "", nil)
 	require.Error(t, err)
 }
 
 func TestPublishVersion_Unreachable(t *testing.T) {
 	src, err := versionpublisherhttp.New("http://127.0.0.1:0", http.DefaultClient)
 	require.NoError(t, err)
-	_, err = src.PublishVersion(context.Background(), svcID, "abc123", "", nil)
+	_, err = src.PublishVersion(context.Background(), svcID, "prod", "abc123", "", nil)
 	require.Error(t, err)
 }

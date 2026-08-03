@@ -20,19 +20,40 @@ import (
 
 // Defines values for ClusterResponseEnvironment.
 const (
-	Dev   ClusterResponseEnvironment = "dev"
-	Prod  ClusterResponseEnvironment = "prod"
-	Stage ClusterResponseEnvironment = "stage"
+	ClusterResponseEnvironmentDev   ClusterResponseEnvironment = "dev"
+	ClusterResponseEnvironmentProd  ClusterResponseEnvironment = "prod"
+	ClusterResponseEnvironmentStage ClusterResponseEnvironment = "stage"
 )
 
 // Valid indicates whether the value is a known member of the ClusterResponseEnvironment enum.
 func (e ClusterResponseEnvironment) Valid() bool {
 	switch e {
-	case Dev:
+	case ClusterResponseEnvironmentDev:
 		return true
-	case Prod:
+	case ClusterResponseEnvironmentProd:
 		return true
-	case Stage:
+	case ClusterResponseEnvironmentStage:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PublishVersionInputBodyEnvironment.
+const (
+	PublishVersionInputBodyEnvironmentDev   PublishVersionInputBodyEnvironment = "dev"
+	PublishVersionInputBodyEnvironmentProd  PublishVersionInputBodyEnvironment = "prod"
+	PublishVersionInputBodyEnvironmentStage PublishVersionInputBodyEnvironment = "stage"
+)
+
+// Valid indicates whether the value is a known member of the PublishVersionInputBodyEnvironment enum.
+func (e PublishVersionInputBodyEnvironment) Valid() bool {
+	switch e {
+	case PublishVersionInputBodyEnvironmentDev:
+		return true
+	case PublishVersionInputBodyEnvironmentProd:
+		return true
+	case PublishVersionInputBodyEnvironmentStage:
 		return true
 	default:
 		return false
@@ -51,6 +72,27 @@ func (e RegisterProtocolDependencyInputBodyFormat) Valid() bool {
 	case RegisterProtocolDependencyInputBodyFormatGrpc:
 		return true
 	case RegisterProtocolDependencyInputBodyFormatOpenapi:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for VersionResponseEnvironment.
+const (
+	VersionResponseEnvironmentDev   VersionResponseEnvironment = "dev"
+	VersionResponseEnvironmentProd  VersionResponseEnvironment = "prod"
+	VersionResponseEnvironmentStage VersionResponseEnvironment = "stage"
+)
+
+// Valid indicates whether the value is a known member of the VersionResponseEnvironment enum.
+func (e VersionResponseEnvironment) Valid() bool {
+	switch e {
+	case VersionResponseEnvironmentDev:
+		return true
+	case VersionResponseEnvironmentProd:
+		return true
+	case VersionResponseEnvironmentStage:
 		return true
 	default:
 		return false
@@ -303,12 +345,18 @@ type PublishVersionInputBody struct {
 	// CommitRevision Идентификатор коммита
 	CommitRevision string `json:"commit_revision"`
 
+	// Environment Окружение публикации; по умолчанию prod
+	Environment *PublishVersionInputBodyEnvironment `json:"environment,omitempty"`
+
 	// Form Форма сервиса: процессы и их коробки
 	Form *VersionFormBody `json:"form,omitempty"`
 
 	// Image Адрес образа этой версии
 	Image *string `json:"image,omitempty"`
 }
+
+// PublishVersionInputBodyEnvironment Окружение публикации; по умолчанию prod
+type PublishVersionInputBodyEnvironment string
 
 // RegisterProtocolDependencyInputBody defines model for RegisterProtocolDependencyInputBody.
 type RegisterProtocolDependencyInputBody struct {
@@ -371,14 +419,18 @@ type VersionResponse struct {
 	// Schema A URL to the JSON Schema for this object.
 	//
 	// Examples: https://api.paas.traumtech.ru/schemas/VersionResponse.json
-	Schema         *string            `json:"$schema,omitempty"`
-	CommitRevision string             `json:"commit_revision"`
-	CreatedAt      time.Time          `json:"created_at"`
-	Form           *VersionFormBody   `json:"form,omitempty"`
-	Id             openapi_types.UUID `json:"id"`
-	Image          *string            `json:"image,omitempty"`
-	Number         int64              `json:"number"`
+	Schema         *string                    `json:"$schema,omitempty"`
+	CommitRevision string                     `json:"commit_revision"`
+	CreatedAt      time.Time                  `json:"created_at"`
+	Environment    VersionResponseEnvironment `json:"environment"`
+	Form           *VersionFormBody           `json:"form,omitempty"`
+	Id             openapi_types.UUID         `json:"id"`
+	Image          *string                    `json:"image,omitempty"`
+	Number         int64                      `json:"number"`
 }
+
+// VersionResponseEnvironment defines model for VersionResponse.Environment.
+type VersionResponseEnvironment string
 
 // ListServicesParams defines parameters for ListServices.
 type ListServicesParams struct {

@@ -41,7 +41,8 @@ type CompatibilitySource interface {
 // уже существующую версию, а не создаёт дубликат. Возвращает
 // entities.ErrServiceNotFound, когда сервиса нет.
 type VersionPublisher interface {
-	PublishVersion(ctx context.Context, serviceID, commitRevision, image string, form *entities.VersionForm) (*entities.Version, error)
+	// PublishVersion фиксирует версию ревизии в окружении (DEP-08).
+	PublishVersion(ctx context.Context, serviceID, environment, commitRevision, image string, form *entities.VersionForm) (*entities.Version, error)
 }
 
 // ProtocolPublisher публикует контракт под версией сервиса в платформе и

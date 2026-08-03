@@ -31,8 +31,8 @@ func TestCommandRun_PrintsBareIDToStdout(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	publisher := NewMockVersionPublisher(ctrl)
 	publisher.EXPECT().
-		Execute(gomock.Any(), usecases.PublishVersionInput{CommitRevision: "abc123", ManifestPath: "", FormPath: "paas.toml"}).
-		Return(&entities.Version{ID: "ver-1", Number: 7, CommitRevision: "abc123"}, nil)
+		Execute(gomock.Any(), usecases.PublishVersionInput{CommitRevision: "abc123", Environment: "prod", ManifestPath: "", FormPath: "paas.toml"}).
+		Return(&entities.Version{ID: "ver-1", Environment: "prod", Number: 7, CommitRevision: "abc123"}, nil)
 
 	var out, errOut bytes.Buffer
 	err := rootWith(publisher, &out, &errOut).Run(context.Background(),
@@ -43,7 +43,7 @@ func TestCommandRun_PrintsBareIDToStdout(t *testing.T) {
 	assert.Equal(t, "ver-1", strings.TrimSpace(out.String()))
 	assert.NotContains(t, out.String(), "Версия")
 	// человекочитаемое подтверждение — на stderr.
-	assert.Contains(t, errOut.String(), "Версия 7 зафиксирована для ревизии abc123")
+	assert.Contains(t, errOut.String(), "Версия 7 (prod) зафиксирована для ревизии abc123")
 }
 
 func TestCommandRun_RequiresOneArg(t *testing.T) {
@@ -69,4 +69,21 @@ func TestCommandRun_PropagatesUseCaseError(t *testing.T) {
 
 	assert.ErrorIs(t, err, entities.ErrServiceNotFound)
 	assert.Empty(t, strings.TrimSpace(out.String()))
+}
+
+// Флаг --environment уезжает в use case; дефолт без флага — prod.
+func TestCommandRun_ForwardsEnvironment(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	publisher := NewMockVersionPublisher(ctrl)
+	publisher.EXPECT().
+		Execute(gomock.Any(), usecases.PublishVersionInput{CommitRevision: "abc123", Environment: "dev", ManifestPath: "", FormPath: "paas.toml"}).
+		Return(&entities.Version{ID: "ver-2", Environment: "dev", Number: 1, CommitRevision: "abc123"}, nil)
+
+	var out, errOut bytes.Buffer
+	err := rootWith(publisher, &out, &errOut).Run(context.Background(),
+		[]string{"paas-cli", "versions", "publish", "--environment", "dev", "abc123"})
+
+	require.NoError(t, err)
+	assert.Equal(t, "ver-2", strings.TrimSpace(out.String()))
+	assert.Contains(t, errOut.String(), "Версия 1 (dev)")
 }

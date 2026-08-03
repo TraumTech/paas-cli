@@ -38,7 +38,7 @@ func newPublishFixture(t *testing.T) *publishFixture {
 }
 
 func (f *publishFixture) input() PublishVersionInput {
-	return PublishVersionInput{CommitRevision: "abc123", ManifestPath: "protocols.toml", FormPath: "paas.toml"}
+	return PublishVersionInput{CommitRevision: "abc123", Environment: "prod", ManifestPath: "protocols.toml", FormPath: "paas.toml"}
 }
 
 func (f *publishFixture) expectResolved() {
@@ -53,7 +53,7 @@ func TestPublishVersionExecute_Success(t *testing.T) {
 	f.expectResolved()
 	// paas.toml отсутствует — публикация без формы, как раньше.
 	f.forms.EXPECT().Read(gomock.Any(), "paas.toml").Return(nil, nil)
-	f.publisher.EXPECT().PublishVersion(gomock.Any(), "svc", "abc123", "", nil).Return(version, nil)
+	f.publisher.EXPECT().PublishVersion(gomock.Any(), "svc", "prod", "abc123", "", nil).Return(version, nil)
 
 	got, err := f.uc.Execute(context.Background(), f.input())
 
@@ -69,7 +69,7 @@ func TestPublishVersionExecute_WithForm(t *testing.T) {
 
 	f.expectResolved()
 	f.forms.EXPECT().Read(gomock.Any(), "paas.toml").Return(form, nil)
-	f.publisher.EXPECT().PublishVersion(gomock.Any(), "svc", "abc123", "ghcr.io/traumtech/svc:sha", form).Return(version, nil)
+	f.publisher.EXPECT().PublishVersion(gomock.Any(), "svc", "prod", "abc123", "ghcr.io/traumtech/svc:sha", form).Return(version, nil)
 
 	in := f.input()
 	in.Image = "ghcr.io/traumtech/svc:sha"
@@ -127,9 +127,20 @@ func TestPublishVersionExecute_SourceError(t *testing.T) {
 
 	f.expectResolved()
 	f.forms.EXPECT().Read(gomock.Any(), "paas.toml").Return(nil, nil)
-	f.publisher.EXPECT().PublishVersion(gomock.Any(), "svc", "abc123", "", nil).Return(nil, srcErr)
+	f.publisher.EXPECT().PublishVersion(gomock.Any(), "svc", "prod", "abc123", "", nil).Return(nil, srcErr)
 
 	_, err := f.uc.Execute(context.Background(), f.input())
 
 	assert.ErrorIs(t, err, srcErr)
+}
+
+// Неизвестное окружение отсекается до чтения манифеста и сети (DEP-08).
+func TestPublishVersionExecute_UnknownEnvironment(t *testing.T) {
+	f := newPublishFixture(t)
+	in := f.input()
+	in.Environment = "qa"
+
+	_, err := f.uc.Execute(context.Background(), in)
+
+	assert.ErrorIs(t, err, entities.ErrUnknownEnvironment)
 }

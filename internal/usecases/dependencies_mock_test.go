@@ -199,18 +199,18 @@ func (m *MockVersionPublisher) EXPECT() *MockVersionPublisherMockRecorder {
 }
 
 // PublishVersion mocks base method.
-func (m *MockVersionPublisher) PublishVersion(ctx context.Context, serviceID, commitRevision, image string, form *entities.VersionForm) (*entities.Version, error) {
+func (m *MockVersionPublisher) PublishVersion(ctx context.Context, serviceID, environment, commitRevision, image string, form *entities.VersionForm) (*entities.Version, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PublishVersion", ctx, serviceID, commitRevision, image, form)
+	ret := m.ctrl.Call(m, "PublishVersion", ctx, serviceID, environment, commitRevision, image, form)
 	ret0, _ := ret[0].(*entities.Version)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // PublishVersion indicates an expected call of PublishVersion.
-func (mr *MockVersionPublisherMockRecorder) PublishVersion(ctx, serviceID, commitRevision, image, form any) *gomock.Call {
+func (mr *MockVersionPublisherMockRecorder) PublishVersion(ctx, serviceID, environment, commitRevision, image, form any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PublishVersion", reflect.TypeOf((*MockVersionPublisher)(nil).PublishVersion), ctx, serviceID, commitRevision, image, form)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PublishVersion", reflect.TypeOf((*MockVersionPublisher)(nil).PublishVersion), ctx, serviceID, environment, commitRevision, image, form)
 }
 
 // MockProtocolPublisher is a mock of ProtocolPublisher interface.

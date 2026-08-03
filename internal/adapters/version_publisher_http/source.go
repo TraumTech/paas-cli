@@ -27,13 +27,17 @@ func New(baseURL string, httpClient *http.Client) (*Source, error) {
 	return &Source{client: client}, nil
 }
 
-func (s *Source) PublishVersion(ctx context.Context, serviceID, commitRevision, image string, form *entities.VersionForm) (*entities.Version, error) {
+func (s *Source) PublishVersion(ctx context.Context, serviceID, environment, commitRevision, image string, form *entities.VersionForm) (*entities.Version, error) {
 	id, err := uuid.Parse(serviceID)
 	if err != nil {
 		return nil, fmt.Errorf("неверный id сервиса %q: %w", serviceID, err)
 	}
 
 	body := platformapi.PublishVersionJSONRequestBody{CommitRevision: commitRevision}
+	if environment != "" {
+		env := platformapi.PublishVersionInputBodyEnvironment(environment)
+		body.Environment = &env
+	}
 	if image != "" {
 		body.Image = &image
 	}
@@ -93,6 +97,7 @@ func formToAPI(form *entities.VersionForm) *platformapi.VersionFormBody {
 func mapVersion(v *platformapi.VersionResponse) *entities.Version {
 	return &entities.Version{
 		ID:             v.Id.String(),
+		Environment:    string(v.Environment),
 		Number:         int(v.Number),
 		CommitRevision: v.CommitRevision,
 		CreatedAt:      v.CreatedAt,
