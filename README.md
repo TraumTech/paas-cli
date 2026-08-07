@@ -372,7 +372,7 @@ CLI инструментирован `paas-observability-sdk`: каждая ко
 
 ## Архитектура
 
-Чистая архитектура (см. `../docs/go-architecture.md`), адаптированная под CLI:
+Чистая архитектура (см. `../../docs/go-architecture.md`), адаптированная под CLI:
 
 - `internal/entities` — `Protocol`, `CandidateContract`, `CompatibilityReport`,
   `Version` и доменные ошибки;
