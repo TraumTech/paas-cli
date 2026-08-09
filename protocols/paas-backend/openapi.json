@@ -329,6 +329,14 @@
           "name": {
             "description": "Имя процесса (kebab-case)",
             "type": "string"
+          },
+          "prefix": {
+            "description": "Префикс под базовым хостом зоны; пусто — сам базовый хост",
+            "type": "string"
+          },
+          "zone": {
+            "description": "Доменная зона организации по имени; пусто — маршрута нет",
+            "type": "string"
           }
         },
         "required": [

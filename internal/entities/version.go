@@ -39,12 +39,16 @@ type VersionForm struct {
 }
 
 // ProcessForm — один процесс сервиса. Listen 0 — воркер (ничего не слушает).
+// Zone/Prefix — маршрут слушающего процесса (DEP-10): адрес объявляется в
+// манифесте и едет с версией, а не назначается в интерфейсе.
 type ProcessForm struct {
 	Name    string
 	Listen  int
 	Command []string
 	CPU     string
 	Memory  string
+	Zone    string
+	Prefix  string
 }
 
 // VersionRequest — намерение зафиксировать версию по развёрнутой ревизии коммита.

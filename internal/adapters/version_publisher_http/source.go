@@ -89,6 +89,15 @@ func formToAPI(form *entities.VersionForm) *platformapi.VersionFormBody {
 			memory := p.Memory
 			body.Memory = &memory
 		}
+		// Маршрут (DEP-10) едет с версией; префикс без зоны платформа отклонит.
+		if p.Zone != "" {
+			zone := p.Zone
+			body.Zone = &zone
+		}
+		if p.Prefix != "" {
+			prefix := p.Prefix
+			body.Prefix = &prefix
+		}
 		out.Processes = append(out.Processes, body)
 	}
 	return out

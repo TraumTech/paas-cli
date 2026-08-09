@@ -34,6 +34,10 @@ type fileProcess struct {
 	Command []string `toml:"command"`
 	CPU     string   `toml:"cpu"`
 	Memory  string   `toml:"memory"`
+	// zone/prefix — маршрут слушающего процесса (DEP-10): доменная зона
+	// организации по имени и префикс под её базовым хостом.
+	Zone   string `toml:"zone"`
+	Prefix string `toml:"prefix"`
 }
 
 func (r *Reader) Read(_ context.Context, path string) (*entities.VersionForm, error) {
@@ -63,6 +67,8 @@ func (r *Reader) Read(_ context.Context, path string) (*entities.VersionForm, er
 			Command: p.Command,
 			CPU:     p.CPU,
 			Memory:  p.Memory,
+			Zone:    p.Zone,
+			Prefix:  p.Prefix,
 		})
 	}
 	return form, nil

@@ -22,6 +22,8 @@ listen = 9090
 command = ["./app", "serve"]
 cpu = "100m"
 memory = "128Mi"
+zone = "main"
+prefix = "api"
 
 [[processes]]
 name = "worker"
@@ -32,7 +34,7 @@ name = "worker"
 	require.NoError(t, err)
 	require.NotNil(t, form)
 	assert.Equal(t, []entities.ProcessForm{
-		{Name: "server", Listen: 9090, Command: []string{"./app", "serve"}, CPU: "100m", Memory: "128Mi"},
+		{Name: "server", Listen: 9090, Command: []string{"./app", "serve"}, CPU: "100m", Memory: "128Mi", Zone: "main", Prefix: "api"},
 		{Name: "worker"},
 	}, form.Processes)
 }

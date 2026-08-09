@@ -277,6 +277,12 @@ type ProcessFormBody struct {
 
 	// Name Имя процесса (kebab-case)
 	Name string `json:"name"`
+
+	// Prefix Префикс под базовым хостом зоны; пусто — сам базовый хост
+	Prefix *string `json:"prefix,omitempty"`
+
+	// Zone Доменная зона организации по имени; пусто — маршрута нет
+	Zone *string `json:"zone,omitempty"`
 }
 
 // ProtocolDependencyResponse defines model for ProtocolDependencyResponse.
