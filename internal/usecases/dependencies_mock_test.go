@@ -355,10 +355,10 @@ func (m *MockFormReader) EXPECT() *MockFormReaderMockRecorder {
 }
 
 // Read mocks base method.
-func (m *MockFormReader) Read(ctx context.Context, path string) (*entities.VersionForm, error) {
+func (m *MockFormReader) Read(ctx context.Context, path string) (*entities.FormDeclaration, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Read", ctx, path)
-	ret0, _ := ret[0].(*entities.VersionForm)
+	ret0, _ := ret[0].(*entities.FormDeclaration)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

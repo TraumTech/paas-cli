@@ -25,6 +25,8 @@ var (
 	ErrFormRequiresImage = newDomainError("paas.toml найден — укажите адрес образа флагом --image")
 
 	ErrUnknownEnvironment = newDomainError("окружение должно быть одним из: dev, stage, prod")
+	// Секция [env.<имя>] в манифесте для окружения, которого у платформы нет.
+	ErrUnknownFormEnvironment = newDomainError("секция [env.<окружение>] в paas.toml указывает на неизвестное окружение: допустимы default, dev, stage, prod")
 
 	ErrMethodsUnsupportedForFormat = newDomainError("сужение до методов для контракта этого формата не поддерживается — уберите methods у этой зависимости")
 

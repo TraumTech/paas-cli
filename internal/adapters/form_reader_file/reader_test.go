@@ -69,3 +69,45 @@ func TestReadFormManifestWithoutProcesses(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, form)
 }
+
+// Секции [env.default] и [env.<окружение>] читаются как объявлены: разрешает
+// их use case, зная окружение публикуемой версии (DEP-14/15).
+func TestReadFormEnvironmentSections(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "paas.toml")
+	require.NoError(t, os.WriteFile(path, []byte(`
+[[processes]]
+name = "server"
+listen = 9090
+
+[env.default]
+replicas = 1
+
+[env.default.variables]
+LOG_LEVEL = "info"
+
+[env.prod]
+replicas = 2
+
+[env.prod.variables]
+LOG_LEVEL = "warn"
+`), 0o600))
+
+	declaration, err := New().Read(context.Background(), path)
+
+	require.NoError(t, err)
+	require.NotNil(t, declaration)
+	assert.Equal(t, entities.EnvironmentValues{
+		Variables: map[string]string{"LOG_LEVEL": "info"},
+		Replicas:  1,
+	}, declaration.Environments[entities.DefaultEnvironmentKey])
+
+	form := declaration.Resolve("prod")
+	assert.Equal(t, []entities.FormVariable{{Name: "LOG_LEVEL", Value: "warn"}}, form.Variables)
+	assert.Equal(t, 2, form.Replicas)
+
+	// Окружение без своей секции получает только общие значения.
+	dev := declaration.Resolve("dev")
+	assert.Equal(t, []entities.FormVariable{{Name: "LOG_LEVEL", Value: "info"}}, dev.Variables)
+	assert.Equal(t, 1, dev.Replicas)
+}

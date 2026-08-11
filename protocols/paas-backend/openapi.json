@@ -303,6 +303,24 @@
         },
         "type": "object"
       },
+      "FormVariableBody": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "Имя переменной окружения",
+            "type": "string"
+          },
+          "value": {
+            "description": "Значение (несекретное)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "value"
+        ],
+        "type": "object"
+      },
       "ProcessFormBody": {
         "additionalProperties": false,
         "properties": {
@@ -687,6 +705,18 @@
             "description": "Процессы сервиса",
             "items": {
               "$ref": "#/components/schemas/ProcessFormBody"
+            },
+            "type": "array"
+          },
+          "replicas": {
+            "description": "Число реплик, объявленное манифестом версии; 0 — не объявлено",
+            "format": "int64",
+            "type": "integer"
+          },
+          "variables": {
+            "description": "Переменные окружения, объявленные манифестом версии",
+            "items": {
+              "$ref": "#/components/schemas/FormVariableBody"
             },
             "type": "array"
           }

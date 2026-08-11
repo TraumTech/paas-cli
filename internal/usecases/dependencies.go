@@ -85,10 +85,12 @@ type ManifestReader interface {
 	Read(ctx context.Context, path string) (*entities.Manifest, error)
 }
 
-// FormReader читает форму сервиса из paas.toml (DEP-02). Отсутствие файла —
-// штатная ветка (nil, nil): версия публикуется без формы.
+// FormReader читает объявление формы из paas.toml (DEP-02). Отсутствие файла —
+// штатная ветка (nil, nil): версия публикуется без формы. Значения окружений
+// (DEP-14/15) приходят как объявлены — разрешает их use case, зная окружение
+// публикуемой версии.
 type FormReader interface {
-	Read(ctx context.Context, path string) (*entities.VersionForm, error)
+	Read(ctx context.Context, path string) (*entities.FormDeclaration, error)
 }
 
 // CredentialAuthenticator обменивает учётные данные пользователя на сессию у

@@ -21,10 +21,20 @@ func New() *Reader {
 	return &Reader{}
 }
 
-// fileForm — транспортная форма paas.toml; маппинг в доменную entities.VersionForm
-// живёт только здесь, в адаптере.
+// fileForm — транспортная форма paas.toml; маппинг в доменное объявление
+// entities.FormDeclaration живёт только здесь, в адаптере.
 type fileForm struct {
 	Processes []fileProcess `toml:"processes"`
+	// Env — секции [env.default] и [env.<окружение>] (DEP-14/15): общие
+	// значения и переопределения. Разрешает их use case, зная окружение версии.
+	Env map[string]fileEnvironment `toml:"env"`
+}
+
+// fileEnvironment — одна секция [env.*].
+type fileEnvironment struct {
+	Variables map[string]string `toml:"variables"`
+	// Replicas 0 — секция числа реплик не задаёт.
+	Replicas int `toml:"replicas"`
 }
 
 type fileProcess struct {
@@ -40,7 +50,7 @@ type fileProcess struct {
 	Prefix string `toml:"prefix"`
 }
 
-func (r *Reader) Read(_ context.Context, path string) (*entities.VersionForm, error) {
+func (r *Reader) Read(_ context.Context, path string) (*entities.FormDeclaration, error) {
 	data, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
@@ -59,9 +69,9 @@ func (r *Reader) Read(_ context.Context, path string) (*entities.VersionForm, er
 		return nil, nil
 	}
 
-	form := &entities.VersionForm{}
+	declaration := &entities.FormDeclaration{}
 	for _, p := range file.Processes {
-		form.Processes = append(form.Processes, entities.ProcessForm{
+		declaration.Processes = append(declaration.Processes, entities.ProcessForm{
 			Name:    p.Name,
 			Listen:  p.Listen,
 			Command: p.Command,
@@ -71,5 +81,14 @@ func (r *Reader) Read(_ context.Context, path string) (*entities.VersionForm, er
 			Prefix:  p.Prefix,
 		})
 	}
-	return form, nil
+	for name, values := range file.Env {
+		if declaration.Environments == nil {
+			declaration.Environments = make(map[string]entities.EnvironmentValues, len(file.Env))
+		}
+		declaration.Environments[name] = entities.EnvironmentValues{
+			Variables: values.Variables,
+			Replicas:  values.Replicas,
+		}
+	}
+	return declaration, nil
 }

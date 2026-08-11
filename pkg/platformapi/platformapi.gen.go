@@ -261,6 +261,15 @@ type ErrorModel struct {
 	Type *string `json:"type,omitempty"`
 }
 
+// FormVariableBody defines model for FormVariableBody.
+type FormVariableBody struct {
+	// Name Имя переменной окружения
+	Name string `json:"name"`
+
+	// Value Значение (несекретное)
+	Value string `json:"value"`
+}
+
 // ProcessFormBody defines model for ProcessFormBody.
 type ProcessFormBody struct {
 	// Command Переопределение команды образа
@@ -418,6 +427,12 @@ type ServiceResponse struct {
 type VersionFormBody struct {
 	// Processes Процессы сервиса
 	Processes []ProcessFormBody `json:"processes"`
+
+	// Replicas Число реплик, объявленное манифестом версии; 0 — не объявлено
+	Replicas *int64 `json:"replicas,omitempty"`
+
+	// Variables Переменные окружения, объявленные манифестом версии
+	Variables *[]FormVariableBody `json:"variables,omitempty"`
 }
 
 // VersionResponse defines model for VersionResponse.

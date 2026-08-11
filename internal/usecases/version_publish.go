@@ -40,12 +40,21 @@ func (uc *PublishVersionUseCase) Execute(ctx context.Context, in PublishVersionI
 	}
 	// Форма едет с версией (DEP-02): отсутствие paas.toml — штатно, публикация
 	// без формы. Форма без образа не имеет смысла — отказываем до сети.
-	form, err := uc.forms.Read(ctx, in.FormPath)
+	declaration, err := uc.forms.Read(ctx, in.FormPath)
 	if err != nil {
 		return nil, fmt.Errorf("read form: %w", err)
 	}
-	if form != nil && in.Image == "" {
-		return nil, entities.ErrFormRequiresImage
+	var form *entities.VersionForm
+	if declaration != nil {
+		if in.Image == "" {
+			return nil, entities.ErrFormRequiresImage
+		}
+		if err := declaration.Validate(); err != nil {
+			return nil, err
+		}
+		// Значения окружений разрешаются здесь: версия принадлежит окружению,
+		// и платформа получает готовый набор, а не правило слияния (DEP-14/15).
+		form = declaration.Resolve(in.Environment)
 	}
 	version, err := uc.publisher.PublishVersion(ctx, serviceID, in.Environment, request.CommitRevision, in.Image, form)
 	if err != nil {

@@ -71,6 +71,19 @@ func formToAPI(form *entities.VersionForm) *platformapi.VersionFormBody {
 		return nil
 	}
 	out := &platformapi.VersionFormBody{Processes: make([]platformapi.ProcessFormBody, 0, len(form.Processes))}
+	// Значения уже разрешены под окружение версии (DEP-14/15): платформа
+	// получает готовый набор, а не правило слияния.
+	if len(form.Variables) > 0 {
+		variables := make([]platformapi.FormVariableBody, 0, len(form.Variables))
+		for _, v := range form.Variables {
+			variables = append(variables, platformapi.FormVariableBody{Name: v.Name, Value: v.Value})
+		}
+		out.Variables = &variables
+	}
+	if form.Replicas != 0 {
+		replicas := int64(form.Replicas)
+		out.Replicas = &replicas
+	}
 	for _, p := range form.Processes {
 		body := platformapi.ProcessFormBody{Name: p.Name}
 		if p.Listen != 0 {
