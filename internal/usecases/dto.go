@@ -1,6 +1,10 @@
 package usecases
 
-import "github.com/TraumTech/paas-cli/internal/entities"
+import (
+	"time"
+
+	"github.com/TraumTech/paas-cli/internal/entities"
+)
 
 type FetchProtocolInput struct {
 	ServiceID string
@@ -101,9 +105,20 @@ type LoginResult struct {
 	Email string
 }
 
-// WhoAmIResult — кому принадлежит текущая сохранённая сессия.
+// BrowserLoginResult — итог браузерного входа: под кем вошли и до какого числа
+// действует выданный токен.
+type BrowserLoginResult struct {
+	Email     string
+	ExpiresAt time.Time
+}
+
+// WhoAmIResult — кому принадлежит текущий сохранённый вход. У входа личным
+// токеном (AUTH-22) кроме владельца известно, каким именно токеном вошли и
+// докуда он действует: платформа e-mail не знает, его помнит сам вход.
 type WhoAmIResult struct {
-	Email string
+	Email     string
+	TokenName string
+	ExpiresAt time.Time
 }
 
 // LogoutResult — итог выхода. WasLoggedIn=false — сохранённого входа и не было:

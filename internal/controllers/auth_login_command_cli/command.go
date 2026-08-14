@@ -17,12 +17,18 @@ import (
 // emailFlag — локальный флаг с e-mail учётной записи; без него e-mail запрашивается.
 const emailFlag = "email"
 
+// passwordFlag переводит вход на прежний путь — ввод пароля в терминал. Он нужен
+// там, где браузера рядом нет (машина по ssh), поэтому остаётся явной отдушиной,
+// а не умолчанием: пароль лучше вводить в форму платформы, а не в чужой процесс.
+const passwordFlag = "password"
+
 type Command struct {
-	login UserLogin
+	login   UserLogin
+	browser BrowserLogin
 }
 
-func New(login UserLogin) *Command {
-	return &Command{login: login}
+func New(login UserLogin, browser BrowserLogin) *Command {
+	return &Command{login: login, browser: browser}
 }
 
 // CLICommand описывает подкоманду `login` для urfave/cli.
@@ -34,7 +40,11 @@ func (c *Command) CLICommand() *cli.Command {
 			&cli.StringFlag{
 				Name:    emailFlag,
 				Aliases: []string{"e"},
-				Usage:   "e-mail учётной записи (без флага будет запрошен)",
+				Usage:   "e-mail учётной записи (без флага будет запрошен); подразумевает --password",
+			},
+			&cli.BoolFlag{
+				Name:  passwordFlag,
+				Usage: "войти паролем в терминале вместо подтверждения в браузере",
 			},
 		},
 		Action: c.run,
@@ -46,6 +56,11 @@ func (c *Command) run(ctx context.Context, cmd *cli.Command) error {
 	in := bufio.NewReader(cmd.Root().Reader)
 
 	email := cmd.String(emailFlag)
+	// По умолчанию вход идёт через браузер; заданный e-mail — явное намерение
+	// войти паролем, отдельного флага для этого требовать незачем.
+	if !cmd.Bool(passwordFlag) && email == "" {
+		return c.runBrowser(ctx, out)
+	}
 	if email == "" {
 		fmt.Fprint(out, "E-mail: ")
 		line, err := readLine(in)
@@ -70,6 +85,22 @@ func (c *Command) run(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 	fmt.Fprintf(out, "✓ Вы вошли как %s — вход сохранён, команды выполняются от вашего имени\n", result.Email)
+	return nil
+}
+
+// runBrowser ведёт вход через браузер: подтверждение и выдача личного токена
+// происходят в интерфейсе платформы, CLI получает готовый токен сам.
+func (c *Command) runBrowser(ctx context.Context, out io.Writer) error {
+	result, err := c.browser.Execute(ctx)
+	if err != nil {
+		return err
+	}
+	whom := result.Email
+	if whom == "" {
+		whom = "владелец токена"
+	}
+	fmt.Fprintf(out, "✓ Вы вошли как %s — вход сохранён, действует до %s\n",
+		whom, result.ExpiresAt.Local().Format("02.01.2006"))
 	return nil
 }
 

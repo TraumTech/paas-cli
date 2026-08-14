@@ -29,6 +29,23 @@ func (c *Command) run(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(cmd.Root().Writer, "✓ Вы вошли как %s\n", result.Email)
+	out := cmd.Root().Writer
+	// У входа личным токеном (AUTH-22) важно ещё и то, каким именно токеном
+	// вошли и докуда он действует: их несколько и они истекают.
+	if result.TokenName != "" {
+		fmt.Fprintf(out, "✓ Вы вошли как %s — по личному токену «%s», действует до %s\n",
+			whom(result.Email), result.TokenName, result.ExpiresAt.Local().Format("02.01.2006"))
+		return nil
+	}
+	fmt.Fprintf(out, "✓ Вы вошли как %s\n", result.Email)
 	return nil
+}
+
+// whom — подпись пользователя: e-mail помнит сам вход, платформа его не знает,
+// поэтому у входа, положенного руками, его может не быть.
+func whom(email string) string {
+	if email == "" {
+		return "владелец токена"
+	}
+	return email
 }

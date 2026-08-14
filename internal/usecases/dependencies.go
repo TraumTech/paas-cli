@@ -6,7 +6,7 @@ import (
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
-//go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=usecases github.com/TraumTech/paas-cli/internal/usecases ProtocolSource,ProtocolStore,CandidateReader,CompatibilitySource,VersionPublisher,ProtocolPublisher,DependencyRegistrar,ManifestReader,FormReader,ServiceResolver,CredentialAuthenticator,SessionInspector,SessionRevoker,SessionStore
+//go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=usecases github.com/TraumTech/paas-cli/internal/usecases ProtocolSource,ProtocolStore,CandidateReader,CompatibilitySource,VersionPublisher,ProtocolPublisher,DependencyRegistrar,ManifestReader,FormReader,ServiceResolver,CredentialAuthenticator,SessionInspector,SessionRevoker,SessionStore,BrowserAuthorizer,PersonalTokenDirectory
 
 // ProtocolSource достаёт актуальный опубликованный контракт сервиса из платформы.
 // Непустой methods — контракт, суженный платформой до этих методов (CLI-09);
@@ -114,13 +114,30 @@ type SessionRevoker interface {
 	Revoke(ctx context.Context, token string) error
 }
 
-// SessionStore хранит токен сессии локально у пользователя, недоступно другим
+// SessionStore хранит вход локально у пользователя, недоступно другим
 // пользователям машины. Load возвращает entities.ErrNoSession, когда сохранённого
 // входа нет; Delete от отсутствия входа не падает.
 type SessionStore interface {
-	Save(ctx context.Context, token string) error
-	Load(ctx context.Context) (string, error)
+	Save(ctx context.Context, credential entities.Credential) error
+	Load(ctx context.Context) (*entities.Credential, error)
 	Delete(ctx context.Context) error
+}
+
+// BrowserAuthorizer проводит выдачу личного токена через браузер (AUTH-22):
+// открывает страницу подтверждения платформы и дожидается, пока она вернёт
+// выпущенный токен на локальный адрес. Возвращает entities.ErrAuthorizationDenied,
+// если пользователь отказал, и ошибку ожидания, если подтверждение не пришло.
+type BrowserAuthorizer interface {
+	Authorize(ctx context.Context) (*entities.Credential, error)
+}
+
+// PersonalTokenDirectory — личные токены пользователя на платформе (AUTH-20/21).
+// CLI обращается к нему тем же входом, который проверяет: живой ли он и какой
+// именно токен предъявлен. Возвращает entities.ErrPersonalTokenRejected, когда
+// платформа вход не приняла.
+type PersonalTokenDirectory interface {
+	List(ctx context.Context) ([]entities.PersonalToken, error)
+	Revoke(ctx context.Context, tokenID string) error
 }
 
 // ServiceResolver находит id сервисов платформы по именам: манифест адресует

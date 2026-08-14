@@ -321,6 +321,37 @@
         ],
         "type": "object"
       },
+      "PersonalTokenResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "prefix": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "prefix",
+          "created_at",
+          "expires_at"
+        ],
+        "type": "object"
+      },
       "ProcessFormBody": {
         "additionalProperties": false,
         "properties": {
@@ -359,6 +390,42 @@
         },
         "required": [
           "name"
+        ],
+        "type": "object"
+      },
+      "ProductResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://api.paas.traumtech.ru/schemas/ProductResponse.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "stage": {
+            "enum": [
+              "idea",
+              "active",
+              "live",
+              "frozen",
+              "archived"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "stage"
         ],
         "type": "object"
       },
@@ -686,6 +753,9 @@
           },
           "name": {
             "type": "string"
+          },
+          "product": {
+            "$ref": "#/components/schemas/ProductResponse"
           },
           "repo_url": {
             "type": "string"
@@ -1322,6 +1392,77 @@
         "summary": "Опубликовать протокол версии сервиса",
         "tags": [
           "protocols"
+        ]
+      }
+    },
+    "/tokens": {
+      "get": {
+        "operationId": "list-personal-tokens",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PersonalTokenResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Мои личные токены доступа",
+        "tags": [
+          "tokens"
+        ]
+      }
+    },
+    "/tokens/{tokenID}": {
+      "delete": {
+        "operationId": "revoke-personal-token",
+        "parameters": [
+          {
+            "description": "ID токена",
+            "in": "path",
+            "name": "tokenID",
+            "required": true,
+            "schema": {
+              "description": "ID токена",
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Отозвать личный токен доступа",
+        "tags": [
+          "tokens"
         ]
       }
     }

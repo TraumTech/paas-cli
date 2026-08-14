@@ -9,10 +9,12 @@ import (
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
-// bearerTransport прикладывает к каждому исходящему запросу машинный креденшел
-// сервиса заголовком `Authorization: Bearer <token>`. Прокси платформы
-// (Oathkeeper) валидирует токен introspection'ом и связывает запрос с сервисом —
-// сам CLI про схему валидации не знает (auth-агностичные адаптеры).
+// bearerTransport прикладывает к каждому исходящему запросу токен доступа
+// заголовком `Authorization: Bearer <token>` — машинный (токен сервиса) или
+// личный токен пользователя (AUTH-19): предъявляются они одинаково. Прокси
+// платформы (Oathkeeper) валидирует токен introspection'ом и связывает запрос с
+// сервисом либо с человеком — сам CLI про схему валидации не знает
+// (auth-агностичные адаптеры).
 type bearerTransport struct {
 	token string
 	base  http.RoundTripper
@@ -56,19 +58,23 @@ func (t *unauthorizedTransport) RoundTrip(req *http.Request) (*http.Response, er
 	return nil, t.reason
 }
 
-// httpClient собирает клиент платформы. Приоритет у машинного креденшела сервиса
-// (CI-сценарий, поведение TKN-06 не меняется); без него запросы идут с токеном
-// сессии вошедшего пользователя (`paas-cli auth login`); без того и другого —
-// анонимно, как прежде. Observability-транспорт — внешним слоем: спан и
-// traceparent появляются до креденшелов, логи и спан покрывают весь запрос.
-func httpClient(obs observability.Observer, serviceToken, sessionToken string) *http.Client {
+// httpClient собирает клиент платформы. Приоритет у токена из окружения
+// (CI-сценарий, поведение TKN-06 не меняется); без него запросы идут сохранённым
+// входом (`paas-cli auth login`) — сессией провайдера или личным токеном; без
+// того и другого — анонимно, как прежде. Observability-транспорт — внешним
+// слоем: спан и traceparent появляются до креденшелов, логи и спан покрывают
+// весь запрос.
+func httpClient(obs observability.Observer, envToken string, credential *entities.Credential) *http.Client {
 	base, reason := http.RoundTripper(http.DefaultTransport), error(entities.ErrLoginRequired)
 	switch {
-	case serviceToken != "":
-		base = &bearerTransport{token: serviceToken, base: http.DefaultTransport}
-		reason = entities.ErrServiceTokenRejected
-	case sessionToken != "":
-		base = &sessionTransport{token: sessionToken, base: http.DefaultTransport}
+	case envToken != "":
+		base = &bearerTransport{token: envToken, base: http.DefaultTransport}
+		reason = entities.ErrTokenRejected
+	case credential != nil && credential.Kind == entities.CredentialPersonalToken:
+		base = &bearerTransport{token: credential.Token, base: http.DefaultTransport}
+		reason = entities.ErrPersonalTokenRejected
+	case credential != nil:
+		base = &sessionTransport{token: credential.Token, base: http.DefaultTransport}
 		reason = entities.ErrSessionExpired
 	}
 	unauthorized := &unauthorizedTransport{base: base, reason: reason}

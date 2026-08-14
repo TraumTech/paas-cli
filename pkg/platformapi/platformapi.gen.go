@@ -39,6 +39,33 @@ func (e ClusterResponseEnvironment) Valid() bool {
 	}
 }
 
+// Defines values for ProductResponseStage.
+const (
+	Active   ProductResponseStage = "active"
+	Archived ProductResponseStage = "archived"
+	Frozen   ProductResponseStage = "frozen"
+	Idea     ProductResponseStage = "idea"
+	Live     ProductResponseStage = "live"
+)
+
+// Valid indicates whether the value is a known member of the ProductResponseStage enum.
+func (e ProductResponseStage) Valid() bool {
+	switch e {
+	case Active:
+		return true
+	case Archived:
+		return true
+	case Frozen:
+		return true
+	case Idea:
+		return true
+	case Live:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PublishVersionInputBodyEnvironment.
 const (
 	PublishVersionInputBodyEnvironmentDev   PublishVersionInputBodyEnvironment = "dev"
@@ -270,6 +297,15 @@ type FormVariableBody struct {
 	Value string `json:"value"`
 }
 
+// PersonalTokenResponse defines model for PersonalTokenResponse.
+type PersonalTokenResponse struct {
+	CreatedAt time.Time          `json:"created_at"`
+	ExpiresAt time.Time          `json:"expires_at"`
+	Id        openapi_types.UUID `json:"id"`
+	Name      string             `json:"name"`
+	Prefix    string             `json:"prefix"`
+}
+
 // ProcessFormBody defines model for ProcessFormBody.
 type ProcessFormBody struct {
 	// Command Переопределение команды образа
@@ -293,6 +329,20 @@ type ProcessFormBody struct {
 	// Zone Доменная зона организации по имени; пусто — маршрута нет
 	Zone *string `json:"zone,omitempty"`
 }
+
+// ProductResponse defines model for ProductResponse.
+type ProductResponse struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: https://api.paas.traumtech.ru/schemas/ProductResponse.json
+	Schema *string              `json:"$schema,omitempty"`
+	Id     string               `json:"id"`
+	Name   string               `json:"name"`
+	Stage  ProductResponseStage `json:"stage"`
+}
+
+// ProductResponseStage defines model for ProductResponse.Stage.
+type ProductResponseStage string
 
 // ProtocolDependencyResponse defines model for ProtocolDependencyResponse.
 type ProtocolDependencyResponse struct {
@@ -420,6 +470,7 @@ type ServiceResponse struct {
 	CreatedAt time.Time          `json:"created_at"`
 	Id        openapi_types.UUID `json:"id"`
 	Name      string             `json:"name"`
+	Product   *ProductResponse   `json:"product,omitempty"`
 	RepoUrl   *string            `json:"repo_url,omitempty"`
 }
 
@@ -679,6 +730,16 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /services/{id}/versions/{version_id}/protocol (the `PublishProtocol` operationId).
 	PublishProtocol(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, params *PublishProtocolParams, body PublishProtocolJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListPersonalTokens Мои личные токены доступа
+	//
+	// Corresponds with GET /tokens (the `ListPersonalTokens` operationId).
+	ListPersonalTokens(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RevokePersonalToken Отозвать личный токен доступа
+	//
+	// Corresponds with DELETE /tokens/{tokenID} (the `RevokePersonalToken` operationId).
+	RevokePersonalToken(ctx context.Context, tokenID openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 // ConnectClusterWithBody Подключить кластер организации
@@ -907,6 +968,36 @@ func (c *Client) PublishProtocolWithBody(ctx context.Context, id openapi_types.U
 // Corresponds with PUT /services/{id}/versions/{version_id}/protocol (the `PublishProtocol` operationId).
 func (c *Client) PublishProtocol(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, params *PublishProtocolParams, body PublishProtocolJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPublishProtocolRequest(c.Server, id, versionId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListPersonalTokens Мои личные токены доступа
+//
+// Corresponds with GET /tokens (the `ListPersonalTokens` operationId).
+func (c *Client) ListPersonalTokens(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPersonalTokensRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RevokePersonalToken Отозвать личный токен доступа
+//
+// Corresponds with DELETE /tokens/{tokenID} (the `RevokePersonalToken` operationId).
+func (c *Client) RevokePersonalToken(ctx context.Context, tokenID openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRevokePersonalTokenRequest(c.Server, tokenID)
 	if err != nil {
 		return nil, err
 	}
@@ -1413,6 +1504,67 @@ func NewPublishProtocolRequestWithBody(server string, id openapi_types.UUID, ver
 	return req, nil
 }
 
+// NewListPersonalTokensRequest constructs an http.Request for the ListPersonalTokens method
+func NewListPersonalTokensRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tokens")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRevokePersonalTokenRequest constructs an http.Request for the RevokePersonalToken method
+func NewRevokePersonalTokenRequest(server string, tokenID openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "tokenID", tokenID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tokens/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -1560,6 +1712,20 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PUT /services/{id}/versions/{version_id}/protocol (the `PublishProtocol` operationId).
 	PublishProtocolWithResponse(ctx context.Context, id openapi_types.UUID, versionId openapi_types.UUID, params *PublishProtocolParams, body PublishProtocolJSONRequestBody, reqEditors ...RequestEditorFn) (*PublishProtocolResponse, error)
+
+	// ListPersonalTokensWithResponse Мои личные токены доступа
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /tokens (the `ListPersonalTokens` operationId).
+	ListPersonalTokensWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListPersonalTokensResponse, error)
+
+	// RevokePersonalTokenWithResponse Отозвать личный токен доступа
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /tokens/{tokenID} (the `RevokePersonalToken` operationId).
+	RevokePersonalTokenWithResponse(ctx context.Context, tokenID openapi_types.UUID, reqEditors ...RequestEditorFn) (*RevokePersonalTokenResponse, error)
 }
 
 type ConnectClusterResponse struct {
@@ -2015,6 +2181,95 @@ func (r PublishProtocolResponse) ContentType() string {
 	return ""
 }
 
+type ListPersonalTokensResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]PersonalTokenResponse
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListPersonalTokensResponse) GetJSON200() *[]PersonalTokenResponse {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r ListPersonalTokensResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListPersonalTokensResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPersonalTokensResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPersonalTokensResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListPersonalTokensResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RevokePersonalTokenResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r RevokePersonalTokenResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r RevokePersonalTokenResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RevokePersonalTokenResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RevokePersonalTokenResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RevokePersonalTokenResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 // ConnectClusterWithBodyWithResponse Подключить кластер организации
 //
 // Подключает кластер Kubernetes организации по выданному доступу (CLS-01). Связь проверяется до сохранения: недостижимый кластер или нехватка прав не сохраняются молча. Токен доступа наружу больше не возвращается никогда.
@@ -2201,6 +2456,32 @@ func (c *ClientWithResponses) PublishProtocolWithResponse(ctx context.Context, i
 		return nil, err
 	}
 	return ParsePublishProtocolResponse(rsp)
+}
+
+// ListPersonalTokensWithResponse Мои личные токены доступа
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /tokens (the `ListPersonalTokens` operationId).
+func (c *ClientWithResponses) ListPersonalTokensWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListPersonalTokensResponse, error) {
+	rsp, err := c.ListPersonalTokens(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPersonalTokensResponse(rsp)
+}
+
+// RevokePersonalTokenWithResponse Отозвать личный токен доступа
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /tokens/{tokenID} (the `RevokePersonalToken` operationId).
+func (c *ClientWithResponses) RevokePersonalTokenWithResponse(ctx context.Context, tokenID openapi_types.UUID, reqEditors ...RequestEditorFn) (*RevokePersonalTokenResponse, error) {
+	rsp, err := c.RevokePersonalToken(ctx, tokenID, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRevokePersonalTokenResponse(rsp)
 }
 
 // ParseConnectClusterResponse parses an HTTP response from a ConnectClusterWithResponse call
@@ -2508,6 +2789,68 @@ func ParsePublishProtocolResponse(rsp *http.Response) (*PublishProtocolResponse,
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListPersonalTokensResponse parses an HTTP response from a ListPersonalTokensWithResponse call
+func ParseListPersonalTokensResponse(rsp *http.Response) (*ListPersonalTokensResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPersonalTokensResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []PersonalTokenResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRevokePersonalTokenResponse parses an HTTP response from a RevokePersonalTokenWithResponse call
+func ParseRevokePersonalTokenResponse(rsp *http.Response) (*RevokePersonalTokenResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RevokePersonalTokenResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest ErrorModel

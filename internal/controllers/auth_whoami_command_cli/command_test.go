@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -47,4 +48,23 @@ func TestCommandRun_PropagatesUseCaseError(t *testing.T) {
 	err := root.Run(context.Background(), []string{"paas-cli", "auth", "whoami"})
 
 	assert.ErrorIs(t, err, entities.ErrNoSession)
+}
+
+// Вход личным токеном (AUTH-22): кроме владельца показываем, каким токеном
+// вошли и докуда он действует — токенов бывает несколько и они истекают.
+func TestCommandRun_PersonalToken(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	whoami := NewMockCurrentUser(ctrl)
+	whoami.EXPECT().Execute(gomock.Any()).Return(&usecases.WhoAmIResult{
+		Email:     "user@example.com",
+		TokenName: "ноутбук",
+		ExpiresAt: time.Date(2026, 9, 13, 12, 0, 0, 0, time.UTC),
+	}, nil)
+
+	var out bytes.Buffer
+	root := rootWith(whoami, &out)
+	require.NoError(t, root.Run(context.Background(), []string{"paas-cli", "auth", "whoami"}))
+
+	assert.Contains(t, out.String(), "user@example.com")
+	assert.Contains(t, out.String(), "«ноутбук»")
 }

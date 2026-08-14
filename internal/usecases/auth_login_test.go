@@ -19,7 +19,9 @@ func TestLoginExecute_Success(t *testing.T) {
 
 	auth.EXPECT().Authenticate(gomock.Any(), "user@example.com", "secret").
 		Return(&entities.UserSession{Token: "tok-1", Email: "user@example.com"}, nil)
-	sessions.EXPECT().Save(gomock.Any(), "tok-1").Return(nil)
+	sessions.EXPECT().Save(gomock.Any(), entities.Credential{
+		Kind: entities.CredentialSession, Token: "tok-1", Email: "user@example.com",
+	}).Return(nil)
 
 	got, err := NewLogin(auth, sessions).Execute(context.Background(),
 		LoginInput{Email: "user@example.com", Password: "secret"})
@@ -64,7 +66,7 @@ func TestLoginExecute_SaveError(t *testing.T) {
 	saveErr := errors.New("disk full")
 	auth.EXPECT().Authenticate(gomock.Any(), "user@example.com", "secret").
 		Return(&entities.UserSession{Token: "tok-1", Email: "user@example.com"}, nil)
-	sessions.EXPECT().Save(gomock.Any(), "tok-1").Return(saveErr)
+	sessions.EXPECT().Save(gomock.Any(), gomock.Any()).Return(saveErr)
 
 	_, err := NewLogin(auth, sessions).Execute(context.Background(),
 		LoginInput{Email: "user@example.com", Password: "secret"})

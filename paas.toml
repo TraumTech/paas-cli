@@ -16,4 +16,6 @@ methods = [
     "POST /services/{id}/protocol/compatibility", # protocol_compatibility_http: проверка кандидата
     "PUT /services/{id}/versions/{version_id}/dependencies", # dependency_registrar_http: регистрация зависимости
     "PUT /services/{id}/versions/{version_id}/protocol", # protocol_publish_http: публикация протокола
+    "GET /tokens", # personal_token_http: под кем вошли по личному токену (AUTH-22)
+    "DELETE /tokens/{tokenID}", # personal_token_http: выход отзывает выданный браузером токен (AUTH-22)
 ]

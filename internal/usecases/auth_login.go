@@ -25,7 +25,11 @@ func (uc *LoginUseCase) Execute(ctx context.Context, in LoginInput) (*LoginResul
 		// Неудачный вход ничего не сохраняет — прежний вход (если был) не затирается.
 		return nil, fmt.Errorf("authenticate: %w", err)
 	}
-	if err := uc.sessions.Save(ctx, session.Token); err != nil {
+	if err := uc.sessions.Save(ctx, entities.Credential{
+		Kind:  entities.CredentialSession,
+		Token: session.Token,
+		Email: session.Email,
+	}); err != nil {
 		return nil, fmt.Errorf("save session: %w", err)
 	}
 	return &LoginResult{Email: session.Email}, nil

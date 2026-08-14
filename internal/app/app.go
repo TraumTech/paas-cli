@@ -10,6 +10,7 @@ import (
 	"github.com/TraumTech/paas-observability-sdk/sdk/observabilityhttp"
 	"github.com/urfave/cli/v3"
 
+	browserauthorizerlocal "github.com/TraumTech/paas-cli/internal/adapters/browser_authorizer_local"
 	"github.com/TraumTech/paas-cli/internal/adapters/candidate_reader_file"
 	clusteraccesshttp "github.com/TraumTech/paas-cli/internal/adapters/cluster_access_http"
 	clusterprovisionerk8s "github.com/TraumTech/paas-cli/internal/adapters/cluster_provisioner_k8s"
@@ -17,6 +18,7 @@ import (
 	"github.com/TraumTech/paas-cli/internal/adapters/dependency_registrar_http"
 	formreaderfile "github.com/TraumTech/paas-cli/internal/adapters/form_reader_file"
 	"github.com/TraumTech/paas-cli/internal/adapters/manifest_reader_file"
+	personaltokenhttp "github.com/TraumTech/paas-cli/internal/adapters/personal_token_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_compatibility_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_publish_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_source_http"
@@ -35,12 +37,14 @@ import (
 	"github.com/TraumTech/paas-cli/internal/controllers/protocol_publish_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/protocol_sync_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/version_publish_command_cli"
+	"github.com/TraumTech/paas-cli/internal/entities"
 	"github.com/TraumTech/paas-cli/internal/usecases"
 )
 
 const (
 	defaultAPIURL      = "https://api.paas.traumtech.ru"
 	defaultAuthURL     = "https://auth.paas.traumtech.ru"
+	defaultWebURL      = "https://paas.traumtech.ru"
 	defaultDestination = "protocols"
 	httpTimeout        = 30 * time.Second
 	// obsFlushTimeout ограничивает досылку трасс при завершении: без сети
@@ -50,6 +54,9 @@ const (
 	envAPIToken = "PAAS_API_TOKEN"
 	// envAuthURL — адрес identity-провайдера платформы для входа пользователя.
 	envAuthURL = "PAAS_AUTH_URL"
+	// envWebURL — адрес интерфейса платформы: там живёт страница подтверждения
+	// браузерного входа (AUTH-22).
+	envWebURL = "PAAS_WEB_URL"
 )
 
 // Version — версия бинаря; подставляется при сборке релиза (GoReleaser, ldflags).
@@ -68,16 +75,16 @@ func Run(ctx context.Context, args []string) error {
 
 	baseURL := strings.TrimRight(envOr("PAAS_API_URL", defaultAPIURL), "/")
 	sessions := sessionstorefile.New()
-	// Машинный креденшел сервиса (если задан) уходит со всеми запросами к платформе;
+	// Токен из окружения (если задан) уходит со всеми запросами к платформе;
 	// без него — локально сохранённый вход пользователя (auth login), если он есть.
-	serviceToken := os.Getenv(envAPIToken)
-	sessionToken := ""
-	if serviceToken == "" {
-		if t, err := sessions.Load(ctx); err == nil {
-			sessionToken = t
+	envToken := os.Getenv(envAPIToken)
+	var credential *entities.Credential
+	if envToken == "" {
+		if saved, err := sessions.Load(ctx); err == nil {
+			credential = saved
 		}
 	}
-	client := httpClient(obs, serviceToken, sessionToken)
+	client := httpClient(obs, envToken, credential)
 
 	source, err := protocolsourcehttp.New(baseURL, client)
 	if err != nil {
@@ -137,9 +144,20 @@ func Run(ctx context.Context, args []string) error {
 		Timeout:   httpTimeout,
 		Transport: observabilityhttp.NewTransport(obs, nil),
 	})
-	login := authlogincommandcli.New(usecases.NewLogin(gateway, sessions))
-	whoami := authwhoamicommandcli.New(usecases.NewWhoAmI(sessions, gateway))
-	logout := authlogoutcommandcli.New(usecases.NewLogout(sessions, gateway))
+	personalTokens, err := personaltokenhttp.New(baseURL, client)
+	if err != nil {
+		return err
+	}
+	// Страница подтверждения живёт в интерфейсе платформы, где пользователь уже
+	// вошёл, — отсюда отдельный адрес.
+	webURL := strings.TrimRight(envOr(envWebURL, defaultWebURL), "/")
+	authorizer := browserauthorizerlocal.New(webURL, os.Stderr)
+	login := authlogincommandcli.New(
+		usecases.NewLogin(gateway, sessions),
+		usecases.NewBrowserLogin(authorizer, sessions),
+	)
+	whoami := authwhoamicommandcli.New(usecases.NewWhoAmI(sessions, gateway, personalTokens))
+	logout := authlogoutcommandcli.New(usecases.NewLogout(sessions, gateway, personalTokens))
 
 	root := &cli.Command{
 		Name:    "paas-cli",
