@@ -53,7 +53,7 @@ func TestPublishVersionExecute_Success(t *testing.T) {
 	f.expectResolved()
 	// paas.toml отсутствует — публикация без формы, как раньше.
 	f.forms.EXPECT().Read(gomock.Any(), "paas.toml").Return(nil, nil)
-	f.publisher.EXPECT().PublishVersion(gomock.Any(), "svc", "prod", "abc123", "", nil).Return(version, nil)
+	f.publisher.EXPECT().PublishVersion(gomock.Any(), "svc", "prod", "abc123", "", "", nil).Return(version, nil)
 
 	got, err := f.uc.Execute(context.Background(), f.input())
 
@@ -69,7 +69,7 @@ func TestPublishVersionExecute_WithForm(t *testing.T) {
 
 	f.expectResolved()
 	f.forms.EXPECT().Read(gomock.Any(), "paas.toml").Return(declaration, nil)
-	f.publisher.EXPECT().PublishVersion(gomock.Any(), "svc", "prod", "abc123", "ghcr.io/traumtech/svc:sha",
+	f.publisher.EXPECT().PublishVersion(gomock.Any(), "svc", "prod", "abc123", "", "ghcr.io/traumtech/svc:sha",
 		declaration.Resolve("prod")).Return(version, nil)
 
 	in := f.input()
@@ -128,7 +128,7 @@ func TestPublishVersionExecute_SourceError(t *testing.T) {
 
 	f.expectResolved()
 	f.forms.EXPECT().Read(gomock.Any(), "paas.toml").Return(nil, nil)
-	f.publisher.EXPECT().PublishVersion(gomock.Any(), "svc", "prod", "abc123", "", nil).Return(nil, srcErr)
+	f.publisher.EXPECT().PublishVersion(gomock.Any(), "svc", "prod", "abc123", "", "", nil).Return(nil, srcErr)
 
 	_, err := f.uc.Execute(context.Background(), f.input())
 
@@ -167,8 +167,8 @@ func TestPublishVersionExecute_ResolvesEnvironmentValues(t *testing.T) {
 
 	f.expectResolved()
 	f.forms.EXPECT().Read(gomock.Any(), "paas.toml").Return(declaration, nil)
-	f.publisher.EXPECT().PublishVersion(gomock.Any(), "svc", "prod", "abc123", "img", gomock.Any()).
-		DoAndReturn(func(_ context.Context, _, _, _, _ string, form *entities.VersionForm) (*entities.Version, error) {
+	f.publisher.EXPECT().PublishVersion(gomock.Any(), "svc", "prod", "abc123", "", "img", gomock.Any()).
+		DoAndReturn(func(_ context.Context, _, _, _, _, _ string, form *entities.VersionForm) (*entities.Version, error) {
 			// Переопределение перебивает одноимённое общее значение, остальные
 			// общие остаются; порядок детерминирован.
 			assert.Equal(t, []entities.FormVariable{
@@ -202,4 +202,21 @@ func TestPublishVersionExecute_UnknownFormEnvironment(t *testing.T) {
 	_, err := f.uc.Execute(context.Background(), in)
 
 	assert.ErrorIs(t, err, entities.ErrUnknownFormEnvironment)
+}
+
+// Ветку сообщает пайплайн, а не сам CLI: в CI рабочая копия бывает detached,
+// и «текущая ветка» там врёт.
+func TestPublishVersionPassesBranch(t *testing.T) {
+	f := newPublishFixture(t)
+	version := &entities.Version{ID: "ver-1", Number: 1, Environment: "prod", Branch: "feature/x"}
+	f.expectResolved()
+	f.forms.EXPECT().Read(gomock.Any(), "paas.toml").Return(nil, nil)
+	f.publisher.EXPECT().PublishVersion(gomock.Any(), "svc", "prod", "abc123", "feature/x", "", nil).Return(version, nil)
+
+	in := f.input()
+	in.Branch = "feature/x"
+	got, err := f.uc.Execute(context.Background(), in)
+
+	require.NoError(t, err)
+	assert.Equal(t, "feature/x", got.Branch)
 }

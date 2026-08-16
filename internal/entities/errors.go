@@ -47,8 +47,8 @@ var (
 	ErrNoKubeContext       = newDomainError("не удалось определить кластер: в kubeconfig нет активного контекста")
 	ErrClusterAccessDenied = newDomainError("вашего доступа не хватает, чтобы выдать права платформе — нужен доступ уровня администратора кластера")
 
-	ErrLoginRequired        = newDomainError("платформа требует вход: выполните `paas-cli auth login` или задайте токен доступа в PAAS_API_TOKEN")
-	ErrTokenRejected        = newDomainError("токен из PAAS_API_TOKEN не принят платформой — он отозван, просрочен или неверен")
+	ErrLoginRequired = newDomainError("платформа требует вход: выполните `paas-cli auth login` или задайте токен доступа в PAAS_API_TOKEN")
+	ErrTokenRejected = newDomainError("токен из PAAS_API_TOKEN не принят платформой — он отозван, просрочен или неверен")
 
 	// Браузерный вход (AUTH-22).
 	ErrAuthorizationDenied  = newDomainError("вход не подтверждён в браузере — ничего не сохранено")

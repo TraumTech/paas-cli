@@ -336,6 +336,10 @@
             "format": "uuid",
             "type": "string"
           },
+          "last_used_at": {
+            "format": "date-time",
+            "type": "string"
+          },
           "name": {
             "type": "string"
           },
@@ -626,6 +630,10 @@
             "readOnly": true,
             "type": "string"
           },
+          "branch": {
+            "description": "Ветка, из которой собрана версия",
+            "type": "string"
+          },
           "commit_revision": {
             "description": "Идентификатор коммита",
             "type": "string"
@@ -806,6 +814,9 @@
             ],
             "format": "uri",
             "readOnly": true,
+            "type": "string"
+          },
+          "branch": {
             "type": "string"
           },
           "commit_revision": {

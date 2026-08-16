@@ -14,6 +14,7 @@ const (
 	formFlag        = "form"
 	imageFlag       = "image"
 	environmentFlag = "environment"
+	branchFlag      = "branch"
 )
 
 // Версия принадлежит окружению (DEP-08); без флага публикуем в prod, поэтому
@@ -65,6 +66,10 @@ func (c *Command) CLICommand() *cli.Command {
 				Value:   defaultEnvironment,
 				Usage:   "окружение публикации: dev, stage или prod",
 			},
+			&cli.StringFlag{
+				Name:  branchFlag,
+				Usage: "ветка, из которой собрана версия (в CI — ref сборки); не указана — платформа её не знает",
+			},
 		},
 		Action: c.run,
 	}
@@ -78,6 +83,7 @@ func (c *Command) run(ctx context.Context, cmd *cli.Command) error {
 	version, err := c.publisher.Execute(ctx, usecases.PublishVersionInput{
 		CommitRevision: cmd.Args().Get(0),
 		Environment:    cmd.String(environmentFlag),
+		Branch:         cmd.String(branchFlag),
 		ManifestPath:   cmd.String(manifestFlag),
 		FormPath:       cmd.String(formFlag),
 		Image:          cmd.String(imageFlag),

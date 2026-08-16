@@ -65,6 +65,9 @@ type PublishVersionInput struct {
 	CommitRevision string
 	// Environment — окружение публикации (DEP-08); дефолт prod задаёт команда.
 	Environment string
+	// Branch — ветка сборки (DEP-17). Её сообщает пайплайн: CLI сам git не
+	// читает — в CI рабочая копия бывает detached, и «текущая ветка» там врёт.
+	Branch string
 	// ManifestPath — манифест, из которого берём имя текущего сервиса.
 	ManifestPath string
 	// FormPath — paas.toml с формой сервиса (DEP-02); отсутствие файла — штатно,

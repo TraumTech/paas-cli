@@ -42,7 +42,7 @@ type CompatibilitySource interface {
 // entities.ErrServiceNotFound, когда сервиса нет.
 type VersionPublisher interface {
 	// PublishVersion фиксирует версию ревизии в окружении (DEP-08).
-	PublishVersion(ctx context.Context, serviceID, environment, commitRevision, image string, form *entities.VersionForm) (*entities.Version, error)
+	PublishVersion(ctx context.Context, serviceID, environment, commitRevision, branch, image string, form *entities.VersionForm) (*entities.Version, error)
 }
 
 // ProtocolPublisher публикует контракт под версией сервиса в платформе и

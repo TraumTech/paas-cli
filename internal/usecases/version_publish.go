@@ -56,7 +56,7 @@ func (uc *PublishVersionUseCase) Execute(ctx context.Context, in PublishVersionI
 		// и платформа получает готовый набор, а не правило слияния (DEP-14/15).
 		form = declaration.Resolve(in.Environment)
 	}
-	version, err := uc.publisher.PublishVersion(ctx, serviceID, in.Environment, request.CommitRevision, in.Image, form)
+	version, err := uc.publisher.PublishVersion(ctx, serviceID, in.Environment, request.CommitRevision, in.Branch, in.Image, form)
 	if err != nil {
 		return nil, fmt.Errorf("publish version: %w", err)
 	}

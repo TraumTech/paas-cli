@@ -299,11 +299,12 @@ type FormVariableBody struct {
 
 // PersonalTokenResponse defines model for PersonalTokenResponse.
 type PersonalTokenResponse struct {
-	CreatedAt time.Time          `json:"created_at"`
-	ExpiresAt time.Time          `json:"expires_at"`
-	Id        openapi_types.UUID `json:"id"`
-	Name      string             `json:"name"`
-	Prefix    string             `json:"prefix"`
+	CreatedAt  time.Time          `json:"created_at"`
+	ExpiresAt  time.Time          `json:"expires_at"`
+	Id         openapi_types.UUID `json:"id"`
+	LastUsedAt *time.Time         `json:"last_used_at,omitempty"`
+	Name       string             `json:"name"`
+	Prefix     string             `json:"prefix"`
 }
 
 // ProcessFormBody defines model for ProcessFormBody.
@@ -407,6 +408,9 @@ type PublishVersionInputBody struct {
 	// Examples: https://api.paas.traumtech.ru/schemas/PublishVersionInputBody.json
 	Schema *string `json:"$schema,omitempty"`
 
+	// Branch Ветка, из которой собрана версия
+	Branch *string `json:"branch,omitempty"`
+
 	// CommitRevision Идентификатор коммита
 	CommitRevision string `json:"commit_revision"`
 
@@ -492,6 +496,7 @@ type VersionResponse struct {
 	//
 	// Examples: https://api.paas.traumtech.ru/schemas/VersionResponse.json
 	Schema         *string                    `json:"$schema,omitempty"`
+	Branch         *string                    `json:"branch,omitempty"`
 	CommitRevision string                     `json:"commit_revision"`
 	CreatedAt      time.Time                  `json:"created_at"`
 	Environment    VersionResponseEnvironment `json:"environment"`

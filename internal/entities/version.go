@@ -15,7 +15,9 @@ type Version struct {
 	Environment    string
 	Number         int
 	CommitRevision string
-	CreatedAt      time.Time
+	// Branch — ветка сборки (DEP-17); пусто — публиковали без неё.
+	Branch    string
+	CreatedAt time.Time
 }
 
 // Environments — окружения платформы; словарь совпадает с DEP-01.

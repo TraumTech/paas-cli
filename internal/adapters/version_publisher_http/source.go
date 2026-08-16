@@ -27,7 +27,7 @@ func New(baseURL string, httpClient *http.Client) (*Source, error) {
 	return &Source{client: client}, nil
 }
 
-func (s *Source) PublishVersion(ctx context.Context, serviceID, environment, commitRevision, image string, form *entities.VersionForm) (*entities.Version, error) {
+func (s *Source) PublishVersion(ctx context.Context, serviceID, environment, commitRevision, branch, image string, form *entities.VersionForm) (*entities.Version, error) {
 	id, err := uuid.Parse(serviceID)
 	if err != nil {
 		return nil, fmt.Errorf("неверный id сервиса %q: %w", serviceID, err)
@@ -37,6 +37,9 @@ func (s *Source) PublishVersion(ctx context.Context, serviceID, environment, com
 	if environment != "" {
 		env := platformapi.PublishVersionInputBodyEnvironment(environment)
 		body.Environment = &env
+	}
+	if branch != "" {
+		body.Branch = &branch
 	}
 	if image != "" {
 		body.Image = &image
@@ -122,6 +125,15 @@ func mapVersion(v *platformapi.VersionResponse) *entities.Version {
 		Environment:    string(v.Environment),
 		Number:         int(v.Number),
 		CommitRevision: v.CommitRevision,
+		Branch:         derefString(v.Branch),
 		CreatedAt:      v.CreatedAt,
 	}
+}
+
+// derefString — необязательное поле контракта: ветки может не быть (DEP-17).
+func derefString(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return *v
 }
