@@ -6,7 +6,7 @@ import (
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
-//go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=usecases github.com/TraumTech/paas-cli/internal/usecases ProtocolSource,ProtocolStore,CandidateReader,CompatibilitySource,VersionPublisher,ProtocolPublisher,DependencyRegistrar,ManifestReader,FormReader,ServiceResolver,CredentialAuthenticator,SessionInspector,SessionRevoker,SessionStore,BrowserAuthorizer,PersonalTokenDirectory
+//go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=usecases github.com/TraumTech/paas-cli/internal/usecases ProtocolSource,ProtocolStore,CandidateReader,CompatibilitySource,VersionPublisher,BuildPublisher,ProtocolPublisher,DependencyRegistrar,ManifestReader,FormReader,ServiceResolver,CredentialAuthenticator,SessionInspector,SessionRevoker,SessionStore,BrowserAuthorizer,PersonalTokenDirectory
 
 // ProtocolSource достаёт актуальный опубликованный контракт сервиса из платформы.
 // Непустой methods — контракт, суженный платформой до этих методов (CLI-09);
@@ -78,6 +78,12 @@ type DependencyRegistration struct {
 	// Waived — атрибуты продьюсера, от которых потребитель отказался (PRT-26).
 	Waived            []string
 	SupersedePrevious bool
+}
+
+// BuildPublisher публикует сборку ветки на платформе (DEP-18): артефакт без
+// окружения, идемпотентный по ревизии.
+type BuildPublisher interface {
+	PublishBuild(ctx context.Context, serviceID string, request entities.BuildRequest) (*entities.Build, error)
 }
 
 // ManifestReader читает манифест зависимостей из файла в репозитории потребителя.

@@ -129,3 +129,13 @@ type WhoAmIResult struct {
 type LogoutResult struct {
 	WasLoggedIn bool
 }
+
+// PublishBuildInput — публикация сборки ветки (DEP-18). Окружения нет: его
+// выбирает выкатка.
+type PublishBuildInput struct {
+	CommitRevision string
+	Branch         string
+	ManifestPath   string
+	FormPath       string
+	Image          string
+}

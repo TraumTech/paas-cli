@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sort"
 
 	"github.com/google/uuid"
 
@@ -136,4 +137,128 @@ func derefString(v *string) string {
 		return ""
 	}
 	return *v
+}
+
+// PublishBuild фиксирует сборку ветки (DEP-18): окружения в запросе нет, форма
+// едет со всеми секциями — сливает их выкатка.
+func (s *Source) PublishBuild(ctx context.Context, serviceID string, in entities.BuildRequest) (*entities.Build, error) {
+	id, err := uuid.Parse(serviceID)
+	if err != nil {
+		return nil, fmt.Errorf("неверный id сервиса %q: %w", serviceID, err)
+	}
+
+	body := platformapi.PublishBuildJSONRequestBody{CommitRevision: in.CommitRevision}
+	if in.Branch != "" {
+		body.Branch = &in.Branch
+	}
+	if in.Image != "" {
+		body.Image = &in.Image
+	}
+	if in.Contract != "" {
+		body.Contract = &in.Contract
+		format := platformapi.PublishBuildInputBodyContractFormat(in.ContractFormat)
+		body.ContractFormat = &format
+	}
+	body.Form = buildFormToAPI(in.Form)
+
+	resp, err := s.client.PublishBuildWithResponse(ctx, id, body)
+	if err != nil {
+		return nil, platformhttp.RequestError(err)
+	}
+	// 201 — сборка заведена, 200 — эта ревизия уже собрана (штатный повтор).
+	var build *platformapi.BuildResponse
+	switch resp.StatusCode() {
+	case http.StatusCreated:
+		build = resp.JSON201
+	case http.StatusOK:
+		build = resp.JSON200
+	case http.StatusNotFound:
+		return nil, entities.ErrServiceNotFound
+	default:
+		return nil, fmt.Errorf("платформа ответила %s", resp.Status())
+	}
+	if build == nil {
+		return nil, fmt.Errorf("платформа вернула пустой ответ")
+	}
+	return &entities.Build{
+		ID:             build.Id.String(),
+		CommitRevision: build.CommitRevision,
+		Branch:         derefString(build.Branch),
+		CreatedAt:      build.CreatedAt,
+	}, nil
+}
+
+// buildFormToAPI переносит объявление формы как есть: секции окружений едут
+// неразрешёнными, потому что окружение выбирает выкатка.
+func buildFormToAPI(form *entities.FormDeclaration) *platformapi.BuildFormBody {
+	if form == nil {
+		return nil
+	}
+	out := &platformapi.BuildFormBody{Processes: []platformapi.ProcessFormBody{}}
+	for _, p := range form.Processes {
+		process := platformapi.ProcessFormBody{Name: p.Name}
+		if p.Listen != 0 {
+			port := int64(p.Listen)
+			process.ListenPort = &port
+		}
+		if len(p.Command) > 0 {
+			command := p.Command
+			process.Command = &command
+		}
+		if p.CPU != "" {
+			cpu := p.CPU
+			process.Cpu = &cpu
+		}
+		if p.Memory != "" {
+			memory := p.Memory
+			process.Memory = &memory
+		}
+		if p.Zone != "" {
+			zone := p.Zone
+			process.Zone = &zone
+		}
+		if p.Prefix != "" {
+			prefix := p.Prefix
+			process.Prefix = &prefix
+		}
+		out.Processes = append(out.Processes, process)
+	}
+
+	// Порядок секций детерминирован: одна и та же ревизия не должна публиковать
+	// форму по-разному от запуска к запуску.
+	names := make([]string, 0, len(form.Environments))
+	for name := range form.Environments {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	environments := make([]platformapi.FormEnvironmentBody, 0, len(names))
+	for _, name := range names {
+		values := form.Environments[name]
+		section := platformapi.FormEnvironmentBody{Name: name}
+		if values.Replicas != 0 {
+			replicas := int64(values.Replicas)
+			section.Replicas = &replicas
+		}
+		variables := make([]platformapi.FormVariableBody, 0, len(values.Variables))
+		for _, varName := range sortedKeys(values.Variables) {
+			variables = append(variables, platformapi.FormVariableBody{Name: varName, Value: values.Variables[varName]})
+		}
+		if len(variables) > 0 {
+			section.Variables = &variables
+		}
+		environments = append(environments, section)
+	}
+	if len(environments) > 0 {
+		out.Environments = &environments
+	}
+	return out
+}
+
+func sortedKeys(values map[string]string) []string {
+	names := make([]string, 0, len(values))
+	for name := range values {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }

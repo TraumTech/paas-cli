@@ -64,6 +64,37 @@ type ProcessForm struct {
 	Prefix  string
 }
 
+// Build — сборка ветки на платформе (DEP-18): артефакт без окружения.
+type Build struct {
+	ID             string
+	CommitRevision string
+	Branch         string
+	CreatedAt      time.Time
+}
+
+// BuildRequest — что публикуем как сборку: ревизия, ветка, образ, форма со
+// всеми секциями окружений и контракт. Окружения здесь нет — его выбирает
+// выкатка, она же разрешает секции.
+type BuildRequest struct {
+	CommitRevision string
+	Branch         string
+	Image          string
+	Form           *FormDeclaration
+	Contract       string
+	ContractFormat string
+}
+
+// Validate отсекает пустую ревизию до обращения к платформе.
+func (r BuildRequest) Validate() error {
+	if strings.TrimSpace(r.CommitRevision) == "" {
+		return ErrEmptyCommitRevision
+	}
+	if r.Form != nil {
+		return r.Form.Validate()
+	}
+	return nil
+}
+
 // VersionRequest — намерение зафиксировать версию по развёрнутой ревизии коммита.
 type VersionRequest struct {
 	CommitRevision string

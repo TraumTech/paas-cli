@@ -66,6 +66,24 @@ func (e ProductResponseStage) Valid() bool {
 	}
 }
 
+// Defines values for PublishBuildInputBodyContractFormat.
+const (
+	PublishBuildInputBodyContractFormatGrpc    PublishBuildInputBodyContractFormat = "grpc"
+	PublishBuildInputBodyContractFormatOpenapi PublishBuildInputBodyContractFormat = "openapi"
+)
+
+// Valid indicates whether the value is a known member of the PublishBuildInputBodyContractFormat enum.
+func (e PublishBuildInputBodyContractFormat) Valid() bool {
+	switch e {
+	case PublishBuildInputBodyContractFormatGrpc:
+		return true
+	case PublishBuildInputBodyContractFormatOpenapi:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PublishVersionInputBodyEnvironment.
 const (
 	PublishVersionInputBodyEnvironmentDev   PublishVersionInputBodyEnvironment = "dev"
@@ -168,6 +186,31 @@ type AccessRuleResponse struct {
 	Comment   string   `json:"comment"`
 	Resources []string `json:"resources"`
 	Verbs     []string `json:"verbs"`
+}
+
+// BuildFormBody defines model for BuildFormBody.
+type BuildFormBody struct {
+	// Environments Секции [env.*]: default — общие значения
+	Environments *[]FormEnvironmentBody `json:"environments,omitempty"`
+
+	// Processes Процессы сервиса
+	Processes []ProcessFormBody `json:"processes"`
+}
+
+// BuildResponse defines model for BuildResponse.
+type BuildResponse struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: https://api.paas.traumtech.ru/schemas/BuildResponse.json
+	Schema         *string            `json:"$schema,omitempty"`
+	Branch         *string            `json:"branch,omitempty"`
+	CommitRevision string             `json:"commit_revision"`
+	ContractFormat *string            `json:"contract_format,omitempty"`
+	CreatedAt      time.Time          `json:"created_at"`
+	Form           *BuildFormBody     `json:"form,omitempty"`
+	HasContract    bool               `json:"has_contract"`
+	Id             openapi_types.UUID `json:"id"`
+	Image          *string            `json:"image,omitempty"`
 }
 
 // ClusterResponse defines model for ClusterResponse.
@@ -288,6 +331,14 @@ type ErrorModel struct {
 	Type *string `json:"type,omitempty"`
 }
 
+// FormEnvironmentBody defines model for FormEnvironmentBody.
+type FormEnvironmentBody struct {
+	// Name Имя секции: default, dev, stage или prod
+	Name      string              `json:"name"`
+	Replicas  *int64              `json:"replicas,omitempty"`
+	Variables *[]FormVariableBody `json:"variables,omitempty"`
+}
+
 // FormVariableBody defines model for FormVariableBody.
 type FormVariableBody struct {
 	// Name Имя переменной окружения
@@ -400,6 +451,35 @@ type ProtocolView struct {
 	VersionId        *openapi_types.UUID     `json:"version_id,omitempty"`
 	VersionNumber    *int64                  `json:"version_number,omitempty"`
 }
+
+// PublishBuildInputBody defines model for PublishBuildInputBody.
+type PublishBuildInputBody struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: https://api.paas.traumtech.ru/schemas/PublishBuildInputBody.json
+	Schema *string `json:"$schema,omitempty"`
+
+	// Branch Ветка, из которой собран артефакт
+	Branch *string `json:"branch,omitempty"`
+
+	// CommitRevision Ревизия коммита, из которой собран артефакт
+	CommitRevision string `json:"commit_revision"`
+
+	// Contract Контракт сервиса как есть
+	Contract *string `json:"contract,omitempty"`
+
+	// ContractFormat Формат контракта
+	ContractFormat *PublishBuildInputBodyContractFormat `json:"contract_format,omitempty"`
+
+	// Form Форма сервиса и значения по окружениям
+	Form *BuildFormBody `json:"form,omitempty"`
+
+	// Image Адрес образа этой сборки
+	Image *string `json:"image,omitempty"`
+}
+
+// PublishBuildInputBodyContractFormat Формат контракта
+type PublishBuildInputBodyContractFormat string
 
 // PublishVersionInputBody defines model for PublishVersionInputBody.
 type PublishVersionInputBody struct {
@@ -554,6 +634,9 @@ type PublishProtocolParamsFormat string
 // ConnectClusterJSONRequestBody defines body for ConnectCluster for application/json ContentType.
 type ConnectClusterJSONRequestBody = ConnectClusterInputBody
 
+// PublishBuildJSONRequestBody defines body for PublishBuild for application/json ContentType.
+type PublishBuildJSONRequestBody = PublishBuildInputBody
+
 // CheckProtocolCompatibilityJSONRequestBody defines body for CheckProtocolCompatibility for application/json ContentType.
 type CheckProtocolCompatibilityJSONRequestBody = CheckProtocolCompatibilityJSONBody
 
@@ -674,6 +757,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /services/{id} (the `GetService` operationId).
 	GetService(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PublishBuildWithBody Опубликовать сборку ветки
+	//
+	// Фиксирует артефакт сборки (DEP-18): ревизия, ветка, образ, форма со значениями всех окружений и контракт. Окружение не называется — его выбирает выкатка. Идемпотентно по ревизии: повтор возвращает прежнюю сборку с кодом 200.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /services/{id}/builds (the `PublishBuild` operationId).
+	PublishBuildWithBody(ctx context.Context, id openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PublishBuild Опубликовать сборку ветки
+	//
+	// Фиксирует артефакт сборки (DEP-18): ревизия, ветка, образ, форма со значениями всех окружений и контракт. Окружение не называется — его выбирает выкатка. Идемпотентно по ревизии: повтор возвращает прежнюю сборку с кодом 200.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /services/{id}/builds (the `PublishBuild` operationId).
+	PublishBuild(ctx context.Context, id openapi_types.UUID, body PublishBuildJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetProtocol Получить протокол сервиса
 	//
@@ -822,6 +923,44 @@ func (c *Client) ListServices(ctx context.Context, params *ListServicesParams, r
 // Corresponds with GET /services/{id} (the `GetService` operationId).
 func (c *Client) GetService(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetServiceRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PublishBuildWithBody Опубликовать сборку ветки
+//
+// Фиксирует артефакт сборки (DEP-18): ревизия, ветка, образ, форма со значениями всех окружений и контракт. Окружение не называется — его выбирает выкатка. Идемпотентно по ревизии: повтор возвращает прежнюю сборку с кодом 200.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /services/{id}/builds (the `PublishBuild` operationId).
+func (c *Client) PublishBuildWithBody(ctx context.Context, id openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPublishBuildRequestWithBody(c.Server, id, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PublishBuild Опубликовать сборку ветки
+//
+// Фиксирует артефакт сборки (DEP-18): ревизия, ветка, образ, форма со значениями всех окружений и контракт. Окружение не называется — его выбирает выкатка. Идемпотентно по ревизии: повтор возвращает прежнюю сборку с кодом 200.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /services/{id}/builds (the `PublishBuild` operationId).
+func (c *Client) PublishBuild(ctx context.Context, id openapi_types.UUID, body PublishBuildJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPublishBuildRequest(c.Server, id, body)
 	if err != nil {
 		return nil, err
 	}
@@ -1164,6 +1303,53 @@ func NewGetServiceRequest(server string, id openapi_types.UUID) (*http.Request, 
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewPublishBuildRequest calls the generic PublishBuild builder with application/json body
+func NewPublishBuildRequest(server string, id openapi_types.UUID, body PublishBuildJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPublishBuildRequestWithBody(server, id, "application/json", bodyReader)
+}
+
+// NewPublishBuildRequestWithBody constructs an http.Request for the PublishBuild method, with any body, and a specified content type
+func NewPublishBuildRequestWithBody(server string, id openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/services/%s/builds", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -1655,6 +1841,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /services/{id} (the `GetService` operationId).
 	GetServiceWithResponse(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetServiceResponse, error)
 
+	// PublishBuildWithBodyWithResponse Опубликовать сборку ветки
+	//
+	// Фиксирует артефакт сборки (DEP-18): ревизия, ветка, образ, форма со значениями всех окружений и контракт. Окружение не называется — его выбирает выкатка. Идемпотентно по ревизии: повтор возвращает прежнюю сборку с кодом 200.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /services/{id}/builds (the `PublishBuild` operationId).
+	PublishBuildWithBodyWithResponse(ctx context.Context, id openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PublishBuildResponse, error)
+
+	// PublishBuildWithResponse Опубликовать сборку ветки
+	//
+	// Фиксирует артефакт сборки (DEP-18): ревизия, ветка, образ, форма со значениями всех окружений и контракт. Окружение не называется — его выбирает выкатка. Идемпотентно по ревизии: повтор возвращает прежнюю сборку с кодом 200.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /services/{id}/builds (the `PublishBuild` operationId).
+	PublishBuildWithResponse(ctx context.Context, id openapi_types.UUID, body PublishBuildJSONRequestBody, reqEditors ...RequestEditorFn) (*PublishBuildResponse, error)
+
 	// GetProtocolWithResponse Получить протокол сервиса
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -1919,6 +2123,61 @@ func (r GetServiceResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetServiceResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type PublishBuildResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *BuildResponse
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *BuildResponse
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PublishBuildResponse) GetJSON200() *BuildResponse {
+	return r.JSON200
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r PublishBuildResponse) GetJSON201() *BuildResponse {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r PublishBuildResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r PublishBuildResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PublishBuildResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PublishBuildResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PublishBuildResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -2346,6 +2605,36 @@ func (c *ClientWithResponses) GetServiceWithResponse(ctx context.Context, id ope
 	return ParseGetServiceResponse(rsp)
 }
 
+// PublishBuildWithBodyWithResponse Опубликовать сборку ветки
+//
+// Фиксирует артефакт сборки (DEP-18): ревизия, ветка, образ, форма со значениями всех окружений и контракт. Окружение не называется — его выбирает выкатка. Идемпотентно по ревизии: повтор возвращает прежнюю сборку с кодом 200.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /services/{id}/builds (the `PublishBuild` operationId).
+func (c *ClientWithResponses) PublishBuildWithBodyWithResponse(ctx context.Context, id openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PublishBuildResponse, error) {
+	rsp, err := c.PublishBuildWithBody(ctx, id, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePublishBuildResponse(rsp)
+}
+
+// PublishBuildWithResponse Опубликовать сборку ветки
+//
+// Фиксирует артефакт сборки (DEP-18): ревизия, ветка, образ, форма со значениями всех окружений и контракт. Окружение не называется — его выбирает выкатка. Идемпотентно по ревизии: повтор возвращает прежнюю сборку с кодом 200.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /services/{id}/builds (the `PublishBuild` operationId).
+func (c *ClientWithResponses) PublishBuildWithResponse(ctx context.Context, id openapi_types.UUID, body PublishBuildJSONRequestBody, reqEditors ...RequestEditorFn) (*PublishBuildResponse, error) {
+	rsp, err := c.PublishBuild(ctx, id, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePublishBuildResponse(rsp)
+}
+
 // GetProtocolWithResponse Получить протокол сервиса
 //
 // Returns a wrapper object for the known response body format(s).
@@ -2608,6 +2897,46 @@ func ParseGetServiceResponse(rsp *http.Response) (*GetServiceResponse, error) {
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePublishBuildResponse parses an HTTP response from a PublishBuildWithResponse call
+func ParsePublishBuildResponse(rsp *http.Response) (*PublishBuildResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PublishBuildResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BuildResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest BuildResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest ErrorModel

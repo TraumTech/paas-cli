@@ -30,6 +30,7 @@ import (
 	"github.com/TraumTech/paas-cli/internal/controllers/auth_login_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/auth_logout_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/auth_whoami_command_cli"
+	buildpublishcommandcli "github.com/TraumTech/paas-cli/internal/controllers/build_publish_command_cli"
 	clusterconnectcommandcli "github.com/TraumTech/paas-cli/internal/controllers/cluster_connect_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/dependency_register_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/protocol_compatibility_command_cli"
@@ -112,6 +113,7 @@ func Run(ctx context.Context, args []string) error {
 		return err
 	}
 	publishVersion := versionpublishcommandcli.New(usecases.NewPublishVersion(manifests, formreaderfile.New(), resolver, publisher))
+	publishBuild := buildpublishcommandcli.New(usecases.NewPublishBuild(manifests, formreaderfile.New(), resolver, publisher))
 
 	publishSource, err := protocolpublishhttp.New(baseURL, client)
 	if err != nil {
@@ -187,6 +189,13 @@ func Run(ctx context.Context, args []string) error {
 				Usage: "работа с версиями сервисов",
 				Commands: []*cli.Command{
 					publishVersion.CLICommand(),
+				},
+			},
+			{
+				Name:  "builds",
+				Usage: "сборки веток сервиса (артефакты выкатки)",
+				Commands: []*cli.Command{
+					publishBuild.CLICommand(),
 				},
 			},
 			{

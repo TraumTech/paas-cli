@@ -13,6 +13,7 @@ methods = [
     "GET /services/{id}", # protocol_source_http: метаданные сервиса перед получением контракта
     "GET /services/{id}/protocol", # protocol_source_http: получение контракта (sync/fetch)
     "POST /services/{id}/versions", # version_publisher_http: публикация версии из выкатки
+    "POST /services/{id}/builds", # build_publisher_http: публикация сборки ветки (DEP-18)
     "POST /services/{id}/protocol/compatibility", # protocol_compatibility_http: проверка кандидата
     "PUT /services/{id}/versions/{version_id}/dependencies", # dependency_registrar_http: регистрация зависимости
     "PUT /services/{id}/versions/{version_id}/protocol", # protocol_publish_http: публикация протокола

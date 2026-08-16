@@ -34,6 +34,76 @@
         ],
         "type": "object"
       },
+      "BuildFormBody": {
+        "additionalProperties": false,
+        "properties": {
+          "environments": {
+            "description": "Секции [env.*]: default — общие значения",
+            "items": {
+              "$ref": "#/components/schemas/FormEnvironmentBody"
+            },
+            "type": "array"
+          },
+          "processes": {
+            "description": "Процессы сервиса",
+            "items": {
+              "$ref": "#/components/schemas/ProcessFormBody"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "processes"
+        ],
+        "type": "object"
+      },
+      "BuildResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://api.paas.traumtech.ru/schemas/BuildResponse.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "branch": {
+            "type": "string"
+          },
+          "commit_revision": {
+            "type": "string"
+          },
+          "contract_format": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "form": {
+            "$ref": "#/components/schemas/BuildFormBody"
+          },
+          "has_contract": {
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "image": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "commit_revision",
+          "created_at",
+          "has_contract"
+        ],
+        "type": "object"
+      },
       "ClusterResponse": {
         "additionalProperties": false,
         "properties": {
@@ -301,6 +371,29 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "FormEnvironmentBody": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "Имя секции: default, dev, stage или prod",
+            "type": "string"
+          },
+          "replicas": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "variables": {
+            "items": {
+              "$ref": "#/components/schemas/FormVariableBody"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "name"
+        ],
         "type": "object"
       },
       "FormVariableBody": {
@@ -615,6 +708,52 @@
         "required": [
           "service_id",
           "published"
+        ],
+        "type": "object"
+      },
+      "PublishBuildInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://api.paas.traumtech.ru/schemas/PublishBuildInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "branch": {
+            "description": "Ветка, из которой собран артефакт",
+            "type": "string"
+          },
+          "commit_revision": {
+            "description": "Ревизия коммита, из которой собран артефакт",
+            "type": "string"
+          },
+          "contract": {
+            "description": "Контракт сервиса как есть",
+            "type": "string"
+          },
+          "contract_format": {
+            "description": "Формат контракта",
+            "enum": [
+              "openapi",
+              "grpc"
+            ],
+            "type": "string"
+          },
+          "form": {
+            "$ref": "#/components/schemas/BuildFormBody",
+            "description": "Форма сервиса и значения по окружениям"
+          },
+          "image": {
+            "description": "Адрес образа этой сборки",
+            "type": "string"
+          }
+        },
+        "required": [
+          "commit_revision"
         ],
         "type": "object"
       },
@@ -1030,6 +1169,71 @@
         "summary": "Получить сервис по ID",
         "tags": [
           "services"
+        ]
+      }
+    },
+    "/services/{id}/builds": {
+      "post": {
+        "description": "Фиксирует артефакт сборки (DEP-18): ревизия, ветка, образ, форма со значениями всех окружений и контракт. Окружение не называется — его выбирает выкатка. Идемпотентно по ревизии: повтор возвращает прежнюю сборку с кодом 200.",
+        "operationId": "publish-build",
+        "parameters": [
+          {
+            "description": "ID сервиса",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "ID сервиса",
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishBuildInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildResponse"
+                }
+              }
+            },
+            "description": "Ревизия уже собрана — идемпотентный повтор"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildResponse"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Опубликовать сборку ветки",
+        "tags": [
+          "builds"
         ]
       }
     },
