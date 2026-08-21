@@ -29,6 +29,8 @@ var (
 	ErrUnknownFormEnvironment = newDomainError("секция [env.<окружение>] в paas.toml указывает на неизвестное окружение: допустимы default, dev, stage, prod")
 
 	ErrMethodsUnsupportedForFormat = newDomainError("сужение до методов для контракта этого формата не поддерживается — уберите methods у этой зависимости")
+	// Срез до атрибутов (PRT-29) пока умеет только OpenAPI.
+	ErrAttributesUnsupportedForFormat = newDomainError("срез до атрибутов для контракта этого формата не поддерживается — уберите attributes у этой зависимости")
 
 	ErrManifestNoDependencies   = newDomainError("в манифесте не объявлено ни одной зависимости")
 	ErrManifestDependencyNoName = newDomainError("у зависимости в манифесте не указано имя сервиса")

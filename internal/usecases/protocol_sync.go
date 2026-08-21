@@ -52,10 +52,11 @@ func (uc *SyncProtocolsUseCase) Execute(ctx context.Context, in SyncProtocolsInp
 		if !ok {
 			return nil, fmt.Errorf("зависимость %q: %w", dep.Name, entities.ErrServiceNotFound)
 		}
-		// Сужение до методов выполняет платформа (CLI-09). Если движка сужения для
-		// формата нет, платформа приносит контракт целиком с narrowingSkipped —
-		// честно отражаем это в отчёте, а не молчим.
-		protocol, narrowingSkipped, err := uc.source.FetchProtocol(ctx, serviceID, dep.Methods)
+		// Сужение до методов и срез до атрибутов выполняет платформа (CLI-09,
+		// PRT-29). Если движка для формата нет, платформа приносит контракт без
+		// соответствующего среза с честным признаком — отражаем его в отчёте, а
+		// не молчим.
+		protocol, narrowingSkipped, attributeNarrowingSkipped, err := uc.source.FetchProtocol(ctx, serviceID, dep.Methods, dep.Attributes)
 		if err != nil {
 			return nil, fmt.Errorf("зависимость %q: %w", dep.Name, err)
 		}
@@ -67,11 +68,12 @@ func (uc *SyncProtocolsUseCase) Execute(ctx context.Context, in SyncProtocolsInp
 			return nil, fmt.Errorf("зависимость %q: %w", dep.Name, err)
 		}
 		results = append(results, FetchProtocolResult{
-			ServiceName:      protocol.ServiceName,
-			VersionNumber:    protocol.VersionNumber,
-			Format:           protocol.Format,
-			Path:             path,
-			NarrowingSkipped: narrowingSkipped,
+			ServiceName:               protocol.ServiceName,
+			VersionNumber:             protocol.VersionNumber,
+			Format:                    protocol.Format,
+			Path:                      path,
+			NarrowingSkipped:          narrowingSkipped,
+			AttributeNarrowingSkipped: attributeNarrowingSkipped,
 		})
 	}
 

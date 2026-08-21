@@ -669,6 +669,9 @@
             "readOnly": true,
             "type": "string"
           },
+          "attribute_narrowing_skipped": {
+            "type": "boolean"
+          },
           "document": {
             "additionalProperties": {},
             "type": "object"
@@ -1269,6 +1272,19 @@
             "name": "methods",
             "schema": {
               "description": "Оставить в контракте только эти методы (\"МЕТОД /путь\" у OpenAPI); пусто — контракт целиком",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          {
+            "description": "Оставить внутри методов только эти атрибуты (идентичностью атрибута: \"GET /services#response.200.name\" у OpenAPI); пусто — методы целиком",
+            "explode": false,
+            "in": "query",
+            "name": "attributes",
+            "schema": {
+              "description": "Оставить внутри методов только эти атрибуты (идентичностью атрибута: \"GET /services#response.200.name\" у OpenAPI); пусто — методы целиком",
               "items": {
                 "type": "string"
               },

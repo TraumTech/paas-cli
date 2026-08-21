@@ -64,6 +64,8 @@ func (c *Command) run(ctx context.Context, cmd *cli.Command) error {
 		note := ""
 		if p.NarrowingSkipped {
 			note = " — целиком: сужение по методам для этого формата не поддерживается, methods учитываются при регистрации зависимостей"
+		} else if p.AttributeNarrowingSkipped {
+			note = " — по методам целиком: срез до атрибутов для этого формата не поддерживается, attributes на снимок не влияют"
 		}
 		fmt.Fprintf(cmd.Root().Writer, "✓ Контракт сервиса %s (версия %d%s) записан в %s%s\n",
 			p.ServiceName, p.VersionNumber, formatLabel(p.Format), p.Path, note)

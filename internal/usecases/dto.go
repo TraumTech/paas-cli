@@ -16,17 +16,23 @@ type FetchProtocolInput struct {
 	// контракт целиком; иначе платформа обрезает контракт до них ещё до отдачи
 	// (CLI-09).
 	Methods []string
+	// Attributes — идентичности атрибутов, которые нужно оставить внутри методов
+	// ("GET /services#response.200.name" у OpenAPI); срез выполняет платформа
+	// (PRT-29). Требует непустого Methods.
+	Attributes []string
 }
 
 // FetchProtocolResult — итог получения протокола для отчёта пользователю.
 // NarrowingSkipped — у зависимости объявлены methods, но сужение для её формата
 // не поддерживается: контракт принесён целиком, отчёт это отражает.
+// AttributeNarrowingSkipped — то же про attributes: принесён срез по методам.
 type FetchProtocolResult struct {
-	ServiceName      string
-	VersionNumber    int
-	Format           entities.ProtocolFormat
-	Path             string
-	NarrowingSkipped bool
+	ServiceName               string
+	VersionNumber             int
+	Format                    entities.ProtocolFormat
+	Path                      string
+	NarrowingSkipped          bool
+	AttributeNarrowingSkipped bool
 }
 
 type SyncProtocolsInput struct {

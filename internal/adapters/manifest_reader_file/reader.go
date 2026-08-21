@@ -69,9 +69,10 @@ type fileService struct {
 }
 
 type fileDependency struct {
-	Name    string   `toml:"name"`
-	Methods []string `toml:"methods"`
-	Waived  []string `toml:"waived"`
+	Name       string   `toml:"name"`
+	Methods    []string `toml:"methods"`
+	Waived     []string `toml:"waived"`
+	Attributes []string `toml:"attributes"`
 }
 
 func (r *Reader) Read(_ context.Context, path string) (*entities.Manifest, error) {
@@ -98,9 +99,10 @@ func (r *Reader) Read(_ context.Context, path string) (*entities.Manifest, error
 	}
 	for _, dep := range file.Dependencies {
 		manifest.Dependencies = append(manifest.Dependencies, entities.ManifestDependency{
-			Name:    dep.Name,
-			Methods: dep.Methods,
-			Waived:  dep.Waived,
+			Name:       dep.Name,
+			Methods:    dep.Methods,
+			Waived:     dep.Waived,
+			Attributes: dep.Attributes,
 		})
 	}
 	return manifest, nil

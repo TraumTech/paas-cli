@@ -439,17 +439,18 @@ type ProtocolView struct {
 	// Schema A URL to the JSON Schema for this object.
 	//
 	// Examples: https://api.paas.traumtech.ru/schemas/ProtocolView.json
-	Schema           *string                 `json:"$schema,omitempty"`
-	Document         *map[string]interface{} `json:"document,omitempty"`
-	DocumentText     *string                 `json:"document_text,omitempty"`
-	Format           *string                 `json:"format,omitempty"`
-	Name             *string                 `json:"name,omitempty"`
-	NarrowingSkipped *bool                   `json:"narrowing_skipped,omitempty"`
-	Published        bool                    `json:"published"`
-	PublishedAt      *time.Time              `json:"published_at,omitempty"`
-	ServiceId        openapi_types.UUID      `json:"service_id"`
-	VersionId        *openapi_types.UUID     `json:"version_id,omitempty"`
-	VersionNumber    *int64                  `json:"version_number,omitempty"`
+	Schema                    *string                 `json:"$schema,omitempty"`
+	AttributeNarrowingSkipped *bool                   `json:"attribute_narrowing_skipped,omitempty"`
+	Document                  *map[string]interface{} `json:"document,omitempty"`
+	DocumentText              *string                 `json:"document_text,omitempty"`
+	Format                    *string                 `json:"format,omitempty"`
+	Name                      *string                 `json:"name,omitempty"`
+	NarrowingSkipped          *bool                   `json:"narrowing_skipped,omitempty"`
+	Published                 bool                    `json:"published"`
+	PublishedAt               *time.Time              `json:"published_at,omitempty"`
+	ServiceId                 openapi_types.UUID      `json:"service_id"`
+	VersionId                 *openapi_types.UUID     `json:"version_id,omitempty"`
+	VersionNumber             *int64                  `json:"version_number,omitempty"`
 }
 
 // PublishBuildInputBody defines model for PublishBuildInputBody.
@@ -602,6 +603,9 @@ type GetProtocolParams struct {
 
 	// Methods Оставить в контракте только эти методы ("МЕТОД /путь" у OpenAPI); пусто — контракт целиком
 	Methods *[]string `form:"methods,omitempty" json:"methods,omitempty"`
+
+	// Attributes Оставить внутри методов только эти атрибуты (идентичностью атрибута: "GET /services#response.200.name" у OpenAPI); пусто — методы целиком
+	Attributes *[]string `form:"attributes,omitempty" json:"attributes,omitempty"`
 }
 
 // CheckProtocolCompatibilityJSONBody defines parameters for CheckProtocolCompatibility.
@@ -1404,6 +1408,18 @@ func NewGetProtocolRequest(server string, id openapi_types.UUID, params *GetProt
 		if params.Methods != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "methods", *params.Methods, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "array", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Attributes != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "attributes", *params.Attributes, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "array", Format: ""}); err != nil {
 				return nil, err
 			} else {
 				for _, qp := range strings.Split(queryFrag, "&") {

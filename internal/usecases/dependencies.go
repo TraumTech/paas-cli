@@ -10,13 +10,15 @@ import (
 
 // ProtocolSource достаёт актуальный опубликованный контракт сервиса из платформы.
 // Непустой methods — контракт, суженный платформой до этих методов (CLI-09);
-// narrowingSkipped — сужение для формата контракта не поддерживается, контракт
-// пришёл целиком. Возвращает entities.ErrServiceNotFound /
-// entities.ErrProtocolNotPublished, когда контракта нет — use case транслирует
-// их пользователю как есть; отказ платформы в сужении (метод не найден в
-// контракте) приходит ошибкой с её сообщением.
+// непустой attributes — срез внутри методов до объявленных атрибутов (PRT-29).
+// narrowingSkipped / attributeNarrowingSkipped — соответствующий срез для
+// формата контракта не поддерживается, контракт пришёл без него. Возвращает
+// entities.ErrServiceNotFound / entities.ErrProtocolNotPublished, когда
+// контракта нет — use case транслирует их пользователю как есть; отказ
+// платформы в сужении (метод или атрибут не найден в контракте) приходит
+// ошибкой с её сообщением.
 type ProtocolSource interface {
-	FetchProtocol(ctx context.Context, serviceID string, methods []string) (protocol *entities.Protocol, narrowingSkipped bool, err error)
+	FetchProtocol(ctx context.Context, serviceID string, methods, attributes []string) (protocol *entities.Protocol, narrowingSkipped, attributeNarrowingSkipped bool, err error)
 }
 
 // ProtocolStore сохраняет контракт к потребителю в директорию destDir и

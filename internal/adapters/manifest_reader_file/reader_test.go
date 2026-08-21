@@ -42,6 +42,20 @@ methods = ["GET /a", "POST /b"]
 }
 
 // PRT-26: отказы от атрибутов читаются рядом с методами; их отсутствие — пусто.
+func TestRead_Attributes(t *testing.T) {
+	path := writeManifest(t, `
+[[dependencies]]
+name = "paas-backend"
+methods = ["GET /services"]
+attributes = ["GET /services#response.200.name"]
+`)
+
+	got, err := manifestreaderfile.New().Read(context.Background(), path)
+	require.NoError(t, err)
+	require.Len(t, got.Dependencies, 1)
+	assert.Equal(t, []string{"GET /services#response.200.name"}, got.Dependencies[0].Attributes)
+}
+
 func TestRead_WaivedAttributes(t *testing.T) {
 	path := writeManifest(t, `
 [[dependencies]]

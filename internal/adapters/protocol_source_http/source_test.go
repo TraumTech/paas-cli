@@ -41,7 +41,7 @@ func TestFetchProtocol_Published(t *testing.T) {
 		}
 	})
 
-	got, _, err := src.FetchProtocol(context.Background(), svcID, nil)
+	got, _, _, err := src.FetchProtocol(context.Background(), svcID, nil, nil)
 	require.NoError(t, err)
 	assert.Equal(t, svcID, got.ServiceID)
 	assert.Equal(t, "payments", got.ServiceName)
@@ -59,7 +59,7 @@ func TestFetchProtocol_NotPublished(t *testing.T) {
 		writeJSON(w, `{"published":false}`)
 	})
 
-	_, _, err := src.FetchProtocol(context.Background(), svcID, nil)
+	_, _, _, err := src.FetchProtocol(context.Background(), svcID, nil, nil)
 	assert.ErrorIs(t, err, entities.ErrProtocolNotPublished)
 }
 
@@ -68,7 +68,7 @@ func TestFetchProtocol_ServiceNotFound(t *testing.T) {
 		w.WriteHeader(http.StatusNotFound)
 	})
 
-	_, _, err := src.FetchProtocol(context.Background(), svcID, nil)
+	_, _, _, err := src.FetchProtocol(context.Background(), svcID, nil, nil)
 	assert.ErrorIs(t, err, entities.ErrServiceNotFound)
 }
 
@@ -77,7 +77,7 @@ func TestFetchProtocol_ServerError(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 	})
 
-	_, _, err := src.FetchProtocol(context.Background(), svcID, nil)
+	_, _, _, err := src.FetchProtocol(context.Background(), svcID, nil, nil)
 	require.Error(t, err)
 	assert.NotErrorIs(t, err, entities.ErrServiceNotFound)
 }
@@ -87,14 +87,14 @@ func TestFetchProtocol_InvalidID(t *testing.T) {
 		t.Errorf("платформа не должна вызываться при неверном id")
 	})
 
-	_, _, err := src.FetchProtocol(context.Background(), "not-a-uuid", nil)
+	_, _, _, err := src.FetchProtocol(context.Background(), "not-a-uuid", nil, nil)
 	require.Error(t, err)
 }
 
 func TestFetchProtocol_Unreachable(t *testing.T) {
 	src, err := protocolsourcehttp.New("http://127.0.0.1:0", http.DefaultClient)
 	require.NoError(t, err)
-	_, _, err = src.FetchProtocol(context.Background(), svcID, nil)
+	_, _, _, err = src.FetchProtocol(context.Background(), svcID, nil, nil)
 	require.Error(t, err)
 }
 
@@ -113,7 +113,7 @@ func TestFetchProtocol_MethodsSentToPlatform(t *testing.T) {
 		}
 	})
 
-	got, narrowingSkipped, err := src.FetchProtocol(context.Background(), svcID, []string{"GET /a", "POST /b"})
+	got, narrowingSkipped, _, err := src.FetchProtocol(context.Background(), svcID, []string{"GET /a", "POST /b"}, nil)
 	require.NoError(t, err)
 	assert.False(t, narrowingSkipped)
 	assert.JSONEq(t, `{"openapi":"3.1.0","paths":{"/a":{}}}`, string(got.Document))
@@ -129,7 +129,7 @@ func TestFetchProtocol_NarrowingSkipped(t *testing.T) {
 		}
 	})
 
-	_, narrowingSkipped, err := src.FetchProtocol(context.Background(), svcID, []string{"pkg.Svc/Method"})
+	_, narrowingSkipped, _, err := src.FetchProtocol(context.Background(), svcID, []string{"pkg.Svc/Method"}, nil)
 	require.NoError(t, err)
 	assert.True(t, narrowingSkipped)
 }
@@ -147,7 +147,7 @@ func TestFetchProtocol_PlatformRejectsMethods(t *testing.T) {
 		}
 	})
 
-	_, _, err := src.FetchProtocol(context.Background(), svcID, []string{"DELETE /orders"})
+	_, _, _, err := src.FetchProtocol(context.Background(), svcID, []string{"DELETE /orders"}, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "methods not found in protocol: DELETE /orders")
 }
@@ -169,7 +169,7 @@ func TestFetchProtocol_GRPCFromDocumentText(t *testing.T) {
 		}
 	})
 
-	got, _, err := src.FetchProtocol(context.Background(), svcID, nil)
+	got, _, _, err := src.FetchProtocol(context.Background(), svcID, nil, nil)
 	require.NoError(t, err)
 	assert.Equal(t, entities.ProtocolFormatGRPC, got.Format)
 	assert.Equal(t, proto, string(got.Document))
@@ -188,7 +188,7 @@ func TestFetchProtocol_UnknownFormat(t *testing.T) {
 		}
 	})
 
-	_, _, err := src.FetchProtocol(context.Background(), svcID, nil)
+	_, _, _, err := src.FetchProtocol(context.Background(), svcID, nil, nil)
 	var unsupported *entities.UnsupportedProtocolFormatError
 	require.ErrorAs(t, err, &unsupported)
 	assert.Equal(t, "graphql", unsupported.Name)

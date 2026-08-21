@@ -43,10 +43,18 @@ type ManifestService struct {
 // "полное.имя.Типа.поле", у вокабуляра — "полное.имя.Типа.ЗНАЧЕНИЕ". Перечень
 // не обязан быть полным: по умолчанию используются все атрибуты, а объявляем мы
 // только отпущенное — поэтому он короткий и не гниёт.
+//
+// Attributes — используемые атрибуты внутри объявленных методов (PRT-29),
+// идентичностью атрибута формата ("GET /services#response.200.name" у OpenAPI):
+// снимок сужается до них, метод без объявленных атрибутов едет целиком. В
+// отличие от Waived этот перечень управляет снимком, а снимок — кодогенерацией,
+// поэтому использовать необъявленное физически нельзя и перечень не гниёт.
+// Требует объявленных Methods.
 type ManifestDependency struct {
-	Name    string
-	Methods []string
-	Waived  []string
+	Name       string
+	Methods    []string
+	Waived     []string
+	Attributes []string
 }
 
 // EffectiveDestination — директория для раскладки контрактов: явная из манифеста,
@@ -80,6 +88,9 @@ func (m *Manifest) Validate() error {
 		}
 		if _, dup := seen[dep.Name]; dup {
 			return &ManifestDuplicateError{Name: dep.Name}
+		}
+		if len(dep.Attributes) > 0 && len(dep.Methods) == 0 {
+			return &ManifestAttributesWithoutMethodsError{Name: dep.Name}
 		}
 		seen[dep.Name] = struct{}{}
 	}
@@ -120,4 +131,14 @@ type ManifestDuplicateError struct {
 
 func (e *ManifestDuplicateError) Error() string {
 	return fmt.Sprintf("сервис %q объявлен в манифесте повторно", e.Name)
+}
+
+// ManifestAttributesWithoutMethodsError — у зависимости объявлены attributes без
+// methods: атрибут живёт внутри объявленного метода (PRT-29).
+type ManifestAttributesWithoutMethodsError struct {
+	Name string
+}
+
+func (e *ManifestAttributesWithoutMethodsError) Error() string {
+	return fmt.Sprintf("у зависимости %q объявлены attributes без methods: атрибуты объявляются внутри объявленных методов", e.Name)
 }

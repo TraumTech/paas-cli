@@ -71,6 +71,24 @@ func TestManifestRequireService_NoContract(t *testing.T) {
 	assert.ErrorIs(t, err, entities.ErrManifestServiceNoContract)
 }
 
+func TestManifestValidate_AttributesWithoutMethods(t *testing.T) {
+	// Атрибут живёт внутри объявленного метода (PRT-29): attributes без methods —
+	// понятная ошибка с именем зависимости.
+	m := &entities.Manifest{Service: ownService(), Dependencies: []entities.ManifestDependency{
+		{Name: "paas-backend", Attributes: []string{"GET /services#response.200.name"}},
+	}}
+	var noMethods *entities.ManifestAttributesWithoutMethodsError
+	assert.ErrorAs(t, m.Validate(), &noMethods)
+	assert.Equal(t, "paas-backend", noMethods.Name)
+}
+
+func TestManifestValidate_AttributesWithMethods(t *testing.T) {
+	m := &entities.Manifest{Service: ownService(), Dependencies: []entities.ManifestDependency{
+		{Name: "paas-backend", Methods: []string{"GET /services"}, Attributes: []string{"GET /services#response.200.name"}},
+	}}
+	assert.NoError(t, m.Validate())
+}
+
 func TestManifestValidate_Duplicate(t *testing.T) {
 	m := &entities.Manifest{Service: ownService(), Dependencies: []entities.ManifestDependency{
 		{Name: "paas-backend"},

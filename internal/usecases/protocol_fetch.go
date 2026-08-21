@@ -17,16 +17,19 @@ func NewFetchProtocol(source ProtocolSource, store ProtocolStore) *FetchProtocol
 }
 
 func (uc *FetchProtocolUseCase) Execute(ctx context.Context, in FetchProtocolInput) (*FetchProtocolResult, error) {
-	// Сужение до методов выполняет платформа (CLI-09) — CLI получает уже
-	// частичный контракт.
-	protocol, narrowingSkipped, err := uc.source.FetchProtocol(ctx, in.ServiceID, in.Methods)
+	// Сужение до методов и срез до атрибутов выполняет платформа (CLI-09,
+	// PRT-29) — CLI получает уже частичный контракт.
+	protocol, narrowingSkipped, attributeNarrowingSkipped, err := uc.source.FetchProtocol(ctx, in.ServiceID, in.Methods, in.Attributes)
 	if err != nil {
 		return nil, fmt.Errorf("fetch protocol: %w", err)
 	}
-	// Формат без движка сужения у явного fetch -m — ошибка: пользователь просил
-	// срез, молча класть целиком нельзя.
+	// Формат без движка сужения у явного fetch — ошибка: пользователь просил
+	// срез, молча класть без него нельзя.
 	if narrowingSkipped {
 		return nil, entities.ErrMethodsUnsupportedForFormat
+	}
+	if attributeNarrowingSkipped {
+		return nil, entities.ErrAttributesUnsupportedForFormat
 	}
 	if err := protocol.Validate(); err != nil {
 		return nil, fmt.Errorf("validate protocol: %w", err)
