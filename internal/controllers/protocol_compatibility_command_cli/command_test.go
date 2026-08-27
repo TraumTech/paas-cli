@@ -14,20 +14,20 @@ import (
 	"github.com/TraumTech/paas-cli/internal/usecases"
 )
 
-func rootWith(checker CompatibilityChecker, out *bytes.Buffer) *cli.Command {
+func rootWith(checker CompatibilityChecker, manifest ManifestCompatibilityChecker, out *bytes.Buffer) *cli.Command {
 	return &cli.Command{
 		Name:   "paas-cli",
 		Writer: out,
 		Commands: []*cli.Command{{
 			Name:     "protocols",
-			Commands: []*cli.Command{New(checker).CLICommand()},
+			Commands: []*cli.Command{New(checker, manifest).CLICommand()},
 		}},
 	}
 }
 
 func run(t *testing.T, checker CompatibilityChecker, out *bytes.Buffer) error {
 	t.Helper()
-	return rootWith(checker, out).Run(context.Background(),
+	return rootWith(checker, nil, out).Run(context.Background(),
 		[]string{"paas-cli", "protocols", "compatibility", "svc", "openapi.json"})
 }
 
@@ -111,10 +111,11 @@ func TestCommandRun_Incomparable(t *testing.T) {
 func TestCommandRun_RequiresTwoArgs(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	checker := NewMockCompatibilityChecker(ctrl)
-	// Execute не вызывается — аргументы не прошли разбор.
+	// Execute не вызывается — аргументы не прошли разбор; без аргументов —
+	// манифестный режим, поэтому ошибочны только 1 и 3+.
 
-	for _, extra := range [][]string{{}, {"svc"}, {"svc", "a", "b"}} {
-		root := rootWith(checker, &bytes.Buffer{})
+	for _, extra := range [][]string{{"svc"}, {"svc", "a", "b"}} {
+		root := rootWith(checker, nil, &bytes.Buffer{})
 		args := append([]string{"paas-cli", "protocols", "compatibility"}, extra...)
 		assert.Error(t, root.Run(context.Background(), args))
 	}
@@ -136,11 +137,90 @@ func TestCommandRun_UnsupportedFormat(t *testing.T) {
 	checker.EXPECT().Execute(gomock.Any(), gomock.Any()).Times(0)
 
 	var out bytes.Buffer
-	err := rootWith(checker, &out).Run(context.Background(),
+	err := rootWith(checker, nil, &out).Run(context.Background(),
 		[]string{"paas-cli", "protocols", "compatibility", "--format", "graphql", "svc", "x.proto"})
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "graphql")
+}
+
+// Имя протокола-кандидата из флага доходит до use case (CLI-23).
+func TestCommandRun_NameFlag(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	checker := NewMockCompatibilityChecker(ctrl)
+	checker.EXPECT().
+		Execute(gomock.Any(), usecases.CheckCompatibilityInput{ServiceID: "svc", Name: "admin", Format: entities.ProtocolFormatOpenAPI, CandidatePath: "admin.json"}).
+		Return(&entities.CompatibilityReport{}, nil)
+
+	var out bytes.Buffer
+	err := rootWith(checker, nil, &out).Run(context.Background(),
+		[]string{"paas-cli", "protocols", "compatibility", "--name", "admin", "svc", "admin.json"})
+
+	require.NoError(t, err)
+}
+
+func runManifest(t *testing.T, manifest ManifestCompatibilityChecker, out *bytes.Buffer) error {
+	t.Helper()
+	return rootWith(nil, manifest, out).Run(context.Background(),
+		[]string{"paas-cli", "protocols", "compatibility"})
+}
+
+// Без аргументов — манифестный режим (CLI-23): сводка по каждому протоколу
+// подписана именем, у безымянной записи вид прежний.
+func TestCommandRun_ManifestMode(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	manifest := NewMockManifestCompatibilityChecker(ctrl)
+	manifest.EXPECT().
+		Execute(gomock.Any(), usecases.CheckManifestCompatibilityInput{ManifestPath: ""}).
+		Return(&entities.ManifestCompatibilityReport{Reports: []entities.NamedCompatibilityReport{
+			{Name: "http", Report: entities.CompatibilityReport{Consumers: []entities.ConsumerCompatibility{
+				{ServiceName: "frontend", VersionNumber: 5, Comparable: true},
+			}}},
+			{Name: "internal-grpc", Report: entities.CompatibilityReport{}},
+		}}, nil)
+
+	var out bytes.Buffer
+	require.NoError(t, runManifest(t, manifest, &out))
+	assert.Contains(t, out.String(), `Протокол "http":`)
+	assert.Contains(t, out.String(), "frontend v5: совместимо, без изменений")
+	assert.Contains(t, out.String(), `Протокол "internal-grpc":`)
+	assert.Contains(t, out.String(), "никого не затрагивает")
+}
+
+// Ломающий кандидат любого протокола — ненулевой код выхода; сводки по
+// остальным протоколам всё равно печатаются.
+func TestCommandRun_ManifestModeBreaking(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	manifest := NewMockManifestCompatibilityChecker(ctrl)
+	manifest.EXPECT().Execute(gomock.Any(), gomock.Any()).
+		Return(&entities.ManifestCompatibilityReport{Reports: []entities.NamedCompatibilityReport{
+			{Name: "http", Report: entities.CompatibilityReport{Breaking: true, Consumers: []entities.ConsumerCompatibility{
+				{ServiceName: "frontend", VersionNumber: 5, Comparable: true, Breaking: true},
+			}}},
+			{Name: "internal-grpc", Report: entities.CompatibilityReport{}},
+		}}, nil)
+
+	var out bytes.Buffer
+	err := runManifest(t, manifest, &out)
+	require.Error(t, err)
+	assert.Contains(t, out.String(), "frontend v5: ЛОМАЕТ")
+	assert.Contains(t, out.String(), `Протокол "internal-grpc":`)
+}
+
+// Осиротевший протокол без потребителей проверку не держит, но о нём
+// предупреждается.
+func TestCommandRun_ManifestModeOrphanedWarning(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	manifest := NewMockManifestCompatibilityChecker(ctrl)
+	manifest.EXPECT().Execute(gomock.Any(), gomock.Any()).
+		Return(&entities.ManifestCompatibilityReport{
+			Reports:  []entities.NamedCompatibilityReport{{Name: "http", Report: entities.CompatibilityReport{}}},
+			Orphaned: []string{"admin"},
+		}, nil)
+
+	var out bytes.Buffer
+	require.NoError(t, runManifest(t, manifest, &out))
+	assert.Contains(t, out.String(), `протокол "admin" остался в реестре, но исчез из манифеста`)
 }
 
 // gRPC-кандидат: формат из флага доходит до use case.
@@ -152,7 +232,7 @@ func TestCommandRun_GRPCFormat(t *testing.T) {
 		Return(&entities.CompatibilityReport{}, nil)
 
 	var out bytes.Buffer
-	err := rootWith(checker, &out).Run(context.Background(),
+	err := rootWith(checker, nil, &out).Run(context.Background(),
 		[]string{"paas-cli", "protocols", "compatibility", "--format", "grpc", "svc", "registry.proto"})
 
 	require.NoError(t, err)

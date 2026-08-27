@@ -45,7 +45,7 @@ func resolve(path string) (string, error) {
 	if err := toml.Unmarshal(data, &unified); err != nil {
 		return "", fmt.Errorf("манифест %s не разобран как TOML: %w", unifiedManifestPath, err)
 	}
-	if unified.Service == nil && len(unified.Dependencies) == 0 {
+	if unified.Service == nil && len(unified.Protocols) == 0 && len(unified.Dependencies) == 0 {
 		if _, err := os.Stat(legacyManifestPath); err == nil {
 			return "", fmt.Errorf("%s не содержит секций манифеста ([service], dependencies) — перенесите их из %s: paas.toml теперь единственный манифест репозитория",
 				unifiedManifestPath, legacyManifestPath)
@@ -58,11 +58,18 @@ func resolve(path string) (string, error) {
 // entities.Manifest живёт только здесь, в адаптере.
 type fileManifest struct {
 	Service      *fileService     `toml:"service"`
+	Protocols    []fileProtocol   `toml:"protocols"`
 	Destination  string           `toml:"destination"`
 	Dependencies []fileDependency `toml:"dependencies"`
 }
 
 type fileService struct {
+	Name     string `toml:"name"`
+	Contract string `toml:"contract"`
+	Format   string `toml:"format"`
+}
+
+type fileProtocol struct {
 	Name     string `toml:"name"`
 	Contract string `toml:"contract"`
 	Format   string `toml:"format"`
@@ -96,6 +103,13 @@ func (r *Reader) Read(_ context.Context, path string) (*entities.Manifest, error
 			Contract: file.Service.Contract,
 			Format:   file.Service.Format,
 		}
+	}
+	for _, p := range file.Protocols {
+		manifest.Protocols = append(manifest.Protocols, entities.ManifestProtocol{
+			Name:     p.Name,
+			Contract: p.Contract,
+			Format:   p.Format,
+		})
 	}
 	for _, dep := range file.Dependencies {
 		manifest.Dependencies = append(manifest.Dependencies, entities.ManifestDependency{

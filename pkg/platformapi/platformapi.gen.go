@@ -396,6 +396,18 @@ type ProductResponse struct {
 // ProductResponseStage defines model for ProductResponse.Stage.
 type ProductResponseStage string
 
+// ProtocolConsumerResponse defines model for ProtocolConsumerResponse.
+type ProtocolConsumerResponse struct {
+	ConsumerServiceId     openapi_types.UUID `json:"consumer_service_id"`
+	ConsumerServiceName   string             `json:"consumer_service_name"`
+	ConsumerVersionId     openapi_types.UUID `json:"consumer_version_id"`
+	ConsumerVersionNumber int64              `json:"consumer_version_number"`
+	Format                string             `json:"format"`
+	Methods               []string           `json:"methods"`
+	RegisteredAt          time.Time          `json:"registered_at"`
+	WaivedAttributes      []string           `json:"waived_attributes"`
+}
+
 // ProtocolDependencyResponse defines model for ProtocolDependencyResponse.
 type ProtocolDependencyResponse struct {
 	// Schema A URL to the JSON Schema for this object.
@@ -410,6 +422,16 @@ type ProtocolDependencyResponse struct {
 	ProducerServiceId openapi_types.UUID `json:"producer_service_id"`
 	RegisteredAt      time.Time          `json:"registered_at"`
 	WaivedAttributes  []string           `json:"waived_attributes"`
+}
+
+// ProtocolListView defines model for ProtocolListView.
+type ProtocolListView struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: https://api.paas.traumtech.ru/schemas/ProtocolListView.json
+	Schema    *string            `json:"$schema,omitempty"`
+	Protocols []ProtocolResponse `json:"protocols"`
+	ServiceId openapi_types.UUID `json:"service_id"`
 }
 
 // ProtocolPublishedResponse defines model for ProtocolPublishedResponse.
@@ -615,6 +637,9 @@ type CheckProtocolCompatibilityJSONBody = interface{}
 type CheckProtocolCompatibilityParams struct {
 	// Format Формат контракта-кандидата
 	Format *CheckProtocolCompatibilityParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// Name Имя (alias) протокола-кандидата; пусто — имя по умолчанию
+	Name *string `form:"name,omitempty" json:"name,omitempty"`
 }
 
 // CheckProtocolCompatibilityParamsFormat defines parameters for CheckProtocolCompatibility.
@@ -780,6 +805,11 @@ type ClientInterface interface {
 	// Corresponds with POST /services/{id}/builds (the `PublishBuild` operationId).
 	PublishBuild(ctx context.Context, id openapi_types.UUID, body PublishBuildJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListProtocolConsumers Список потребителей контракта сервиса
+	//
+	// Corresponds with GET /services/{id}/consumers (the `ListProtocolConsumers` operationId).
+	ListProtocolConsumers(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetProtocol Получить протокол сервиса
 	//
 	// Corresponds with GET /services/{id}/protocol (the `GetProtocol` operationId).
@@ -798,6 +828,11 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /services/{id}/protocol/compatibility (the `CheckProtocolCompatibility` operationId).
 	CheckProtocolCompatibility(ctx context.Context, id openapi_types.UUID, params *CheckProtocolCompatibilityParams, body CheckProtocolCompatibilityJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListProtocols Список протоколов сервиса
+	//
+	// Corresponds with GET /services/{id}/protocols (the `ListProtocols` operationId).
+	ListProtocols(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PublishVersionWithBody Опубликовать версию сервиса
 	//
@@ -975,6 +1010,21 @@ func (c *Client) PublishBuild(ctx context.Context, id openapi_types.UUID, body P
 	return c.Client.Do(req)
 }
 
+// ListProtocolConsumers Список потребителей контракта сервиса
+//
+// Corresponds with GET /services/{id}/consumers (the `ListProtocolConsumers` operationId).
+func (c *Client) ListProtocolConsumers(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListProtocolConsumersRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // GetProtocol Получить протокол сервиса
 //
 // Corresponds with GET /services/{id}/protocol (the `GetProtocol` operationId).
@@ -1014,6 +1064,21 @@ func (c *Client) CheckProtocolCompatibilityWithBody(ctx context.Context, id open
 // Corresponds with POST /services/{id}/protocol/compatibility (the `CheckProtocolCompatibility` operationId).
 func (c *Client) CheckProtocolCompatibility(ctx context.Context, id openapi_types.UUID, params *CheckProtocolCompatibilityParams, body CheckProtocolCompatibilityJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCheckProtocolCompatibilityRequest(c.Server, id, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListProtocols Список протоколов сервиса
+//
+// Corresponds with GET /services/{id}/protocols (the `ListProtocols` operationId).
+func (c *Client) ListProtocols(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListProtocolsRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -1358,6 +1423,40 @@ func NewPublishBuildRequestWithBody(server string, id openapi_types.UUID, conten
 	return req, nil
 }
 
+// NewListProtocolConsumersRequest constructs an http.Request for the ListProtocolConsumers method
+func NewListProtocolConsumersRequest(server string, id openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/services/%s/consumers", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetProtocolRequest constructs an http.Request for the GetProtocol method
 func NewGetProtocolRequest(server string, id openapi_types.UUID, params *GetProtocolParams) (*http.Request, error) {
 	var err error
@@ -1501,6 +1600,18 @@ func NewCheckProtocolCompatibilityRequestWithBody(server string, id openapi_type
 
 		}
 
+		if params.Name != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "name", *params.Name, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
 		if encoded := queryValues.Encode(); encoded != "" {
 			rawQueryFragments = append(rawQueryFragments, encoded)
 		}
@@ -1513,6 +1624,40 @@ func NewCheckProtocolCompatibilityRequestWithBody(server string, id openapi_type
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListProtocolsRequest constructs an http.Request for the ListProtocols method
+func NewListProtocolsRequest(server string, id openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/services/%s/protocols", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -1875,6 +2020,13 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /services/{id}/builds (the `PublishBuild` operationId).
 	PublishBuildWithResponse(ctx context.Context, id openapi_types.UUID, body PublishBuildJSONRequestBody, reqEditors ...RequestEditorFn) (*PublishBuildResponse, error)
 
+	// ListProtocolConsumersWithResponse Список потребителей контракта сервиса
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /services/{id}/consumers (the `ListProtocolConsumers` operationId).
+	ListProtocolConsumersWithResponse(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListProtocolConsumersResponse, error)
+
 	// GetProtocolWithResponse Получить протокол сервиса
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -1895,6 +2047,13 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /services/{id}/protocol/compatibility (the `CheckProtocolCompatibility` operationId).
 	CheckProtocolCompatibilityWithResponse(ctx context.Context, id openapi_types.UUID, params *CheckProtocolCompatibilityParams, body CheckProtocolCompatibilityJSONRequestBody, reqEditors ...RequestEditorFn) (*CheckProtocolCompatibilityResponse, error)
+
+	// ListProtocolsWithResponse Список протоколов сервиса
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /services/{id}/protocols (the `ListProtocols` operationId).
+	ListProtocolsWithResponse(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListProtocolsResponse, error)
 
 	// PublishVersionWithBodyWithResponse Опубликовать версию сервиса
 	//
@@ -2200,6 +2359,54 @@ func (r PublishBuildResponse) ContentType() string {
 	return ""
 }
 
+type ListProtocolConsumersResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]ProtocolConsumerResponse
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListProtocolConsumersResponse) GetJSON200() *[]ProtocolConsumerResponse {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r ListProtocolConsumersResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListProtocolConsumersResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListProtocolConsumersResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListProtocolConsumersResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListProtocolConsumersResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetProtocolResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -2290,6 +2497,54 @@ func (r CheckProtocolCompatibilityResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CheckProtocolCompatibilityResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListProtocolsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ProtocolListView
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListProtocolsResponse) GetJSON200() *ProtocolListView {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r ListProtocolsResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListProtocolsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListProtocolsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListProtocolsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListProtocolsResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -2651,6 +2906,19 @@ func (c *ClientWithResponses) PublishBuildWithResponse(ctx context.Context, id o
 	return ParsePublishBuildResponse(rsp)
 }
 
+// ListProtocolConsumersWithResponse Список потребителей контракта сервиса
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /services/{id}/consumers (the `ListProtocolConsumers` operationId).
+func (c *ClientWithResponses) ListProtocolConsumersWithResponse(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListProtocolConsumersResponse, error) {
+	rsp, err := c.ListProtocolConsumers(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListProtocolConsumersResponse(rsp)
+}
+
 // GetProtocolWithResponse Получить протокол сервиса
 //
 // Returns a wrapper object for the known response body format(s).
@@ -2688,6 +2956,19 @@ func (c *ClientWithResponses) CheckProtocolCompatibilityWithResponse(ctx context
 		return nil, err
 	}
 	return ParseCheckProtocolCompatibilityResponse(rsp)
+}
+
+// ListProtocolsWithResponse Список протоколов сервиса
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /services/{id}/protocols (the `ListProtocols` operationId).
+func (c *ClientWithResponses) ListProtocolsWithResponse(ctx context.Context, id openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListProtocolsResponse, error) {
+	rsp, err := c.ListProtocols(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListProtocolsResponse(rsp)
 }
 
 // PublishVersionWithBodyWithResponse Опубликовать версию сервиса
@@ -2966,6 +3247,39 @@ func ParsePublishBuildResponse(rsp *http.Response) (*PublishBuildResponse, error
 	return response, nil
 }
 
+// ParseListProtocolConsumersResponse parses an HTTP response from a ListProtocolConsumersWithResponse call
+func ParseListProtocolConsumersResponse(rsp *http.Response) (*ListProtocolConsumersResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListProtocolConsumersResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []ProtocolConsumerResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetProtocolResponse parses an HTTP response from a GetProtocolWithResponse call
 func ParseGetProtocolResponse(rsp *http.Response) (*GetProtocolResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -3015,6 +3329,39 @@ func ParseCheckProtocolCompatibilityResponse(rsp *http.Response) (*CheckProtocol
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest CompatibilityReportResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListProtocolsResponse parses an HTTP response from a ListProtocolsWithResponse call
+func ParseListProtocolsResponse(rsp *http.Response) (*ListProtocolsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListProtocolsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ProtocolListView
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

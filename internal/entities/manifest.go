@@ -18,6 +18,7 @@ const DefaultDestination = "protocols"
 // сервис, поэтому секция нужна и потребителю (sync), и владельцу (publish).
 type Manifest struct {
 	Service      *ManifestService
+	Protocols    []ManifestProtocol
 	Destination  string
 	Dependencies []ManifestDependency
 }
@@ -29,6 +30,17 @@ type Manifest struct {
 // чтобы существующие манифесты работали без изменений (см. ParseProtocolFormat).
 // Версию не держим — она эфемерна, привязана к конкретной выкатке.
 type ManifestService struct {
+	Name     string
+	Contract string
+	Format   string
+}
+
+// ManifestProtocol — одна запись перечня [[protocols]] (CLI-23): контракт одной
+// API-поверхности сервиса. Name — имя (alias), под которым протокол живёт в
+// реестре; в перечне оно обязательно и явно — неявный alias при втором протоколе
+// того же формата стал бы неоднозначным. Contract — путь к контракту
+// относительно манифеста, Format — как у ManifestService (пусто — OpenAPI).
+type ManifestProtocol struct {
 	Name     string
 	Contract string
 	Format   string
@@ -111,17 +123,54 @@ func (m *Manifest) ServiceName() (string, error) {
 	return m.Service.Name, nil
 }
 
-// RequireService возвращает самодекларацию текущего сервиса вместе с контрактом или
-// понятную ошибку, если её нет либо она неполна. Нужна команде публикации протокола,
-// которая берёт из манифеста и имя сервиса, и путь к собственному контракту.
-func (m *Manifest) RequireService() (*ManifestService, error) {
+// DeclaredProtocols возвращает контракты сервиса единым перечнем: записи
+// [[protocols]] как есть, а прежняя форма — contract/format в [service] — как
+// единственную запись без имени (протокол по умолчанию), чтобы существующие
+// манифесты публиковали то же, что раньше (CLI-23). Ничего не объявлено —
+// пустой перечень без ошибки: контракт есть не у каждого репозитория.
+// Смешение двух форм и изъяны перечня (запись без имени или контракта,
+// повтор имени) — ошибки.
+func (m *Manifest) DeclaredProtocols() ([]ManifestProtocol, error) {
+	if len(m.Protocols) == 0 {
+		if m.Service == nil || strings.TrimSpace(m.Service.Contract) == "" {
+			return nil, nil
+		}
+		return []ManifestProtocol{{Contract: m.Service.Contract, Format: m.Service.Format}}, nil
+	}
+	if m.Service != nil && strings.TrimSpace(m.Service.Contract) != "" {
+		return nil, ErrManifestMixedContractForms
+	}
+	seen := make(map[string]struct{}, len(m.Protocols))
+	for _, p := range m.Protocols {
+		if strings.TrimSpace(p.Name) == "" {
+			return nil, ErrManifestProtocolNoName
+		}
+		if strings.TrimSpace(p.Contract) == "" {
+			return nil, &ManifestProtocolNoContractError{Name: p.Name}
+		}
+		if _, dup := seen[p.Name]; dup {
+			return nil, &ManifestDuplicateProtocolError{Name: p.Name}
+		}
+		seen[p.Name] = struct{}{}
+	}
+	return m.Protocols, nil
+}
+
+// RequireProtocols — как DeclaredProtocols, но пустой перечень — ошибка. Нужна
+// командам, которым контракт обязателен (публикация протокола, проверка
+// кандидатов из манифеста); имя сервиса тоже проверяется — они берут и его.
+func (m *Manifest) RequireProtocols() ([]ManifestProtocol, error) {
 	if _, err := m.ServiceName(); err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(m.Service.Contract) == "" {
+	protocols, err := m.DeclaredProtocols()
+	if err != nil {
+		return nil, err
+	}
+	if len(protocols) == 0 {
 		return nil, ErrManifestServiceNoContract
 	}
-	return m.Service, nil
+	return protocols, nil
 }
 
 // ManifestDuplicateError сообщает, какой сервис объявлен в манифесте повторно.

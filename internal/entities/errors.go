@@ -37,7 +37,15 @@ var (
 
 	ErrManifestNoService         = newDomainError("манифест не объявляет текущий сервис: добавьте секцию [service] с именем сервиса (name)")
 	ErrManifestServiceNoName     = newDomainError("в секции [service] манифеста не указано имя сервиса (name)")
-	ErrManifestServiceNoContract = newDomainError("в секции [service] манифеста не указан путь к контракту (contract)")
+	ErrManifestServiceNoContract = newDomainError("манифест не объявляет контракт сервиса: добавьте перечень [[protocols]] или contract в [service]")
+
+	// Перечень [[protocols]] (CLI-23).
+	ErrManifestMixedContractForms = newDomainError("контракт объявлен и в [service], и в [[protocols]] — оставьте только перечень [[protocols]]")
+	ErrManifestProtocolNoName     = newDomainError("у записи [[protocols]] не указано имя протокола (name)")
+	// Сборка (builds publish) несёт ровно один контракт без имени — до
+	// многопротокольной сборки катите такие сервисы через protocols publish.
+	ErrBuildMultipleContracts = newDomainError("сборка несёт один контракт: несколько записей [[protocols]] в сборке пока не поддерживаются")
+	ErrBuildNamedContract     = newDomainError("сборка несёт контракт без имени протокола: именованная запись [[protocols]] в сборке пока не поддерживается")
 
 	ErrEmptyCredentials   = newDomainError("укажите e-mail и пароль")
 	ErrInvalidCredentials = newDomainError("войти не удалось: проверьте учётные данные")
@@ -70,4 +78,22 @@ type UnsupportedProtocolFormatError struct {
 
 func (e *UnsupportedProtocolFormatError) Error() string {
 	return fmt.Sprintf("формат протокола %q не поддерживается (поддерживаются: %s, %s)", e.Name, ProtocolFormatOpenAPI, ProtocolFormatGRPC)
+}
+
+// ManifestProtocolNoContractError — у записи [[protocols]] нет пути к контракту.
+type ManifestProtocolNoContractError struct {
+	Name string
+}
+
+func (e *ManifestProtocolNoContractError) Error() string {
+	return fmt.Sprintf("у записи [[protocols]] %q не указан путь к контракту (contract)", e.Name)
+}
+
+// ManifestDuplicateProtocolError — имя протокола объявлено в перечне повторно.
+type ManifestDuplicateProtocolError struct {
+	Name string
+}
+
+func (e *ManifestDuplicateProtocolError) Error() string {
+	return fmt.Sprintf("протокол %q объявлен в [[protocols]] повторно", e.Name)
 }

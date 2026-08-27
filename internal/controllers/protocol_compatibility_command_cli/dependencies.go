@@ -7,10 +7,16 @@ import (
 	"github.com/TraumTech/paas-cli/internal/usecases"
 )
 
-//go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=protocolcompatibilitycommandcli github.com/TraumTech/paas-cli/internal/controllers/protocol_compatibility_command_cli CompatibilityChecker
+//go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=protocolcompatibilitycommandcli github.com/TraumTech/paas-cli/internal/controllers/protocol_compatibility_command_cli CompatibilityChecker,ManifestCompatibilityChecker
 
 // CompatibilityChecker — use case проверки совместимости кандидата; интерфейс
 // держим в контроллере для тестируемости команды.
 type CompatibilityChecker interface {
 	Execute(ctx context.Context, in usecases.CheckCompatibilityInput) (*entities.CompatibilityReport, error)
+}
+
+// ManifestCompatibilityChecker — use case проверки всех контрактов манифеста
+// против их протоколов (манифестный режим команды, CLI-23).
+type ManifestCompatibilityChecker interface {
+	Execute(ctx context.Context, in usecases.CheckManifestCompatibilityInput) (*entities.ManifestCompatibilityReport, error)
 }

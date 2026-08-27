@@ -51,7 +51,7 @@ func (c *Command) run(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("нужно указать <version-id> (имя сервиса и контракт берутся из манифеста)")
 	}
 
-	publication, err := c.publisher.Execute(ctx, usecases.PublishProtocolInput{
+	report, err := c.publisher.Execute(ctx, usecases.PublishProtocolInput{
 		VersionID:    cmd.Args().Get(0),
 		ManifestPath: cmd.String(manifestFlag),
 	})
@@ -59,15 +59,24 @@ func (c *Command) run(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	render(cmd.Root().Writer, publication)
+	for i := range report.Publications {
+		render(cmd.Root().Writer, &report.Publications[i])
+	}
+	for _, name := range report.Orphaned {
+		fmt.Fprintf(cmd.Root().Writer, "Внимание: протокол %q остался в реестре, но исчез из манифеста — эта публикация его не обновляла.\n", name)
+	}
 	return nil
 }
 
-// render печатает итог публикации. Сводка совместимости с потребителями только
-// информирует: ломающее изменение не делает команду неуспешной — гейт ломающих
-// изменений живёт в отдельной проверке совместимости до деплоя.
+// render печатает итог одной публикации. Сводка совместимости с потребителями
+// только информирует: ломающее изменение не делает команду неуспешной — гейт
+// ломающих изменений живёт в отдельной проверке совместимости до деплоя.
 func render(w io.Writer, p *entities.ProtocolPublication) {
-	fmt.Fprintf(w, "Протокол опубликован под версией v%d.\n", p.VersionNumber)
+	if p.Name != "" {
+		fmt.Fprintf(w, "Протокол %q опубликован под версией v%d.\n", p.Name, p.VersionNumber)
+	} else {
+		fmt.Fprintf(w, "Протокол опубликован под версией v%d.\n", p.VersionNumber)
+	}
 
 	if len(p.Consumers) == 0 {
 		fmt.Fprintln(w, "Потребителей нет — публикация никого не затрагивает.")

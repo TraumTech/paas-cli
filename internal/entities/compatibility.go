@@ -31,6 +31,24 @@ type CompatibilityReport struct {
 	Consumers []ConsumerCompatibility
 }
 
+// NamedCompatibilityReport — разбор совместимости одного контракта манифеста;
+// Name — имя записи перечня (пусто у записи прежней формы, протокол по
+// умолчанию).
+type NamedCompatibilityReport struct {
+	Name   string
+	Report CompatibilityReport
+}
+
+// ManifestCompatibilityReport — итог досрочной проверки всех контрактов
+// манифеста (CLI-23). Orphaned — имена протоколов реестра, исчезнувших из
+// манифеста, но без потребителей: проверку они не держат, но о них
+// предупреждается (с потребителями исчезновение — ошибка, см.
+// OrphanedProtocolError).
+type ManifestCompatibilityReport struct {
+	Reports  []NamedCompatibilityReport
+	Orphaned []string
+}
+
 // ConsumerCompatibility — вердикт по одному потребителю. Comparable=false означает,
 // что снимок потребителя не разобран для сравнения; такой случай ломающим не
 // считается.

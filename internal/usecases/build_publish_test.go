@@ -112,3 +112,64 @@ func TestPublishBuildRejectsFormWithoutImage(t *testing.T) {
 
 	assert.ErrorIs(t, err, entities.ErrFormRequiresImage)
 }
+
+// Сборка несёт один контракт без имени: перечень [[protocols]] из нескольких
+// или именованных записей — понятный отказ до сети (CLI-23), а единственная
+// запись с именем по умолчанию работает как прежняя форма.
+func TestPublishBuildRejectsMultipleContracts(t *testing.T) {
+	f := newBuildFixture(t)
+	manifest := &entities.Manifest{
+		Service: &entities.ManifestService{Name: "paas-backend"},
+		Protocols: []entities.ManifestProtocol{
+			{Name: "http", Contract: "a.json"},
+			{Name: "admin", Contract: "b.json"},
+		},
+	}
+	f.expectResolved(manifest)
+	f.forms.EXPECT().Read(gomock.Any(), gomock.Any()).Return(nil, nil)
+
+	_, err := f.uc.Execute(context.Background(), PublishBuildInput{CommitRevision: "abc123"})
+
+	assert.ErrorIs(t, err, entities.ErrBuildMultipleContracts)
+}
+
+func TestPublishBuildRejectsNamedContract(t *testing.T) {
+	f := newBuildFixture(t)
+	manifest := &entities.Manifest{
+		Service:   &entities.ManifestService{Name: "paas-backend"},
+		Protocols: []entities.ManifestProtocol{{Name: "http", Contract: "a.json"}},
+	}
+	f.expectResolved(manifest)
+	f.forms.EXPECT().Read(gomock.Any(), gomock.Any()).Return(nil, nil)
+
+	_, err := f.uc.Execute(context.Background(), PublishBuildInput{CommitRevision: "abc123"})
+
+	assert.ErrorIs(t, err, entities.ErrBuildNamedContract)
+}
+
+func TestPublishBuildCarriesDefaultNamedContract(t *testing.T) {
+	f := newBuildFixture(t)
+	dir := t.TempDir()
+	contract := filepath.Join(dir, "openapi.json")
+	require.NoError(t, os.WriteFile(contract, []byte(`{"openapi":"3.1.0"}`), 0o600))
+
+	manifest := &entities.Manifest{
+		Service:   &entities.ManifestService{Name: "paas-backend"},
+		Protocols: []entities.ManifestProtocol{{Name: entities.DefaultProtocolName, Contract: contract}},
+	}
+	f.expectResolved(manifest)
+	f.forms.EXPECT().Read(gomock.Any(), gomock.Any()).Return(nil, nil)
+
+	var got entities.BuildRequest
+	f.publisher.EXPECT().PublishBuild(gomock.Any(), "svc", gomock.Any()).DoAndReturn(
+		func(_ context.Context, _ string, request entities.BuildRequest) (*entities.Build, error) {
+			got = request
+			return &entities.Build{ID: "build-1"}, nil
+		})
+
+	_, err := f.uc.Execute(context.Background(), PublishBuildInput{CommitRevision: "abc123"})
+
+	require.NoError(t, err)
+	assert.Equal(t, `{"openapi":"3.1.0"}`, got.Contract)
+	assert.Equal(t, "openapi", got.ContractFormat)
+}

@@ -21,6 +21,7 @@ import (
 	personaltokenhttp "github.com/TraumTech/paas-cli/internal/adapters/personal_token_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_compatibility_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_publish_http"
+	"github.com/TraumTech/paas-cli/internal/adapters/registry_directory_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_source_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_store_file"
 	"github.com/TraumTech/paas-cli/internal/adapters/service_resolver_http"
@@ -105,8 +106,14 @@ func Run(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
+	registry, err := registrydirectoryhttp.New(baseURL, client)
+	if err != nil {
+		return err
+	}
 	candidates := candidatereaderfile.New()
-	compat := protocolcompatibilitycommandcli.New(usecases.NewCheckCompatibility(candidates, compatSource))
+	compat := protocolcompatibilitycommandcli.New(
+		usecases.NewCheckCompatibility(candidates, compatSource),
+		usecases.NewCheckManifestCompatibility(manifests, resolver, candidates, compatSource, registry))
 
 	publisher, err := versionpublisherhttp.New(baseURL, client)
 	if err != nil {
@@ -119,7 +126,7 @@ func Run(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	publish := protocolpublishcommandcli.New(usecases.NewPublishProtocol(manifests, resolver, candidates, publishSource))
+	publish := protocolpublishcommandcli.New(usecases.NewPublishProtocol(manifests, resolver, candidates, publishSource, registry))
 
 	registrar, err := dependencyregistrarhttp.New(baseURL, client)
 	if err != nil {

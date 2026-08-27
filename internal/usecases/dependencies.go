@@ -6,7 +6,7 @@ import (
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
-//go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=usecases github.com/TraumTech/paas-cli/internal/usecases ProtocolSource,ProtocolStore,CandidateReader,CompatibilitySource,VersionPublisher,BuildPublisher,ProtocolPublisher,DependencyRegistrar,ManifestReader,FormReader,ServiceResolver,CredentialAuthenticator,SessionInspector,SessionRevoker,SessionStore,BrowserAuthorizer,PersonalTokenDirectory
+//go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=usecases github.com/TraumTech/paas-cli/internal/usecases ProtocolSource,ProtocolStore,CandidateReader,CompatibilitySource,RegistryDirectory,VersionPublisher,BuildPublisher,ProtocolPublisher,DependencyRegistrar,ManifestReader,FormReader,ServiceResolver,CredentialAuthenticator,SessionInspector,SessionRevoker,SessionStore,BrowserAuthorizer,PersonalTokenDirectory
 
 // ProtocolSource достаёт актуальный опубликованный контракт сервиса из платформы.
 // Непустой methods — контракт, суженный платформой до этих методов (CLI-09);
@@ -33,9 +33,19 @@ type CandidateReader interface {
 }
 
 // CompatibilitySource сверяет контракт-кандидата (в родном виде его формата) со
-// снимками потребителей сервиса на платформе, без публикации.
+// снимками потребителей сервиса на платформе, без публикации. Name — имя (alias)
+// протокола-кандидата (PRT-22): сверка идёт с потребителями этого протокола;
+// пустое не передаётся — платформа берёт имя по умолчанию.
 type CompatibilitySource interface {
-	CheckCompatibility(ctx context.Context, serviceID string, format entities.ProtocolFormat, document []byte) (*entities.CompatibilityReport, error)
+	CheckCompatibility(ctx context.Context, serviceID, name string, format entities.ProtocolFormat, document []byte) (*entities.CompatibilityReport, error)
+}
+
+// RegistryDirectory читает состояние реестра для гейта исчезнувшего протокола
+// (CLI-23): какие протоколы сервиса опубликованы и кто зарегистрирован его
+// потребителем.
+type RegistryDirectory interface {
+	ListProtocols(ctx context.Context, serviceID string) ([]entities.RegistryProtocol, error)
+	ListConsumers(ctx context.Context, serviceID string) ([]entities.RegisteredConsumer, error)
 }
 
 // VersionPublisher фиксирует версию сервиса в платформе по развёрнутой ревизии
@@ -49,11 +59,13 @@ type VersionPublisher interface {
 
 // ProtocolPublisher публикует контракт под версией сервиса в платформе и
 // возвращает итог: к какой версии привязан протокол и его совместимость с
-// потребителями. Формат доносится до платформы как есть; глубокую проверку
-// документа по формату делает она. На отказ платформы (нет сервиса/версии,
-// контракт отклонён) возвращает ошибку с понятным сообщением от платформы.
+// потребителями. Name — имя (alias) протокола (PRT-21); пустое не передаётся —
+// платформа берёт имя по умолчанию. Формат доносится до платформы как есть;
+// глубокую проверку документа по формату делает она. На отказ платформы (нет
+// сервиса/версии, контракт отклонён) возвращает ошибку с понятным сообщением
+// от платформы.
 type ProtocolPublisher interface {
-	PublishProtocol(ctx context.Context, serviceID, versionID string, format entities.ProtocolFormat, document []byte) (*entities.ProtocolPublication, error)
+	PublishProtocol(ctx context.Context, serviceID, versionID, name string, format entities.ProtocolFormat, document []byte) (*entities.ProtocolPublication, error)
 }
 
 // DependencyRegistrar регистрирует в платформе зависимость версии потребителя от

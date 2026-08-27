@@ -43,10 +43,10 @@ func (m *MockProtocolPublisher) EXPECT() *MockProtocolPublisherMockRecorder {
 }
 
 // Execute mocks base method.
-func (m *MockProtocolPublisher) Execute(ctx context.Context, in usecases.PublishProtocolInput) (*entities.ProtocolPublication, error) {
+func (m *MockProtocolPublisher) Execute(ctx context.Context, in usecases.PublishProtocolInput) (*entities.ProtocolPublishReport, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Execute", ctx, in)
-	ret0, _ := ret[0].(*entities.ProtocolPublication)
+	ret0, _ := ret[0].(*entities.ProtocolPublishReport)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

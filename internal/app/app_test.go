@@ -151,6 +151,9 @@ func TestRun_PublishProtocol(t *testing.T) {
 		case r.URL.Path == "/services" && r.Method == http.MethodGet:
 			assert.Equal(t, "payments", r.URL.Query().Get("name"))
 			writeJSON(w, `[{"id":"`+svcID+`","name":"payments"}]`)
+		case r.URL.Path == "/services/"+svcID+"/protocols" && r.Method == http.MethodGet:
+			// Гейт исчезнувшего протокола (CLI-23): реестр ещё пуст.
+			writeJSON(w, `{"service_id":"`+svcID+`","protocols":[]}`)
 		case r.URL.Path == "/services/"+svcID+"/versions/"+verID+"/protocol" && r.Method == http.MethodPut:
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)

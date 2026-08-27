@@ -526,6 +526,56 @@
         ],
         "type": "object"
       },
+      "ProtocolConsumerResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "consumer_service_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "consumer_service_name": {
+            "type": "string"
+          },
+          "consumer_version_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "consumer_version_number": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "format": {
+            "type": "string"
+          },
+          "methods": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "registered_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "waived_attributes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "consumer_service_id",
+          "consumer_service_name",
+          "consumer_version_id",
+          "consumer_version_number",
+          "format",
+          "methods",
+          "waived_attributes",
+          "registered_at"
+        ],
+        "type": "object"
+      },
       "ProtocolDependencyResponse": {
         "additionalProperties": false,
         "properties": {
@@ -583,6 +633,35 @@
           "methods",
           "waived_attributes",
           "registered_at"
+        ],
+        "type": "object"
+      },
+      "ProtocolListView": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://api.paas.traumtech.ru/schemas/ProtocolListView.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "protocols": {
+            "items": {
+              "$ref": "#/components/schemas/ProtocolResponse"
+            },
+            "type": "array"
+          },
+          "service_id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "service_id",
+          "protocols"
         ],
         "type": "object"
       },
@@ -1240,6 +1319,53 @@
         ]
       }
     },
+    "/services/{id}/consumers": {
+      "get": {
+        "operationId": "list-protocol-consumers",
+        "parameters": [
+          {
+            "description": "ID сервиса-продьюсера",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "ID сервиса-продьюсера",
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProtocolConsumerResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Список потребителей контракта сервиса",
+        "tags": [
+          "protocols"
+        ]
+      }
+    },
     "/services/{id}/protocol": {
       "get": {
         "operationId": "get-protocol",
@@ -1349,6 +1475,16 @@
               ],
               "type": "string"
             }
+          },
+          {
+            "description": "Имя (alias) протокола-кандидата; пусто — имя по умолчанию",
+            "explode": false,
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "description": "Имя (alias) протокола-кандидата; пусто — имя по умолчанию",
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -1383,6 +1519,50 @@
           }
         },
         "summary": "Проверить совместимость контракта-кандидата с потребителями",
+        "tags": [
+          "protocols"
+        ]
+      }
+    },
+    "/services/{id}/protocols": {
+      "get": {
+        "operationId": "list-protocols",
+        "parameters": [
+          {
+            "description": "ID сервиса",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "ID сервиса",
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolListView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Список протоколов сервиса",
         "tags": [
           "protocols"
         ]

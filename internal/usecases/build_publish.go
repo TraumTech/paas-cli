@@ -51,14 +51,25 @@ func (uc *PublishBuildUseCase) Execute(ctx context.Context, in PublishBuildInput
 		return nil, entities.ErrFormRequiresImage
 	}
 	// Контракт читаем из репозитория, но публикует его в реестр не CLI, а
-	// выкатка — уже зная версию, к которой его привязать (DEP-19).
-	if manifest.Service != nil && manifest.Service.Contract != "" {
-		document, err := os.ReadFile(manifest.Service.Contract)
+	// выкатка — уже зная версию, к которой его привязать (DEP-19). Сборка несёт
+	// ровно один контракт без имени (протокол по умолчанию): перечень
+	// [[protocols]] из нескольких или именованных записей сборка пока не везёт.
+	protocols, err := manifest.DeclaredProtocols()
+	if err != nil {
+		return nil, err
+	}
+	switch {
+	case len(protocols) > 1:
+		return nil, entities.ErrBuildMultipleContracts
+	case len(protocols) == 1 && protocols[0].Name != "" && protocols[0].Name != entities.DefaultProtocolName:
+		return nil, entities.ErrBuildNamedContract
+	case len(protocols) == 1:
+		document, err := os.ReadFile(protocols[0].Contract)
 		if err != nil {
-			return nil, fmt.Errorf("read contract %s: %w", manifest.Service.Contract, err)
+			return nil, fmt.Errorf("read contract %s: %w", protocols[0].Contract, err)
 		}
 		request.Contract = string(document)
-		request.ContractFormat = manifest.Service.Format
+		request.ContractFormat = protocols[0].Format
 		if request.ContractFormat == "" {
 			// Пустой формат в манифесте означает OpenAPI (ParseProtocolFormat).
 			request.ContractFormat = "openapi"

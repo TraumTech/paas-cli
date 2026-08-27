@@ -51,10 +51,19 @@ type SyncProtocolsResult struct {
 
 type CheckCompatibilityInput struct {
 	ServiceID string
+	// Name — имя (alias) протокола-кандидата (PRT-22); пусто — протокол по
+	// умолчанию.
+	Name string
 	// Format — формат кандидата (OpenAPI или gRPC, CLI-21); Document читается из
 	// CandidatePath — файла контракта-кандидата на диске владельца.
 	Format        entities.ProtocolFormat
 	CandidatePath string
+}
+
+// CheckManifestCompatibilityInput — манифестный режим досрочной проверки
+// (CLI-23): сервис, перечень контрактов и их имена берутся из манифеста.
+type CheckManifestCompatibilityInput struct {
+	ManifestPath string
 }
 
 type PublishProtocolInput struct {

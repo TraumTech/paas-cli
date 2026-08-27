@@ -46,29 +46,90 @@ func TestManifestValidate_EmptyName(t *testing.T) {
 	assert.ErrorIs(t, m.Validate(), entities.ErrManifestDependencyNoName)
 }
 
-func TestManifestRequireService_OK(t *testing.T) {
-	m := &entities.Manifest{Service: &entities.ManifestService{Name: "paas-backend", Contract: "openapi.json"}}
-	svc, err := m.RequireService()
+// Прежняя форма — contract в [service] — разворачивается в единственную запись
+// без имени (протокол по умолчанию): существующие манифесты публикуют то же,
+// что раньше (CLI-23).
+func TestManifestRequireProtocols_LegacyContract(t *testing.T) {
+	m := &entities.Manifest{Service: &entities.ManifestService{Name: "paas-backend", Contract: "openapi.json", Format: "openapi"}}
+	protocols, err := m.RequireProtocols()
 	require.NoError(t, err)
-	assert.Equal(t, "paas-backend", svc.Name)
-	assert.Equal(t, "openapi.json", svc.Contract)
+	require.Len(t, protocols, 1)
+	assert.Equal(t, entities.ManifestProtocol{Name: "", Contract: "openapi.json", Format: "openapi"}, protocols[0])
 }
 
-func TestManifestRequireService_Missing(t *testing.T) {
-	_, err := (&entities.Manifest{}).RequireService()
+func TestManifestRequireProtocols_List(t *testing.T) {
+	m := &entities.Manifest{
+		Service: &entities.ManifestService{Name: "paas-backend"},
+		Protocols: []entities.ManifestProtocol{
+			{Name: "http", Contract: "openapi.json"},
+			{Name: "grpc", Contract: "api/edge.proto", Format: "grpc"},
+		},
+	}
+	protocols, err := m.RequireProtocols()
+	require.NoError(t, err)
+	assert.Equal(t, m.Protocols, protocols)
+}
+
+func TestManifestRequireProtocols_Missing(t *testing.T) {
+	_, err := (&entities.Manifest{}).RequireProtocols()
 	assert.ErrorIs(t, err, entities.ErrManifestNoService)
 }
 
-func TestManifestRequireService_NoName(t *testing.T) {
+func TestManifestRequireProtocols_NoName(t *testing.T) {
 	m := &entities.Manifest{Service: &entities.ManifestService{Name: "  ", Contract: "openapi.json"}}
-	_, err := m.RequireService()
+	_, err := m.RequireProtocols()
 	assert.ErrorIs(t, err, entities.ErrManifestServiceNoName)
 }
 
-func TestManifestRequireService_NoContract(t *testing.T) {
+func TestManifestRequireProtocols_NoContract(t *testing.T) {
 	m := &entities.Manifest{Service: &entities.ManifestService{Name: "paas-backend", Contract: " "}}
-	_, err := m.RequireService()
+	_, err := m.RequireProtocols()
 	assert.ErrorIs(t, err, entities.ErrManifestServiceNoContract)
+}
+
+// Контракт объявлен и старой формой, и перечнем — неоднозначность, а не
+// молчаливый приоритет одной из форм.
+func TestManifestDeclaredProtocols_MixedForms(t *testing.T) {
+	m := &entities.Manifest{
+		Service:   &entities.ManifestService{Name: "paas-backend", Contract: "openapi.json"},
+		Protocols: []entities.ManifestProtocol{{Name: "http", Contract: "openapi.json"}},
+	}
+	_, err := m.DeclaredProtocols()
+	assert.ErrorIs(t, err, entities.ErrManifestMixedContractForms)
+}
+
+func TestManifestDeclaredProtocols_EntryNoName(t *testing.T) {
+	m := &entities.Manifest{Protocols: []entities.ManifestProtocol{{Contract: "openapi.json"}}}
+	_, err := m.DeclaredProtocols()
+	assert.ErrorIs(t, err, entities.ErrManifestProtocolNoName)
+}
+
+func TestManifestDeclaredProtocols_EntryNoContract(t *testing.T) {
+	m := &entities.Manifest{Protocols: []entities.ManifestProtocol{{Name: "http"}}}
+	_, err := m.DeclaredProtocols()
+	var noContract *entities.ManifestProtocolNoContractError
+	require.ErrorAs(t, err, &noContract)
+	assert.Equal(t, "http", noContract.Name)
+}
+
+func TestManifestDeclaredProtocols_DuplicateName(t *testing.T) {
+	m := &entities.Manifest{Protocols: []entities.ManifestProtocol{
+		{Name: "http", Contract: "a.json"},
+		{Name: "http", Contract: "b.json"},
+	}}
+	_, err := m.DeclaredProtocols()
+	var dup *entities.ManifestDuplicateProtocolError
+	require.ErrorAs(t, err, &dup)
+	assert.Equal(t, "http", dup.Name)
+}
+
+// Контракта нет ни в одной форме — пустой перечень без ошибки: он есть не у
+// каждого репозитория (чистый потребитель).
+func TestManifestDeclaredProtocols_Empty(t *testing.T) {
+	m := &entities.Manifest{Service: &entities.ManifestService{Name: "paas-cli"}}
+	protocols, err := m.DeclaredProtocols()
+	require.NoError(t, err)
+	assert.Empty(t, protocols)
 }
 
 func TestManifestValidate_AttributesWithoutMethods(t *testing.T) {

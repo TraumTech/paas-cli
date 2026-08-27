@@ -29,16 +29,20 @@ func New(baseURL string, httpClient *http.Client) (*Source, error) {
 	return &Source{client: client}, nil
 }
 
-func (s *Source) CheckCompatibility(ctx context.Context, serviceID string, format entities.ProtocolFormat, document []byte) (*entities.CompatibilityReport, error) {
+func (s *Source) CheckCompatibility(ctx context.Context, serviceID, name string, format entities.ProtocolFormat, document []byte) (*entities.CompatibilityReport, error) {
 	id, err := uuid.Parse(serviceID)
 	if err != nil {
 		return nil, fmt.Errorf("неверный id сервиса %q: %w", serviceID, err)
 	}
 
 	// Кандидат уходит в родном для формата виде: OpenAPI — JSON-объект как есть,
-	// gRPC — JSON-строка с .proto-исходником. Формат OpenAPI не передаём
-	// (умолчание платформы) — запрос не отличается от прежних, без параметра.
+	// gRPC — JSON-строка с .proto-исходником. Формат OpenAPI и пустое имя не
+	// передаём (умолчания платформы) — запрос не отличается от прежних, без
+	// параметров.
 	params := &platformapi.CheckProtocolCompatibilityParams{}
+	if name != "" {
+		params.Name = &name
+	}
 	payload := document
 	if format == entities.ProtocolFormatGRPC {
 		f := platformapi.CheckProtocolCompatibilityParamsFormat(format)

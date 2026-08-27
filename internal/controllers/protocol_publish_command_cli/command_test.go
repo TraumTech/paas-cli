@@ -36,11 +36,11 @@ func TestCommandRun_PublishesAndShowsCompatibility(t *testing.T) {
 	publisher := NewMockProtocolPublisher(ctrl)
 	publisher.EXPECT().
 		Execute(gomock.Any(), usecases.PublishProtocolInput{VersionID: "ver", ManifestPath: ""}).
-		Return(&entities.ProtocolPublication{VersionNumber: 7, Breaking: false, Consumers: []entities.ConsumerCompatibility{
+		Return(&entities.ProtocolPublishReport{Publications: []entities.ProtocolPublication{{VersionNumber: 7, Breaking: false, Consumers: []entities.ConsumerCompatibility{
 			{ServiceName: "frontend", VersionNumber: 5, Comparable: true, Changes: []entities.CompatibilityChange{
 				{Kind: "operation-added", Operation: "GET /y", Description: "новый эндпоинт"},
 			}},
-		}}, nil)
+		}}}}, nil)
 
 	var out bytes.Buffer
 	require.NoError(t, run(t, publisher, &out))
@@ -49,11 +49,43 @@ func TestCommandRun_PublishesAndShowsCompatibility(t *testing.T) {
 	assert.Contains(t, out.String(), "[compatible] operation-added GET /y — новый эндпоинт")
 }
 
+// Записи [[protocols]] публикуются все, сводка по каждой подписана именем (CLI-23).
+func TestCommandRun_NamedProtocols(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	publisher := NewMockProtocolPublisher(ctrl)
+	publisher.EXPECT().Execute(gomock.Any(), gomock.Any()).
+		Return(&entities.ProtocolPublishReport{Publications: []entities.ProtocolPublication{
+			{Name: "http", VersionNumber: 3},
+			{Name: "internal-grpc", VersionNumber: 3},
+		}}, nil)
+
+	var out bytes.Buffer
+	require.NoError(t, run(t, publisher, &out))
+	assert.Contains(t, out.String(), `Протокол "http" опубликован под версией v3`)
+	assert.Contains(t, out.String(), `Протокол "internal-grpc" опубликован под версией v3`)
+}
+
+// Осиротевший протокол без потребителей публикацию не держит, но о нём
+// предупреждается — молча забытым он не остаётся (CLI-23).
+func TestCommandRun_OrphanedWarning(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	publisher := NewMockProtocolPublisher(ctrl)
+	publisher.EXPECT().Execute(gomock.Any(), gomock.Any()).
+		Return(&entities.ProtocolPublishReport{
+			Publications: []entities.ProtocolPublication{{Name: "http", VersionNumber: 3}},
+			Orphaned:     []string{"admin"},
+		}, nil)
+
+	var out bytes.Buffer
+	require.NoError(t, run(t, publisher, &out))
+	assert.Contains(t, out.String(), `протокол "admin" остался в реестре, но исчез из манифеста`)
+}
+
 func TestCommandRun_NoConsumers(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	publisher := NewMockProtocolPublisher(ctrl)
 	publisher.EXPECT().Execute(gomock.Any(), gomock.Any()).
-		Return(&entities.ProtocolPublication{VersionNumber: 7}, nil)
+		Return(&entities.ProtocolPublishReport{Publications: []entities.ProtocolPublication{{VersionNumber: 7}}}, nil)
 
 	var out bytes.Buffer
 	require.NoError(t, run(t, publisher, &out))
@@ -66,11 +98,11 @@ func TestCommandRun_BreakingStillSucceeds(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	publisher := NewMockProtocolPublisher(ctrl)
 	publisher.EXPECT().Execute(gomock.Any(), gomock.Any()).
-		Return(&entities.ProtocolPublication{VersionNumber: 8, Breaking: true, Consumers: []entities.ConsumerCompatibility{
+		Return(&entities.ProtocolPublishReport{Publications: []entities.ProtocolPublication{{VersionNumber: 8, Breaking: true, Consumers: []entities.ConsumerCompatibility{
 			{ServiceName: "frontend", VersionNumber: 5, Comparable: true, Breaking: true, Changes: []entities.CompatibilityChange{
 				{Breaking: true, Kind: "operation-removed", Operation: "GET /x", Description: "удалён эндпоинт"},
 			}},
-		}}, nil)
+		}}}}, nil)
 
 	var out bytes.Buffer
 	require.NoError(t, run(t, publisher, &out))

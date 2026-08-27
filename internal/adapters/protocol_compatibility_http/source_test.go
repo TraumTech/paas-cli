@@ -49,7 +49,7 @@ func TestCheckCompatibility_MapsReport(t *testing.T) {
 		}`))
 	})
 
-	report, err := src.CheckCompatibility(context.Background(), svcID, entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
+	report, err := src.CheckCompatibility(context.Background(), svcID, "", entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"openapi":"3.1.0"}`, gotBody)
 	assert.True(t, report.Breaking)
@@ -71,7 +71,7 @@ func TestCheckCompatibility_NoConsumers(t *testing.T) {
 		w.Write([]byte(`{"breaking": false, "consumers": []}`))
 	})
 
-	report, err := src.CheckCompatibility(context.Background(), svcID, entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
+	report, err := src.CheckCompatibility(context.Background(), svcID, "", entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
 	require.NoError(t, err)
 	assert.False(t, report.Breaking)
 	assert.Empty(t, report.Consumers)
@@ -82,7 +82,7 @@ func TestCheckCompatibility_ServiceNotFound(t *testing.T) {
 		w.WriteHeader(http.StatusNotFound)
 	})
 
-	_, err := src.CheckCompatibility(context.Background(), svcID, entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
+	_, err := src.CheckCompatibility(context.Background(), svcID, "", entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
 	assert.ErrorIs(t, err, entities.ErrServiceNotFound)
 }
 
@@ -91,7 +91,7 @@ func TestCheckCompatibility_InvalidCandidate(t *testing.T) {
 		w.WriteHeader(http.StatusBadRequest)
 	})
 
-	_, err := src.CheckCompatibility(context.Background(), svcID, entities.ProtocolFormatOpenAPI, []byte(`{}`))
+	_, err := src.CheckCompatibility(context.Background(), svcID, "", entities.ProtocolFormatOpenAPI, []byte(`{}`))
 	assert.ErrorIs(t, err, entities.ErrInvalidProtocol)
 }
 
@@ -100,14 +100,14 @@ func TestCheckCompatibility_InvalidID(t *testing.T) {
 		t.Errorf("платформа не должна вызываться при неверном id")
 	})
 
-	_, err := src.CheckCompatibility(context.Background(), "not-a-uuid", entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
+	_, err := src.CheckCompatibility(context.Background(), "not-a-uuid", "", entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
 	require.Error(t, err)
 }
 
 func TestCheckCompatibility_Unreachable(t *testing.T) {
 	src, err := protocolcompatibilityhttp.New("http://127.0.0.1:0", http.DefaultClient)
 	require.NoError(t, err)
-	_, err = src.CheckCompatibility(context.Background(), svcID, entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
+	_, err = src.CheckCompatibility(context.Background(), svcID, "", entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
 	require.Error(t, err)
 }
 
@@ -123,7 +123,7 @@ func TestCheckCompatibility_GRPCFormatAndBody(t *testing.T) {
 		w.Write([]byte(`{"breaking": false, "consumers": []}`))
 	})
 
-	report, err := src.CheckCompatibility(context.Background(), svcID, entities.ProtocolFormatGRPC, []byte(proto))
+	report, err := src.CheckCompatibility(context.Background(), svcID, "", entities.ProtocolFormatGRPC, []byte(proto))
 	require.NoError(t, err)
 	assert.Equal(t, "grpc", gotFormat)
 	expected, _ := json.Marshal(proto)
@@ -139,6 +139,29 @@ func TestCheckCompatibility_OpenAPIOmitsFormat(t *testing.T) {
 		w.Write([]byte(`{"breaking": false, "consumers": []}`))
 	})
 
-	_, err := src.CheckCompatibility(context.Background(), svcID, entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
+	_, err := src.CheckCompatibility(context.Background(), svcID, "", entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
 	require.NoError(t, err)
+}
+
+// Имя протокола-кандидата уходит query-параметром (PRT-22); пустое — не
+// передаётся, запрос не отличается от прежних.
+func TestCheckCompatibility_NameParam(t *testing.T) {
+	var gotName string
+	var hasName bool
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		gotName = r.URL.Query().Get("name")
+		hasName = r.URL.Query().Has("name")
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"breaking": false, "consumers": []}`))
+	}
+
+	src := newSource(t, handler)
+	_, err := src.CheckCompatibility(context.Background(), svcID, "admin", entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
+	require.NoError(t, err)
+	assert.Equal(t, "admin", gotName)
+
+	src = newSource(t, handler)
+	_, err = src.CheckCompatibility(context.Background(), svcID, "", entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
+	require.NoError(t, err)
+	assert.False(t, hasName)
 }

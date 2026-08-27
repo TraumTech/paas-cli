@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/TraumTech/paas-cli/internal/adapters/manifest_reader_file"
+	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
 func writeManifest(t *testing.T, body string) string {
@@ -89,6 +90,30 @@ name = "billing"
 	assert.Equal(t, "paas-backend", got.Service.Name)
 	assert.Equal(t, "api/openapi.json", got.Service.Contract)
 	assert.Empty(t, got.Service.Format)
+}
+
+// Перечень [[protocols]] (CLI-23) читается записями с именем, контрактом и
+// форматом рядом с секцией [service].
+func TestRead_Protocols(t *testing.T) {
+	path := writeManifest(t, `
+[service]
+name = "paas-backend"
+
+[[protocols]]
+name = "http"
+contract = "openapi.json"
+
+[[protocols]]
+name = "internal-grpc"
+contract = "api/edge.proto"
+format = "grpc"
+`)
+
+	got, err := manifestreaderfile.New().Read(context.Background(), path)
+	require.NoError(t, err)
+	require.Len(t, got.Protocols, 2)
+	assert.Equal(t, entities.ManifestProtocol{Name: "http", Contract: "openapi.json"}, got.Protocols[0])
+	assert.Equal(t, entities.ManifestProtocol{Name: "internal-grpc", Contract: "api/edge.proto", Format: "grpc"}, got.Protocols[1])
 }
 
 func TestRead_ServiceFormat(t *testing.T) {

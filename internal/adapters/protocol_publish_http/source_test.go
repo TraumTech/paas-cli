@@ -41,12 +41,36 @@ func TestPublishProtocol_GRPCFormatAndBody(t *testing.T) {
 		w.Write([]byte(`{"published": true, "breaking": false, "protocol": {"service_id": "` + svcID + `", "version_id": "` + verID + `", "version_number": 1, "format": "grpc", "published_at": "2026-07-03T00:00:00Z"}, "consumers": []}`))
 	})
 
-	publication, err := src.PublishProtocol(context.Background(), svcID, verID, entities.ProtocolFormatGRPC, []byte(proto))
+	publication, err := src.PublishProtocol(context.Background(), svcID, verID, "", entities.ProtocolFormatGRPC, []byte(proto))
 	require.NoError(t, err)
 	assert.Equal(t, "grpc", gotFormat)
 	expected, _ := json.Marshal(proto)
 	assert.Equal(t, string(expected), gotBody)
 	assert.Equal(t, 1, publication.VersionNumber)
+}
+
+// Имя протокола уходит query-параметром (PRT-21); пустое — не передаётся, и
+// запрос не отличается от прежних публикаций без имени.
+func TestPublishProtocol_NameParam(t *testing.T) {
+	var gotName string
+	var hasName bool
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		gotName = r.URL.Query().Get("name")
+		hasName = r.URL.Query().Has("name")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte(`{"published": true, "breaking": false, "protocol": {"service_id": "` + svcID + `", "version_id": "` + verID + `", "version_number": 2, "format": "openapi", "published_at": "2026-08-27T00:00:00Z"}, "consumers": []}`))
+	}
+
+	src := newSource(t, handler)
+	_, err := src.PublishProtocol(context.Background(), svcID, verID, "admin", entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
+	require.NoError(t, err)
+	assert.Equal(t, "admin", gotName)
+
+	src = newSource(t, handler)
+	_, err = src.PublishProtocol(context.Background(), svcID, verID, "", entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
+	require.NoError(t, err)
+	assert.False(t, hasName)
 }
 
 // Прежний формат не передаётся в запросе — публикация без типа, как раньше.
@@ -58,7 +82,7 @@ func TestPublishProtocol_OpenAPIOmitsFormat(t *testing.T) {
 		w.Write([]byte(`{"published": true, "breaking": false, "protocol": {"service_id": "` + svcID + `", "version_id": "` + verID + `", "version_number": 7, "format": "openapi", "published_at": "2026-06-15T00:00:00Z"}, "consumers": []}`))
 	})
 
-	_, err := src.PublishProtocol(context.Background(), svcID, verID, entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
+	_, err := src.PublishProtocol(context.Background(), svcID, verID, "", entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
 	require.NoError(t, err)
 }
 
@@ -89,7 +113,7 @@ func TestPublishProtocol_MapsPublication(t *testing.T) {
 		}`))
 	})
 
-	publication, err := src.PublishProtocol(context.Background(), svcID, verID, entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
+	publication, err := src.PublishProtocol(context.Background(), svcID, verID, "", entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"openapi":"3.1.0"}`, gotBody)
 	assert.Equal(t, 7, publication.VersionNumber)
@@ -112,7 +136,7 @@ func TestPublishProtocol_NoConsumers(t *testing.T) {
 		w.Write([]byte(`{"published": true, "breaking": false, "protocol": {"service_id": "` + svcID + `", "version_id": "` + verID + `", "version_number": 7, "format": "openapi", "published_at": "2026-06-15T00:00:00Z"}, "consumers": []}`))
 	})
 
-	publication, err := src.PublishProtocol(context.Background(), svcID, verID, entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
+	publication, err := src.PublishProtocol(context.Background(), svcID, verID, "", entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
 	require.NoError(t, err)
 	assert.Equal(t, 7, publication.VersionNumber)
 	assert.False(t, publication.Breaking)
@@ -128,7 +152,7 @@ func TestPublishProtocol_RepublishOK(t *testing.T) {
 		w.Write([]byte(`{"published": true, "breaking": false, "protocol": {"service_id": "` + svcID + `", "version_id": "` + verID + `", "version_number": 7, "format": "openapi", "published_at": "2026-06-15T00:00:00Z"}, "consumers": []}`))
 	})
 
-	publication, err := src.PublishProtocol(context.Background(), svcID, verID, entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
+	publication, err := src.PublishProtocol(context.Background(), svcID, verID, "", entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
 	require.NoError(t, err)
 	assert.Equal(t, 7, publication.VersionNumber)
 }
@@ -140,7 +164,7 @@ func TestPublishProtocol_NotFoundSurfacesDetail(t *testing.T) {
 		w.Write([]byte(`{"title": "Not Found", "status": 404, "detail": "version not found"}`))
 	})
 
-	_, err := src.PublishProtocol(context.Background(), svcID, verID, entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
+	_, err := src.PublishProtocol(context.Background(), svcID, verID, "", entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "version not found")
 }
@@ -150,7 +174,7 @@ func TestPublishProtocol_InvalidServiceID(t *testing.T) {
 		t.Errorf("платформа не должна вызываться при неверном id")
 	})
 
-	_, err := src.PublishProtocol(context.Background(), "not-a-uuid", verID, entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
+	_, err := src.PublishProtocol(context.Background(), "not-a-uuid", verID, "", entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
 	require.Error(t, err)
 }
 
@@ -159,13 +183,13 @@ func TestPublishProtocol_InvalidVersionID(t *testing.T) {
 		t.Errorf("платформа не должна вызываться при неверном id версии")
 	})
 
-	_, err := src.PublishProtocol(context.Background(), svcID, "not-a-uuid", entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
+	_, err := src.PublishProtocol(context.Background(), svcID, "not-a-uuid", "", entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
 	require.Error(t, err)
 }
 
 func TestPublishProtocol_Unreachable(t *testing.T) {
 	src, err := protocolpublishhttp.New("http://127.0.0.1:0", http.DefaultClient)
 	require.NoError(t, err)
-	_, err = src.PublishProtocol(context.Background(), svcID, verID, entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
+	_, err = src.PublishProtocol(context.Background(), svcID, verID, "", entities.ProtocolFormatOpenAPI, []byte(`{"openapi":"3.1.0"}`))
 	require.Error(t, err)
 }
