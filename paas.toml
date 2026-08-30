@@ -8,6 +8,8 @@ name = "paas-cli"
 name = "paas-backend"  # продьюсер, на контракте которого собран клиент платформы
 methods = [
     "GET /organizations/current/clusters/required-access", # cluster_access_http: какие права платформа просит в кластере
+    "GET /organizations/current/clusters", # cluster_directory_http: подключённые кластеры — оператор ставится только в подключённый (DB-05)
+    "GET /organizations/current/database-servers/operators/{engine}", # database_operator_http: манифест оператора СУБД и право платформы (DB-05)
     "POST /organizations/current/clusters", # cluster_registrar_http: регистрация подключённого кластера
     "GET /services", # service_resolver_http: резолв имени продьюсера в id
     "GET /services/{id}", # protocol_source_http: метаданные сервиса перед получением контракта

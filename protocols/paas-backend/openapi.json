@@ -166,6 +166,30 @@
         ],
         "type": "object"
       },
+      "ClustersOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://api.paas.traumtech.ru/schemas/ClustersOutputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "clusters": {
+            "items": {
+              "$ref": "#/components/schemas/ClusterResponse"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "clusters"
+        ],
+        "type": "object"
+      },
       "CompatibilityChangeResponse": {
         "additionalProperties": false,
         "properties": {
@@ -321,7 +345,7 @@
             "type": "string"
           },
           "variable": {
-            "description": "Переменная с доступом; пусто в объявлении — умолчание из имени (\u003cИМЯ\u003e_DATABASE_URL)",
+            "description": "Переменная с доступом; пусто в объявлении — умолчание из имени (<ИМЯ>_DATABASE_URL)",
             "type": "string"
           }
         },
@@ -329,6 +353,57 @@
           "name",
           "engine",
           "server"
+        ],
+        "type": "object"
+      },
+      "DatabaseOperatorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://api.paas.traumtech.ru/schemas/DatabaseOperatorResponse.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "deployment": {
+            "type": "string"
+          },
+          "engine": {
+            "enum": [
+              "postgres"
+            ],
+            "type": "string"
+          },
+          "manifest": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/AccessRuleResponse"
+            },
+            "type": "array"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "engine",
+          "name",
+          "version",
+          "manifest",
+          "namespace",
+          "deployment",
+          "rules"
         ],
         "type": "object"
       },
@@ -432,7 +507,7 @@
         "additionalProperties": false,
         "properties": {
           "databases": {
-            "description": "Переопределения СУБД по имени базы ([env.\u003cокружение\u003e.databases.\u003cимя\u003e])",
+            "description": "Переопределения СУБД по имени базы ([env.<окружение>.databases.<имя>])",
             "items": {
               "$ref": "#/components/schemas/DatabaseOverrideBody"
             },
@@ -1196,6 +1271,36 @@
         "tags": [
           "organizations"
         ]
+      },
+      "get": {
+        "description": "Перечень подключённых кластеров организации (CLS-01). last_contact_at показывает, когда связь подтверждалась последний раз: доступ могли отозвать на стороне владельца.",
+        "operationId": "list-clusters",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClustersOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Кластеры организации",
+        "tags": [
+          "organizations"
+        ]
       }
     },
     "/organizations/current/clusters/required-access": {
@@ -1225,6 +1330,53 @@
           }
         },
         "summary": "Права, которые платформа запрашивает в кластере",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/organizations/current/database-servers/operators/{engine}": {
+      "get": {
+        "description": "Манифест оператора и право, которое после установки нужно платформе (DB-05). Единственный источник для CLI: версия оператора и требования меняются на платформе, без выпуска CLI. Ставит оператор владелец своим доступом — у платформы прав на CRD и роли в кластере нет по замыслу.",
+        "operationId": "get-database-operator",
+        "parameters": [
+          {
+            "description": "Тип СУБД",
+            "in": "path",
+            "name": "engine",
+            "required": true,
+            "schema": {
+              "description": "Тип СУБД",
+              "enum": [
+                "postgres"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatabaseOperatorResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Оператор СУБД для установки в подключённый кластер",
         "tags": [
           "organizations"
         ]

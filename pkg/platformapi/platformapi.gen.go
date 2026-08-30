@@ -41,13 +41,28 @@ func (e ClusterResponseEnvironment) Valid() bool {
 
 // Defines values for DatabaseFormBodyEngine.
 const (
-	Postgres DatabaseFormBodyEngine = "postgres"
+	DatabaseFormBodyEnginePostgres DatabaseFormBodyEngine = "postgres"
 )
 
 // Valid indicates whether the value is a known member of the DatabaseFormBodyEngine enum.
 func (e DatabaseFormBodyEngine) Valid() bool {
 	switch e {
-	case Postgres:
+	case DatabaseFormBodyEnginePostgres:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DatabaseOperatorResponseEngine.
+const (
+	DatabaseOperatorResponseEnginePostgres DatabaseOperatorResponseEngine = "postgres"
+)
+
+// Valid indicates whether the value is a known member of the DatabaseOperatorResponseEngine enum.
+func (e DatabaseOperatorResponseEngine) Valid() bool {
+	switch e {
+	case DatabaseOperatorResponseEnginePostgres:
 		return true
 	default:
 		return false
@@ -159,6 +174,21 @@ func (e VersionResponseEnvironment) Valid() bool {
 	}
 }
 
+// Defines values for GetDatabaseOperatorParamsEngine.
+const (
+	GetDatabaseOperatorParamsEnginePostgres GetDatabaseOperatorParamsEngine = "postgres"
+)
+
+// Valid indicates whether the value is a known member of the GetDatabaseOperatorParamsEngine enum.
+func (e GetDatabaseOperatorParamsEngine) Valid() bool {
+	switch e {
+	case GetDatabaseOperatorParamsEnginePostgres:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CheckProtocolCompatibilityParamsFormat.
 const (
 	CheckProtocolCompatibilityParamsFormatGrpc    CheckProtocolCompatibilityParamsFormat = "grpc"
@@ -250,6 +280,15 @@ type ClusterResponse struct {
 // ClusterResponseEnvironment defines model for ClusterResponse.Environment.
 type ClusterResponseEnvironment string
 
+// ClustersOutputBody defines model for ClustersOutputBody.
+type ClustersOutputBody struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: https://api.paas.traumtech.ru/schemas/ClustersOutputBody.json
+	Schema   *string           `json:"$schema,omitempty"`
+	Clusters []ClusterResponse `json:"clusters"`
+}
+
 // CompatibilityChangeResponse defines model for CompatibilityChangeResponse.
 type CompatibilityChangeResponse struct {
 	Attribute   *string `json:"attribute,omitempty"`
@@ -318,6 +357,24 @@ type DatabaseFormBody struct {
 
 // DatabaseFormBodyEngine Тип СУБД
 type DatabaseFormBodyEngine string
+
+// DatabaseOperatorResponse defines model for DatabaseOperatorResponse.
+type DatabaseOperatorResponse struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: https://api.paas.traumtech.ru/schemas/DatabaseOperatorResponse.json
+	Schema     *string                        `json:"$schema,omitempty"`
+	Deployment string                         `json:"deployment"`
+	Engine     DatabaseOperatorResponseEngine `json:"engine"`
+	Manifest   string                         `json:"manifest"`
+	Name       string                         `json:"name"`
+	Namespace  string                         `json:"namespace"`
+	Rules      []AccessRuleResponse           `json:"rules"`
+	Version    string                         `json:"version"`
+}
+
+// DatabaseOperatorResponseEngine defines model for DatabaseOperatorResponse.Engine.
+type DatabaseOperatorResponseEngine string
 
 // DatabaseOverrideBody defines model for DatabaseOverrideBody.
 type DatabaseOverrideBody struct {
@@ -663,6 +720,9 @@ type VersionResponse struct {
 // VersionResponseEnvironment defines model for VersionResponse.Environment.
 type VersionResponseEnvironment string
 
+// GetDatabaseOperatorParamsEngine defines parameters for GetDatabaseOperator.
+type GetDatabaseOperatorParamsEngine string
+
 // ListServicesParams defines parameters for ListServices.
 type ListServicesParams struct {
 	// Name Фильтр по имени сервиса (точное совпадение); можно повторять — вернутся все совпавшие. Пусто — весь перечень
@@ -803,6 +863,13 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 // The interface specification for the client above.
 type ClientInterface interface {
 
+	// ListClusters Кластеры организации
+	//
+	// Перечень подключённых кластеров организации (CLS-01). last_contact_at показывает, когда связь подтверждалась последний раз: доступ могли отозвать на стороне владельца.
+	//
+	// Corresponds with GET /organizations/current/clusters (the `ListClusters` operationId).
+	ListClusters(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ConnectClusterWithBody Подключить кластер организации
 	//
 	// Подключает кластер Kubernetes организации по выданному доступу (CLS-01). Связь проверяется до сохранения: недостижимый кластер или нехватка прав не сохраняются молча. Токен доступа наружу больше не возвращается никогда.
@@ -827,6 +894,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /organizations/current/clusters/required-access (the `GetClusterRequiredAccess` operationId).
 	GetClusterRequiredAccess(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetDatabaseOperator Оператор СУБД для установки в подключённый кластер
+	//
+	// Манифест оператора и право, которое после установки нужно платформе (DB-05). Единственный источник для CLI: версия оператора и требования меняются на платформе, без выпуска CLI. Ставит оператор владелец своим доступом — у платформы прав на CRD и роли в кластере нет по замыслу.
+	//
+	// Corresponds with GET /organizations/current/database-servers/operators/{engine} (the `GetDatabaseOperator` operationId).
+	GetDatabaseOperator(ctx context.Context, engine GetDatabaseOperatorParamsEngine, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListServices Список сервисов
 	//
@@ -938,6 +1012,23 @@ type ClientInterface interface {
 	RevokePersonalToken(ctx context.Context, tokenID openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
+// ListClusters Кластеры организации
+//
+// Перечень подключённых кластеров организации (CLS-01). last_contact_at показывает, когда связь подтверждалась последний раз: доступ могли отозвать на стороне владельца.
+//
+// Corresponds with GET /organizations/current/clusters (the `ListClusters` operationId).
+func (c *Client) ListClusters(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListClustersRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ConnectClusterWithBody Подключить кластер организации
 //
 // Подключает кластер Kubernetes организации по выданному доступу (CLS-01). Связь проверяется до сохранения: недостижимый кластер или нехватка прав не сохраняются молча. Токен доступа наружу больше не возвращается никогда.
@@ -983,6 +1074,23 @@ func (c *Client) ConnectCluster(ctx context.Context, body ConnectClusterJSONRequ
 // Corresponds with GET /organizations/current/clusters/required-access (the `GetClusterRequiredAccess` operationId).
 func (c *Client) GetClusterRequiredAccess(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetClusterRequiredAccessRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetDatabaseOperator Оператор СУБД для установки в подключённый кластер
+//
+// Манифест оператора и право, которое после установки нужно платформе (DB-05). Единственный источник для CLI: версия оператора и требования меняются на платформе, без выпуска CLI. Ставит оператор владелец своим доступом — у платформы прав на CRD и роли в кластере нет по замыслу.
+//
+// Corresponds with GET /organizations/current/database-servers/operators/{engine} (the `GetDatabaseOperator` operationId).
+func (c *Client) GetDatabaseOperator(ctx context.Context, engine GetDatabaseOperatorParamsEngine, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetDatabaseOperatorRequest(c.Server, engine)
 	if err != nil {
 		return nil, err
 	}
@@ -1272,6 +1380,33 @@ func (c *Client) RevokePersonalToken(ctx context.Context, tokenID openapi_types.
 	return c.Client.Do(req)
 }
 
+// NewListClustersRequest constructs an http.Request for the ListClusters method
+func NewListClustersRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/organizations/current/clusters")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewConnectClusterRequest calls the generic ConnectCluster builder with application/json body
 func NewConnectClusterRequest(server string, body ConnectClusterJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -1322,6 +1457,40 @@ func NewGetClusterRequiredAccessRequest(server string) (*http.Request, error) {
 	}
 
 	operationPath := fmt.Sprintf("/organizations/current/clusters/required-access")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetDatabaseOperatorRequest constructs an http.Request for the GetDatabaseOperator method
+func NewGetDatabaseOperatorRequest(server string, engine GetDatabaseOperatorParamsEngine) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "engine", engine, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/organizations/current/database-servers/operators/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2012,6 +2181,15 @@ func WithBaseURL(baseURL string) ClientOption {
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
 
+	// ListClustersWithResponse Кластеры организации
+	//
+	// Перечень подключённых кластеров организации (CLS-01). last_contact_at показывает, когда связь подтверждалась последний раз: доступ могли отозвать на стороне владельца.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /organizations/current/clusters (the `ListClusters` operationId).
+	ListClustersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListClustersResponse, error)
+
 	// ConnectClusterWithBodyWithResponse Подключить кластер организации
 	//
 	// Подключает кластер Kubernetes организации по выданному доступу (CLS-01). Связь проверяется до сохранения: недостижимый кластер или нехватка прав не сохраняются молча. Токен доступа наружу больше не возвращается никогда.
@@ -2038,6 +2216,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /organizations/current/clusters/required-access (the `GetClusterRequiredAccess` operationId).
 	GetClusterRequiredAccessWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetClusterRequiredAccessResponse, error)
+
+	// GetDatabaseOperatorWithResponse Оператор СУБД для установки в подключённый кластер
+	//
+	// Манифест оператора и право, которое после установки нужно платформе (DB-05). Единственный источник для CLI: версия оператора и требования меняются на платформе, без выпуска CLI. Ставит оператор владелец своим доступом — у платформы прав на CRD и роли в кластере нет по замыслу.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /organizations/current/database-servers/operators/{engine} (the `GetDatabaseOperator` operationId).
+	GetDatabaseOperatorWithResponse(ctx context.Context, engine GetDatabaseOperatorParamsEngine, reqEditors ...RequestEditorFn) (*GetDatabaseOperatorResponse, error)
 
 	// ListServicesWithResponse Список сервисов
 	//
@@ -2163,6 +2350,54 @@ type ClientWithResponsesInterface interface {
 	RevokePersonalTokenWithResponse(ctx context.Context, tokenID openapi_types.UUID, reqEditors ...RequestEditorFn) (*RevokePersonalTokenResponse, error)
 }
 
+type ListClustersResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ClustersOutputBody
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListClustersResponse) GetJSON200() *ClustersOutputBody {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r ListClustersResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListClustersResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListClustersResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListClustersResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListClustersResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ConnectClusterResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -2253,6 +2488,54 @@ func (r GetClusterRequiredAccessResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetClusterRequiredAccessResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetDatabaseOperatorResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DatabaseOperatorResponse
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetDatabaseOperatorResponse) GetJSON200() *DatabaseOperatorResponse {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r GetDatabaseOperatorResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GetDatabaseOperatorResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetDatabaseOperatorResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetDatabaseOperatorResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetDatabaseOperatorResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -2856,6 +3139,21 @@ func (r RevokePersonalTokenResponse) ContentType() string {
 	return ""
 }
 
+// ListClustersWithResponse Кластеры организации
+//
+// Перечень подключённых кластеров организации (CLS-01). last_contact_at показывает, когда связь подтверждалась последний раз: доступ могли отозвать на стороне владельца.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /organizations/current/clusters (the `ListClusters` operationId).
+func (c *ClientWithResponses) ListClustersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListClustersResponse, error) {
+	rsp, err := c.ListClusters(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListClustersResponse(rsp)
+}
+
 // ConnectClusterWithBodyWithResponse Подключить кластер организации
 //
 // Подключает кластер Kubernetes организации по выданному доступу (CLS-01). Связь проверяется до сохранения: недостижимый кластер или нехватка прав не сохраняются молча. Токен доступа наружу больше не возвращается никогда.
@@ -2899,6 +3197,21 @@ func (c *ClientWithResponses) GetClusterRequiredAccessWithResponse(ctx context.C
 		return nil, err
 	}
 	return ParseGetClusterRequiredAccessResponse(rsp)
+}
+
+// GetDatabaseOperatorWithResponse Оператор СУБД для установки в подключённый кластер
+//
+// Манифест оператора и право, которое после установки нужно платформе (DB-05). Единственный источник для CLI: версия оператора и требования меняются на платформе, без выпуска CLI. Ставит оператор владелец своим доступом — у платформы прав на CRD и роли в кластере нет по замыслу.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /organizations/current/database-servers/operators/{engine} (the `GetDatabaseOperator` operationId).
+func (c *ClientWithResponses) GetDatabaseOperatorWithResponse(ctx context.Context, engine GetDatabaseOperatorParamsEngine, reqEditors ...RequestEditorFn) (*GetDatabaseOperatorResponse, error) {
+	rsp, err := c.GetDatabaseOperator(ctx, engine, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetDatabaseOperatorResponse(rsp)
 }
 
 // ListServicesWithResponse Список сервисов
@@ -3126,6 +3439,39 @@ func (c *ClientWithResponses) RevokePersonalTokenWithResponse(ctx context.Contex
 	return ParseRevokePersonalTokenResponse(rsp)
 }
 
+// ParseListClustersResponse parses an HTTP response from a ListClustersWithResponse call
+func ParseListClustersResponse(rsp *http.Response) (*ListClustersResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListClustersResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ClustersOutputBody
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseConnectClusterResponse parses an HTTP response from a ConnectClusterWithResponse call
 func ParseConnectClusterResponse(rsp *http.Response) (*ConnectClusterResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -3175,6 +3521,39 @@ func ParseGetClusterRequiredAccessResponse(rsp *http.Response) (*GetClusterRequi
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest RequiredAccessOutputBody
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetDatabaseOperatorResponse parses an HTTP response from a GetDatabaseOperatorWithResponse call
+func ParseGetDatabaseOperatorResponse(rsp *http.Response) (*GetDatabaseOperatorResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetDatabaseOperatorResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DatabaseOperatorResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

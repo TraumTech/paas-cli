@@ -1,16 +1,11 @@
 // Package clusterprovisionerk8s — выходной адаптер: заводит в кластере
-// владельца учётную запись для платформы, пользуясь его локальным доступом.
-//
-// Клиентская библиотека Kubernetes здесь нужна не ради вызовов (API обычный
-// HTTP), а ради аутентификации: в kubeconfig может лежать exec-плагин облака,
-// клиентский сертификат, OIDC или impersonation. Разбирать это самостоятельно
-// значит воспроизводить чужой формат и чужой протокол.
+// владельца учётную запись для платформы, пользуясь его локальным доступом
+// (см. adapters/kubeconfig — почему через клиентскую библиотеку).
 package clusterprovisionerk8s
 
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -18,9 +13,8 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/TraumTech/paas-cli/internal/adapters/kubeconfig"
 	"github.com/TraumTech/paas-cli/internal/entities"
 	"github.com/TraumTech/paas-cli/internal/usecases"
 )
@@ -28,8 +22,10 @@ import (
 const (
 	// Имена того, что команда заводит в чужом кластере. Постоянные и говорящие:
 	// владелец должен узнавать их у себя и понимать, откуда они взялись.
-	namespace          = "kube-system"
-	serviceAccountName = "paas-platform"
+	// Учётная запись экспортирована: к ней привязывают и права под оператор
+	// СУБД (DB-05).
+	Namespace          = "kube-system"
+	ServiceAccountName = "paas-platform"
 	clusterRoleName    = "paas-platform"
 	bindingName        = "paas-platform"
 	tokenSecretName    = "paas-platform-token"
@@ -46,15 +42,15 @@ func New() *Provisioner { return &Provisioner{} }
 var _ usecases.ClusterProvisioner = (*Provisioner)(nil)
 
 func (p *Provisioner) AccountName() string {
-	return fmt.Sprintf("%s/%s", namespace, serviceAccountName)
+	return fmt.Sprintf("%s/%s", Namespace, ServiceAccountName)
 }
 
-func (p *Provisioner) Target(kubeconfig, contextName string) (*usecases.ClusterTarget, error) {
-	config, raw, err := loadConfig(kubeconfig, contextName)
+func (p *Provisioner) Target(kubeconfigPath, contextName string) (*usecases.ClusterTarget, error) {
+	config, raw, err := kubeconfig.Load(kubeconfigPath, contextName)
 	if err != nil {
 		return nil, err
 	}
-	ca, err := caCertificate(config)
+	ca, err := kubeconfig.CACertificate(config)
 	if err != nil {
 		return nil, err
 	}
@@ -70,10 +66,10 @@ func (p *Provisioner) Target(kubeconfig, contextName string) (*usecases.ClusterT
 // запрошенным — повтор после неудачи не задваивает и не оставляет мусора.
 func (p *Provisioner) Provision(
 	ctx context.Context,
-	kubeconfig, contextName string,
+	kubeconfigPath, contextName string,
 	rules []entities.AccessRule,
 ) (*entities.ClusterCredential, error) {
-	config, _, err := loadConfig(kubeconfig, contextName)
+	config, _, err := kubeconfig.Load(kubeconfigPath, contextName)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +92,7 @@ func (p *Provisioner) Provision(
 		return nil, err
 	}
 
-	ca, err := caCertificate(config)
+	ca, err := kubeconfig.CACertificate(config)
 	if err != nil {
 		return nil, err
 	}
@@ -109,9 +105,9 @@ func (p *Provisioner) Provision(
 
 func (p *Provisioner) applyServiceAccount(ctx context.Context, client kubernetes.Interface) error {
 	account := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{Name: serviceAccountName, Namespace: namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: ServiceAccountName, Namespace: Namespace},
 	}
-	_, err := client.CoreV1().ServiceAccounts(namespace).Create(ctx, account, metav1.CreateOptions{})
+	_, err := client.CoreV1().ServiceAccounts(Namespace).Create(ctx, account, metav1.CreateOptions{})
 	if apierrors.IsAlreadyExists(err) {
 		return nil
 	}
@@ -142,8 +138,8 @@ func (p *Provisioner) applyBinding(ctx context.Context, client kubernetes.Interf
 		},
 		Subjects: []rbacv1.Subject{{
 			Kind:      rbacv1.ServiceAccountKind,
-			Name:      serviceAccountName,
-			Namespace: namespace,
+			Name:      ServiceAccountName,
+			Namespace: Namespace,
 		}},
 	}
 	_, err := client.RbacV1().ClusterRoleBindings().Create(ctx, binding, metav1.CreateOptions{})
@@ -159,19 +155,19 @@ func (p *Provisioner) ensureToken(ctx context.Context, client kubernetes.Interfa
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        tokenSecretName,
-			Namespace:   namespace,
-			Annotations: map[string]string{corev1.ServiceAccountNameKey: serviceAccountName},
+			Namespace:   Namespace,
+			Annotations: map[string]string{corev1.ServiceAccountNameKey: ServiceAccountName},
 		},
 		Type: corev1.SecretTypeServiceAccountToken,
 	}
-	_, err := client.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
+	_, err := client.CoreV1().Secrets(Namespace).Create(ctx, secret, metav1.CreateOptions{})
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return "", wrapAccess(err, "завести секрет с токеном")
 	}
 
 	deadline := time.Now().Add(tokenWaitTimeout)
 	for {
-		stored, err := client.CoreV1().Secrets(namespace).Get(ctx, tokenSecretName, metav1.GetOptions{})
+		stored, err := client.CoreV1().Secrets(Namespace).Get(ctx, tokenSecretName, metav1.GetOptions{})
 		if err != nil {
 			return "", wrapAccess(err, "прочитать токен учётной записи")
 		}
@@ -199,52 +195,6 @@ func toPolicyRules(rules []entities.AccessRule) []rbacv1.PolicyRule {
 		})
 	}
 	return out
-}
-
-func loadConfig(kubeconfig, contextName string) (*rest.Config, string, error) {
-	rules := clientcmd.NewDefaultClientConfigLoadingRules()
-	if kubeconfig != "" {
-		rules.ExplicitPath = kubeconfig
-	}
-	overrides := &clientcmd.ConfigOverrides{}
-	if contextName != "" {
-		overrides.CurrentContext = contextName
-	}
-
-	clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, overrides)
-	raw, err := clientConfig.RawConfig()
-	if err != nil {
-		return nil, "", fmt.Errorf("прочитать kubeconfig: %w", err)
-	}
-	selected := contextName
-	if selected == "" {
-		selected = raw.CurrentContext
-	}
-	if selected == "" {
-		return nil, "", entities.ErrNoKubeContext
-	}
-
-	config, err := clientConfig.ClientConfig()
-	if err != nil {
-		return nil, "", fmt.Errorf("прочитать доступ к кластеру: %w", err)
-	}
-	return config, selected, nil
-}
-
-// caCertificate возвращает сертификат кластера в PEM: платформе он нужен,
-// чтобы опознать кластер — у облачных он самоподписанный.
-func caCertificate(config *rest.Config) (string, error) {
-	if len(config.CAData) > 0 {
-		return string(config.CAData), nil
-	}
-	if config.CAFile == "" {
-		return "", fmt.Errorf("в доступе к кластеру нет его сертификата")
-	}
-	data, err := os.ReadFile(config.CAFile)
-	if err != nil {
-		return "", fmt.Errorf("прочитать сертификат кластера: %w", err)
-	}
-	return string(data), nil
 }
 
 // wrapAccess переводит отказ по правам в понятную причину: чаще всего у

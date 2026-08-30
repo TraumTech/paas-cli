@@ -13,17 +13,20 @@ import (
 	browserauthorizerlocal "github.com/TraumTech/paas-cli/internal/adapters/browser_authorizer_local"
 	"github.com/TraumTech/paas-cli/internal/adapters/candidate_reader_file"
 	clusteraccesshttp "github.com/TraumTech/paas-cli/internal/adapters/cluster_access_http"
+	clusterdirectoryhttp "github.com/TraumTech/paas-cli/internal/adapters/cluster_directory_http"
 	clusterprovisionerk8s "github.com/TraumTech/paas-cli/internal/adapters/cluster_provisioner_k8s"
 	clusterregistrarhttp "github.com/TraumTech/paas-cli/internal/adapters/cluster_registrar_http"
+	databaseoperatorhttp "github.com/TraumTech/paas-cli/internal/adapters/database_operator_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/dependency_registrar_http"
 	formreaderfile "github.com/TraumTech/paas-cli/internal/adapters/form_reader_file"
 	"github.com/TraumTech/paas-cli/internal/adapters/manifest_reader_file"
+	operatorinstallerk8s "github.com/TraumTech/paas-cli/internal/adapters/operator_installer_k8s"
 	personaltokenhttp "github.com/TraumTech/paas-cli/internal/adapters/personal_token_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_compatibility_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_publish_http"
-	"github.com/TraumTech/paas-cli/internal/adapters/registry_directory_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_source_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_store_file"
+	"github.com/TraumTech/paas-cli/internal/adapters/registry_directory_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/service_resolver_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/session_gateway_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/session_store_file"
@@ -33,6 +36,7 @@ import (
 	"github.com/TraumTech/paas-cli/internal/controllers/auth_whoami_command_cli"
 	buildpublishcommandcli "github.com/TraumTech/paas-cli/internal/controllers/build_publish_command_cli"
 	clusterconnectcommandcli "github.com/TraumTech/paas-cli/internal/controllers/cluster_connect_command_cli"
+	databaseoperatorinstallcommandcli "github.com/TraumTech/paas-cli/internal/controllers/database_operator_install_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/dependency_register_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/protocol_compatibility_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/protocol_fetch_command_cli"
@@ -146,6 +150,18 @@ func Run(ctx context.Context, args []string) error {
 		usecases.NewConnectCluster(clusterAccess, clusterprovisionerk8s.New(), clusterRegistrar),
 	)
 
+	operatorSource, err := databaseoperatorhttp.New(baseURL, client)
+	if err != nil {
+		return err
+	}
+	clusterDirectory, err := clusterdirectoryhttp.New(baseURL, client)
+	if err != nil {
+		return err
+	}
+	installOperator := databaseoperatorinstallcommandcli.New(
+		usecases.NewInstallOperator(operatorSource, clusterDirectory, operatorinstallerk8s.New()),
+	)
+
 	// Identity-провайдер — отдельный хост со своим клиентом: креденшелы платформы
 	// (bearer/сессия) к нему не прикладываются.
 	authURL := strings.TrimRight(envOr(envAuthURL, defaultAuthURL), "/")
@@ -217,6 +233,17 @@ func Run(ctx context.Context, args []string) error {
 				Usage: "подключение кластеров Kubernetes организации",
 				Commands: []*cli.Command{
 					connectCluster.CLICommand(),
+				},
+			},
+			{
+				Name:  "databases",
+				Usage: "СУБД организации",
+				Commands: []*cli.Command{
+					{
+						Name:     "operators",
+						Usage:    "операторы СУБД в подключённых кластерах",
+						Commands: []*cli.Command{installOperator.CLICommand()},
+					},
 				},
 			},
 			{

@@ -32,7 +32,7 @@ func TestBuildFormToAPI_Databases(t *testing.T) {
 	require.NotNil(t, body.Databases)
 	databases := *body.Databases
 	require.Len(t, databases, 2)
-	assert.Equal(t, platformapi.DatabaseFormBody{Name: "main", Engine: platformapi.Postgres, Server: "paas-postgres"}, databases[0])
+	assert.Equal(t, platformapi.DatabaseFormBody{Name: "main", Engine: platformapi.DatabaseFormBodyEnginePostgres, Server: "paas-postgres"}, databases[0])
 	require.NotNil(t, databases[1].Variable)
 	assert.Equal(t, "REPORTS_DSN", *databases[1].Variable)
 
