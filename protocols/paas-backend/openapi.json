@@ -37,6 +37,13 @@
       "BuildFormBody": {
         "additionalProperties": false,
         "properties": {
+          "databases": {
+            "description": "Базы, нужные сервису (DB-03), как объявлены манифестом",
+            "items": {
+              "$ref": "#/components/schemas/DatabaseFormBody"
+            },
+            "type": "array"
+          },
           "environments": {
             "description": "Секции [env.*]: default — общие значения",
             "items": {
@@ -295,6 +302,54 @@
         ],
         "type": "object"
       },
+      "DatabaseFormBody": {
+        "additionalProperties": false,
+        "properties": {
+          "engine": {
+            "description": "Тип СУБД",
+            "enum": [
+              "postgres"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "description": "Имя базы внутри сервиса (kebab-case)",
+            "type": "string"
+          },
+          "server": {
+            "description": "Имя подключённой СУБД организации, где заводить базу",
+            "type": "string"
+          },
+          "variable": {
+            "description": "Переменная с доступом; пусто в объявлении — умолчание из имени (\u003cИМЯ\u003e_DATABASE_URL)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "engine",
+          "server"
+        ],
+        "type": "object"
+      },
+      "DatabaseOverrideBody": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "Имя объявленной базы",
+            "type": "string"
+          },
+          "server": {
+            "description": "Имя подключённой СУБД для этого окружения",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "server"
+        ],
+        "type": "object"
+      },
       "ErrorDetail": {
         "additionalProperties": false,
         "properties": {
@@ -376,6 +431,13 @@
       "FormEnvironmentBody": {
         "additionalProperties": false,
         "properties": {
+          "databases": {
+            "description": "Переопределения СУБД по имени базы ([env.\u003cокружение\u003e.databases.\u003cимя\u003e])",
+            "items": {
+              "$ref": "#/components/schemas/DatabaseOverrideBody"
+            },
+            "type": "array"
+          },
           "name": {
             "description": "Имя секции: default, dev, stage или prod",
             "type": "string"
@@ -1000,6 +1062,13 @@
       "VersionFormBody": {
         "additionalProperties": false,
         "properties": {
+          "databases": {
+            "description": "Базы, объявленные манифестом версии",
+            "items": {
+              "$ref": "#/components/schemas/DatabaseFormBody"
+            },
+            "type": "array"
+          },
           "processes": {
             "description": "Процессы сервиса",
             "items": {

@@ -25,6 +25,8 @@ func New() *Reader {
 // entities.FormDeclaration живёт только здесь, в адаптере.
 type fileForm struct {
 	Processes []fileProcess `toml:"processes"`
+	// Databases — потребности в базах (DB-03): [[databases]].
+	Databases []fileDatabase `toml:"databases"`
 	// Env — секции [env.default] и [env.<окружение>] (DEP-14/15): общие
 	// значения и переопределения. Разрешает их use case, зная окружение версии.
 	Env map[string]fileEnvironment `toml:"env"`
@@ -35,6 +37,22 @@ type fileEnvironment struct {
 	Variables map[string]string `toml:"variables"`
 	// Replicas 0 — секция числа реплик не задаёт.
 	Replicas int `toml:"replicas"`
+	// Databases — [env.<окружение>.databases.<имя>]: окружение переопределяет
+	// только СУБД для объявленной базы.
+	Databases map[string]fileDatabaseOverride `toml:"databases"`
+}
+
+type fileDatabase struct {
+	Name   string `toml:"name"`
+	Engine string `toml:"engine"`
+	// server — имя подключённой СУБД организации, где заводить базу.
+	Server string `toml:"server"`
+	// variable — переменная с доступом; пусто — умолчание платформы из имени.
+	Variable string `toml:"variable"`
+}
+
+type fileDatabaseOverride struct {
+	Server string `toml:"server"`
 }
 
 type fileProcess struct {
@@ -81,14 +99,29 @@ func (r *Reader) Read(_ context.Context, path string) (*entities.FormDeclaration
 			Prefix:  p.Prefix,
 		})
 	}
+	for _, d := range file.Databases {
+		declaration.Databases = append(declaration.Databases, entities.DatabaseForm{
+			Name:     d.Name,
+			Engine:   d.Engine,
+			Server:   d.Server,
+			Variable: d.Variable,
+		})
+	}
 	for name, values := range file.Env {
 		if declaration.Environments == nil {
 			declaration.Environments = make(map[string]entities.EnvironmentValues, len(file.Env))
 		}
-		declaration.Environments[name] = entities.EnvironmentValues{
+		section := entities.EnvironmentValues{
 			Variables: values.Variables,
 			Replicas:  values.Replicas,
 		}
+		for database, override := range values.Databases {
+			if section.Databases == nil {
+				section.Databases = make(map[string]entities.DatabaseOverride, len(values.Databases))
+			}
+			section.Databases[database] = entities.DatabaseOverride{Server: override.Server}
+		}
+		declaration.Environments[name] = section
 	}
 	return declaration, nil
 }

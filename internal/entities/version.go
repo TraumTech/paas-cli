@@ -116,6 +116,9 @@ func (r VersionRequest) Validate() error {
 // хранит правило слияния.
 type FormDeclaration struct {
 	Processes []ProcessForm
+	// Databases — потребности в базах (DB-03), как объявлены [[databases]].
+	// Правила объявления и его сверка с подключёнными СУБД — у платформы.
+	Databases []DatabaseForm
 	// Environments — секции [env.*]: ключ DefaultEnvironmentKey несёт общие
 	// значения, остальные ключи — окружения платформы.
 	Environments map[string]EnvironmentValues
@@ -126,6 +129,23 @@ type EnvironmentValues struct {
 	Variables map[string]string
 	// Replicas 0 — секция числа реплик не задаёт.
 	Replicas int
+	// Databases — переопределения СУБД по имени базы
+	// ([env.<окружение>.databases.<имя>]).
+	Databases map[string]DatabaseOverride
+}
+
+// DatabaseForm — потребность в базе: имя внутри сервиса, тип СУБД, имя
+// подключённой СУБД организации и, при необходимости, переменная с доступом.
+type DatabaseForm struct {
+	Name     string
+	Engine   string
+	Server   string
+	Variable string
+}
+
+// DatabaseOverride — окружение меняет только «где заводить» для одной базы.
+type DatabaseOverride struct {
+	Server string
 }
 
 // DefaultEnvironmentKey — секция общих значений: [env.default].

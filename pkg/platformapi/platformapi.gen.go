@@ -39,6 +39,21 @@ func (e ClusterResponseEnvironment) Valid() bool {
 	}
 }
 
+// Defines values for DatabaseFormBodyEngine.
+const (
+	Postgres DatabaseFormBodyEngine = "postgres"
+)
+
+// Valid indicates whether the value is a known member of the DatabaseFormBodyEngine enum.
+func (e DatabaseFormBodyEngine) Valid() bool {
+	switch e {
+	case Postgres:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProductResponseStage.
 const (
 	Active   ProductResponseStage = "active"
@@ -190,6 +205,9 @@ type AccessRuleResponse struct {
 
 // BuildFormBody defines model for BuildFormBody.
 type BuildFormBody struct {
+	// Databases Базы, нужные сервису (DB-03), как объявлены манифестом
+	Databases *[]DatabaseFormBody `json:"databases,omitempty"`
+
 	// Environments Секции [env.*]: default — общие значения
 	Environments *[]FormEnvironmentBody `json:"environments,omitempty"`
 
@@ -283,6 +301,33 @@ type ConsumerCompatibilityResponse struct {
 	ConsumerVersionNumber int64                         `json:"consumer_version_number"`
 }
 
+// DatabaseFormBody defines model for DatabaseFormBody.
+type DatabaseFormBody struct {
+	// Engine Тип СУБД
+	Engine DatabaseFormBodyEngine `json:"engine"`
+
+	// Name Имя базы внутри сервиса (kebab-case)
+	Name string `json:"name"`
+
+	// Server Имя подключённой СУБД организации, где заводить базу
+	Server string `json:"server"`
+
+	// Variable Переменная с доступом; пусто в объявлении — умолчание из имени (<ИМЯ>_DATABASE_URL)
+	Variable *string `json:"variable,omitempty"`
+}
+
+// DatabaseFormBodyEngine Тип СУБД
+type DatabaseFormBodyEngine string
+
+// DatabaseOverrideBody defines model for DatabaseOverrideBody.
+type DatabaseOverrideBody struct {
+	// Name Имя объявленной базы
+	Name string `json:"name"`
+
+	// Server Имя подключённой СУБД для этого окружения
+	Server string `json:"server"`
+}
+
 // ErrorDetail defines model for ErrorDetail.
 type ErrorDetail struct {
 	// Location Where the error occurred, e.g. 'body.items[3].tags' or 'path.thing-id'
@@ -333,6 +378,9 @@ type ErrorModel struct {
 
 // FormEnvironmentBody defines model for FormEnvironmentBody.
 type FormEnvironmentBody struct {
+	// Databases Переопределения СУБД по имени базы ([env.<окружение>.databases.<имя>])
+	Databases *[]DatabaseOverrideBody `json:"databases,omitempty"`
+
 	// Name Имя секции: default, dev, stage или prod
 	Name      string              `json:"name"`
 	Replicas  *int64              `json:"replicas,omitempty"`
@@ -583,6 +631,9 @@ type ServiceResponse struct {
 
 // VersionFormBody defines model for VersionFormBody.
 type VersionFormBody struct {
+	// Databases Базы, объявленные манифестом версии
+	Databases *[]DatabaseFormBody `json:"databases,omitempty"`
+
 	// Processes Процессы сервиса
 	Processes []ProcessFormBody `json:"processes"`
 

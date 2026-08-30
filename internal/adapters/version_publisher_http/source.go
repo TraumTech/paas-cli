@@ -224,6 +224,24 @@ func buildFormToAPI(form *entities.FormDeclaration) *platformapi.BuildFormBody {
 		out.Processes = append(out.Processes, process)
 	}
 
+	// Базы (DB-03) — в порядке объявления: он и так детерминирован файлом.
+	if len(form.Databases) > 0 {
+		databases := make([]platformapi.DatabaseFormBody, 0, len(form.Databases))
+		for _, d := range form.Databases {
+			database := platformapi.DatabaseFormBody{
+				Name:   d.Name,
+				Engine: platformapi.DatabaseFormBodyEngine(d.Engine),
+				Server: d.Server,
+			}
+			if d.Variable != "" {
+				variable := d.Variable
+				database.Variable = &variable
+			}
+			databases = append(databases, database)
+		}
+		out.Databases = &databases
+	}
+
 	// Порядок секций детерминирован: одна и та же ревизия не должна публиковать
 	// форму по-разному от запуска к запуску.
 	names := make([]string, 0, len(form.Environments))
@@ -246,6 +264,13 @@ func buildFormToAPI(form *entities.FormDeclaration) *platformapi.BuildFormBody {
 		if len(variables) > 0 {
 			section.Variables = &variables
 		}
+		if len(values.Databases) > 0 {
+			overrides := make([]platformapi.DatabaseOverrideBody, 0, len(values.Databases))
+			for _, database := range sortedOverrideKeys(values.Databases) {
+				overrides = append(overrides, platformapi.DatabaseOverrideBody{Name: database, Server: values.Databases[database].Server})
+			}
+			section.Databases = &overrides
+		}
 		environments = append(environments, section)
 	}
 	if len(environments) > 0 {
@@ -257,6 +282,15 @@ func buildFormToAPI(form *entities.FormDeclaration) *platformapi.BuildFormBody {
 func sortedKeys(values map[string]string) []string {
 	names := make([]string, 0, len(values))
 	for name := range values {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func sortedOverrideKeys(overrides map[string]entities.DatabaseOverride) []string {
+	names := make([]string, 0, len(overrides))
+	for name := range overrides {
 		names = append(names, name)
 	}
 	sort.Strings(names)

@@ -70,6 +70,42 @@ func TestReadFormManifestWithoutProcesses(t *testing.T) {
 	assert.Nil(t, form)
 }
 
+// Объявление баз (DB-03) читается как есть: список [[databases]] и
+// переопределение СУБД в секции окружения; правила — у платформы.
+func TestReadFormDatabases(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "paas.toml")
+	require.NoError(t, os.WriteFile(path, []byte(`
+[[processes]]
+name = "server"
+listen = 9090
+
+[[databases]]
+name = "main"
+engine = "postgres"
+server = "paas-postgres"
+
+[[databases]]
+name = "reports"
+engine = "postgres"
+server = "paas-postgres"
+variable = "REPORTS_DSN"
+
+[env.dev.databases.main]
+server = "dev-pg"
+`), 0o600))
+
+	declaration, err := New().Read(context.Background(), path)
+
+	require.NoError(t, err)
+	require.NotNil(t, declaration)
+	assert.Equal(t, []entities.DatabaseForm{
+		{Name: "main", Engine: "postgres", Server: "paas-postgres"},
+		{Name: "reports", Engine: "postgres", Server: "paas-postgres", Variable: "REPORTS_DSN"},
+	}, declaration.Databases)
+	assert.Equal(t, map[string]entities.DatabaseOverride{"main": {Server: "dev-pg"}}, declaration.Environments["dev"].Databases)
+}
+
 // Секции [env.default] и [env.<окружение>] читаются как объявлены: разрешает
 // их use case, зная окружение публикуемой версии (DEP-14/15).
 func TestReadFormEnvironmentSections(t *testing.T) {
