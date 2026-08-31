@@ -272,7 +272,7 @@ paas-cli protocols sync --manifest deps.toml  # другой путь к ман�
 [[processes]]
 name = "server"
 listen = 8080          # отсутствие — воркер: без Service и публичного входа
-command = ["./app"]    # необязательно: по умолчанию команда образа
+command = ["./app"]    # обязательно (DEP-22): чем запускается контейнер
 cpu = "100m"
 memory = "128Mi"
 zone = "main"          # доменная зона организации; без неё маршрута нет
