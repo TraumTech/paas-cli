@@ -337,7 +337,7 @@
             "type": "string"
           },
           "name": {
-            "description": "Имя базы внутри сервиса (kebab-case)",
+            "description": "Имя базы внутри сервиса (kebab-case); пустая строка — единственная безымянная база, канонизируется платформой в default (DB-07)",
             "type": "string"
           },
           "server": {
@@ -345,7 +345,7 @@
             "type": "string"
           },
           "variable": {
-            "description": "Переменная с доступом; пусто в объявлении — умолчание из имени (<ИМЯ>_DATABASE_URL)",
+            "description": "Переменная с доступом; пусто в объявлении — умолчание по шаблону POSTGRES_\u003cИМЯ\u003e_URL, у безымянной базы — POSTGRES_URL (DB-07)",
             "type": "string"
           }
         },
@@ -372,9 +372,6 @@
             "type": "string"
           },
           "engine": {
-            "enum": [
-              "postgres"
-            ],
             "type": "string"
           },
           "manifest": {
@@ -507,7 +504,7 @@
         "additionalProperties": false,
         "properties": {
           "databases": {
-            "description": "Переопределения СУБД по имени базы ([env.<окружение>.databases.<имя>])",
+            "description": "Переопределения СУБД по имени базы ([env.\u003cокружение\u003e.databases.\u003cимя\u003e])",
             "items": {
               "$ref": "#/components/schemas/DatabaseOverrideBody"
             },
@@ -590,7 +587,7 @@
         "additionalProperties": false,
         "properties": {
           "command": {
-            "description": "Переопределение команды образа",
+            "description": "Команда запуска контейнера (DEP-22, обязательна при публикации); сборки без неё, опубликованные раньше, выкатываются командой образа",
             "items": {
               "type": "string"
             },
@@ -1232,6 +1229,36 @@
   "openapi": "3.1.0",
   "paths": {
     "/organizations/current/clusters": {
+      "get": {
+        "description": "Перечень подключённых кластеров организации (CLS-01). last_contact_at показывает, когда связь подтверждалась последний раз: доступ могли отозвать на стороне владельца.",
+        "operationId": "list-clusters",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClustersOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Кластеры организации",
+        "tags": [
+          "organizations"
+        ]
+      },
       "post": {
         "description": "Подключает кластер Kubernetes организации по выданному доступу (CLS-01). Связь проверяется до сохранения: недостижимый кластер или нехватка прав не сохраняются молча. Токен доступа наружу больше не возвращается никогда.",
         "operationId": "connect-cluster",
@@ -1268,36 +1295,6 @@
           }
         },
         "summary": "Подключить кластер организации",
-        "tags": [
-          "organizations"
-        ]
-      },
-      "get": {
-        "description": "Перечень подключённых кластеров организации (CLS-01). last_contact_at показывает, когда связь подтверждалась последний раз: доступ могли отозвать на стороне владельца.",
-        "operationId": "list-clusters",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ClustersOutputBody"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorModel"
-                }
-              }
-            },
-            "description": "Error"
-          }
-        },
-        "summary": "Кластеры организации",
         "tags": [
           "organizations"
         ]
@@ -1341,14 +1338,15 @@
         "operationId": "get-database-operator",
         "parameters": [
           {
-            "description": "Тип СУБД",
+            "description": "Тип ресурса: postgres — СУБД, s3 — объектное хранилище",
             "in": "path",
             "name": "engine",
             "required": true,
             "schema": {
-              "description": "Тип СУБД",
+              "description": "Тип ресурса: postgres — СУБД, s3 — объектное хранилище",
               "enum": [
-                "postgres"
+                "postgres",
+                "s3"
               ],
               "type": "string"
             }

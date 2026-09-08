@@ -54,21 +54,6 @@ func (e DatabaseFormBodyEngine) Valid() bool {
 	}
 }
 
-// Defines values for DatabaseOperatorResponseEngine.
-const (
-	DatabaseOperatorResponseEnginePostgres DatabaseOperatorResponseEngine = "postgres"
-)
-
-// Valid indicates whether the value is a known member of the DatabaseOperatorResponseEngine enum.
-func (e DatabaseOperatorResponseEngine) Valid() bool {
-	switch e {
-	case DatabaseOperatorResponseEnginePostgres:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for ProductResponseStage.
 const (
 	Active   ProductResponseStage = "active"
@@ -177,12 +162,15 @@ func (e VersionResponseEnvironment) Valid() bool {
 // Defines values for GetDatabaseOperatorParamsEngine.
 const (
 	GetDatabaseOperatorParamsEnginePostgres GetDatabaseOperatorParamsEngine = "postgres"
+	GetDatabaseOperatorParamsEngineS3       GetDatabaseOperatorParamsEngine = "s3"
 )
 
 // Valid indicates whether the value is a known member of the GetDatabaseOperatorParamsEngine enum.
 func (e GetDatabaseOperatorParamsEngine) Valid() bool {
 	switch e {
 	case GetDatabaseOperatorParamsEnginePostgres:
+		return true
+	case GetDatabaseOperatorParamsEngineS3:
 		return true
 	default:
 		return false
@@ -345,13 +333,13 @@ type DatabaseFormBody struct {
 	// Engine Тип СУБД
 	Engine DatabaseFormBodyEngine `json:"engine"`
 
-	// Name Имя базы внутри сервиса (kebab-case)
+	// Name Имя базы внутри сервиса (kebab-case); пустая строка — единственная безымянная база, канонизируется платформой в default (DB-07)
 	Name string `json:"name"`
 
 	// Server Имя подключённой СУБД организации, где заводить базу
 	Server string `json:"server"`
 
-	// Variable Переменная с доступом; пусто в объявлении — умолчание из имени (<ИМЯ>_DATABASE_URL)
+	// Variable Переменная с доступом; пусто в объявлении — умолчание по шаблону POSTGRES_<ИМЯ>_URL, у безымянной базы — POSTGRES_URL (DB-07)
 	Variable *string `json:"variable,omitempty"`
 }
 
@@ -363,18 +351,15 @@ type DatabaseOperatorResponse struct {
 	// Schema A URL to the JSON Schema for this object.
 	//
 	// Examples: https://api.paas.traumtech.ru/schemas/DatabaseOperatorResponse.json
-	Schema     *string                        `json:"$schema,omitempty"`
-	Deployment string                         `json:"deployment"`
-	Engine     DatabaseOperatorResponseEngine `json:"engine"`
-	Manifest   string                         `json:"manifest"`
-	Name       string                         `json:"name"`
-	Namespace  string                         `json:"namespace"`
-	Rules      []AccessRuleResponse           `json:"rules"`
-	Version    string                         `json:"version"`
+	Schema     *string              `json:"$schema,omitempty"`
+	Deployment string               `json:"deployment"`
+	Engine     string               `json:"engine"`
+	Manifest   string               `json:"manifest"`
+	Name       string               `json:"name"`
+	Namespace  string               `json:"namespace"`
+	Rules      []AccessRuleResponse `json:"rules"`
+	Version    string               `json:"version"`
 }
-
-// DatabaseOperatorResponseEngine defines model for DatabaseOperatorResponse.Engine.
-type DatabaseOperatorResponseEngine string
 
 // DatabaseOverrideBody defines model for DatabaseOverrideBody.
 type DatabaseOverrideBody struct {
@@ -465,7 +450,7 @@ type PersonalTokenResponse struct {
 
 // ProcessFormBody defines model for ProcessFormBody.
 type ProcessFormBody struct {
-	// Command Переопределение команды образа
+	// Command Команда запуска контейнера (DEP-22, обязательна при публикации); сборки без неё, опубликованные раньше, выкатываются командой образа
 	Command *[]string `json:"command,omitempty"`
 
 	// Cpu Коробка CPU по умолчанию (нотация Kubernetes, например 100m)
