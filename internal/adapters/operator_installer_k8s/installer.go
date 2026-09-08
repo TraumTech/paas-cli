@@ -46,8 +46,10 @@ const (
 	rolePrefix = "paas-platform-"
 
 	crdKind = "CustomResourceDefinition"
+	jobKind = "Job"
 
 	crdWaitTimeout      = 60 * time.Second
+	deleteWaitTimeout   = 60 * time.Second
 	operatorWaitTimeout = 3 * time.Minute
 	pollInterval        = 2 * time.Second
 )
@@ -196,6 +198,11 @@ func (c *clients) apply(ctx context.Context, obj *unstructured.Unstructured) (en
 	}
 
 	applied, err := client.Apply(ctx, obj.GetName(), obj, metav1.ApplyOptions{FieldManager: fieldManager, Force: true})
+	if err != nil && before != "" && gvk.Kind == jobKind && apierrors.IsInvalid(err) {
+		// Задание после создания неизменяемо: новый релиз оператора с другим
+		// заданием (сертификат вебхука) можно только пересоздать.
+		applied, err = c.recreate(ctx, client, obj)
+	}
 	if err != nil {
 		return change, wrapAccess(err, fmt.Sprintf("применить %s %s", gvk.Kind, obj.GetName()))
 	}
@@ -208,6 +215,32 @@ func (c *clients) apply(ctx context.Context, obj *unstructured.Unstructured) (en
 		change.Change = entities.ChangeUpdated
 	}
 	return change, nil
+}
+
+// recreate удаляет объект, дожидается его исчезновения и применяет заново.
+func (c *clients) recreate(ctx context.Context, client dynamic.ResourceInterface, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+	propagation := metav1.DeletePropagationForeground
+	err := client.Delete(ctx, obj.GetName(), metav1.DeleteOptions{PropagationPolicy: &propagation})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return nil, err
+	}
+	deadline := time.Now().Add(deleteWaitTimeout)
+	for {
+		_, err := client.Get(ctx, obj.GetName(), metav1.GetOptions{})
+		if apierrors.IsNotFound(err) {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if time.Now().After(deadline) {
+			return nil, fmt.Errorf("%s %s не удалился за %s", obj.GetKind(), obj.GetName(), deleteWaitTimeout)
+		}
+		if err := sleep(ctx, pollInterval); err != nil {
+			return nil, err
+		}
+	}
+	return client.Apply(ctx, obj.GetName(), obj, metav1.ApplyOptions{FieldManager: fieldManager, Force: true})
 }
 
 func (c *clients) waitEstablished(ctx context.Context, crds []*unstructured.Unstructured) error {
