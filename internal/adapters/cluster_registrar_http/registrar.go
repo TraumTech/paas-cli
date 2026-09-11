@@ -28,12 +28,14 @@ func (r *Registrar) Register(
 	ctx context.Context,
 	name string,
 	credential entities.ClusterCredential,
+	topology entities.ClusterTopology,
 ) (*entities.ConnectedCluster, error) {
 	resp, err := r.client.ConnectClusterWithResponse(ctx, platformapi.ConnectClusterJSONRequestBody{
 		Name:          name,
 		Endpoint:      credential.Endpoint,
 		CaCertificate: credential.CACertificate,
 		Token:         credential.Token,
+		Topology:      platformapi.ConnectClusterInputBodyTopology(topology),
 	})
 	if err != nil {
 		return nil, platformhttp.RequestError(err)
@@ -47,5 +49,6 @@ func (r *Registrar) Register(
 		Name:      resp.JSON201.Name,
 		Endpoint:  resp.JSON201.Endpoint,
 		Connected: resp.JSON201.Connected,
+		Topology:  entities.ClusterTopology(resp.JSON201.Topology),
 	}, nil
 }

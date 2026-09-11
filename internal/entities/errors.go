@@ -56,6 +56,8 @@ var (
 	ErrEmptyClusterName    = newDomainError("укажите имя кластера: --name")
 	ErrNoKubeContext       = newDomainError("не удалось определить кластер: в kubeconfig нет активного контекста")
 	ErrClusterAccessDenied = newDomainError("вашего доступа не хватает, чтобы выдать права платформе — нужен доступ уровня администратора кластера")
+	// Топология — заявление владельца (CLS-03).
+	ErrUnknownClusterTopology = newDomainError("топология кластера должна быть одной из: zonal, regional")
 
 	// Установка оператора СУБД в подключённый кластер (DB-05).
 	ErrEmptyEngine            = newDomainError("укажите тип СУБД: --engine")

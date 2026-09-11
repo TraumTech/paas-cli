@@ -42,6 +42,10 @@ func (c *Command) CLICommand() *cli.Command {
 				Name:  "kubeconfig",
 				Usage: "путь к kubeconfig; по умолчанию KUBECONFIG или ~/.kube/config",
 			},
+			&cli.StringFlag{
+				Name:  "topology",
+				Usage: "топология кластера: zonal или regional; по умолчанию предлагается по зонам нод",
+			},
 			&cli.BoolFlag{
 				Name:  "yes",
 				Usage: "не спрашивать подтверждение (для автоматизации)",
@@ -60,16 +64,28 @@ func (c *Command) run(ctx context.Context, cmd *cli.Command) error {
 	out := cmd.Root().Writer
 	confirm := c.confirmer(cmd.Bool("yes"), out, cmd.Root().Reader)
 
-	cluster, err := c.connect.Execute(ctx, usecases.ConnectClusterInput{
+	cluster, existing, err := c.connect.Execute(ctx, usecases.ConnectClusterInput{
 		Name:       name,
 		Context:    cmd.String("context"),
 		Kubeconfig: cmd.String("kubeconfig"),
+		Topology:   entities.ClusterTopology(strings.TrimSpace(cmd.String("topology"))),
 	}, confirm)
 	if err != nil {
 		return err
 	}
+	if existing != nil {
+		// Повтор ничего не меняет — ни в кластере, ни на платформе; заявленная
+		// топология остаётся, а расхождение с нодами владелец увидит.
+		fmt.Fprintf(out, "Кластер %s уже подключён (%s), топология: %s\n",
+			existing.Cluster.Name, existing.Cluster.Endpoint, existing.Cluster.Topology)
+		if existing.Proposed != existing.Cluster.Topology {
+			fmt.Fprintf(out, "  по меткам нод сейчас %s (%s) — заявление не меняется\n",
+				existing.Proposed, zonesLine(existing.Zones))
+		}
+		return nil
+	}
 
-	fmt.Fprintf(out, "✓ Кластер %s подключён (%s)\n", cluster.Name, cluster.Endpoint)
+	fmt.Fprintf(out, "✓ Кластер %s подключён (%s), топология: %s\n", cluster.Name, cluster.Endpoint, cluster.Topology)
 	if !cluster.Connected {
 		// Домен подтверждает связь при подключении, поэтому сюда попасть трудно;
 		// но молчать о неподтверждённой связи нельзя — на неё будут ссылаться
@@ -97,6 +113,15 @@ func (c *Command) confirmer(skip bool, out interface{ Write([]byte) (int, error)
 			}
 		}
 
+		origin := "предложена по зонам нод"
+		if plan.TopologyDeclared {
+			origin = "задана владельцем"
+		}
+		fmt.Fprintf(out, "Топология: %s — %s (%s)\n", plan.Topology, origin, zonesLine(plan.Zones))
+		for _, warning := range plan.Warnings {
+			fmt.Fprintf(out, "  ! %s\n", warning)
+		}
+
 		if skip {
 			return true, nil
 		}
@@ -108,4 +133,11 @@ func (c *Command) confirmer(skip bool, out interface{ Write([]byte) (int, error)
 		answer = strings.ToLower(strings.TrimSpace(answer))
 		return answer == "y" || answer == "yes" || answer == "д" || answer == "да", nil
 	}
+}
+
+func zonesLine(zones []string) string {
+	if len(zones) == 0 {
+		return "зоны на нодах не размечены"
+	}
+	return "зоны: " + strings.Join(zones, ", ")
 }

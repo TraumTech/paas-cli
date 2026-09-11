@@ -39,6 +39,42 @@ func (e ClusterResponseEnvironment) Valid() bool {
 	}
 }
 
+// Defines values for ClusterResponseTopology.
+const (
+	ClusterResponseTopologyRegional ClusterResponseTopology = "regional"
+	ClusterResponseTopologyZonal    ClusterResponseTopology = "zonal"
+)
+
+// Valid indicates whether the value is a known member of the ClusterResponseTopology enum.
+func (e ClusterResponseTopology) Valid() bool {
+	switch e {
+	case ClusterResponseTopologyRegional:
+		return true
+	case ClusterResponseTopologyZonal:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConnectClusterInputBodyTopology.
+const (
+	ConnectClusterInputBodyTopologyRegional ConnectClusterInputBodyTopology = "regional"
+	ConnectClusterInputBodyTopologyZonal    ConnectClusterInputBodyTopology = "zonal"
+)
+
+// Valid indicates whether the value is a known member of the ConnectClusterInputBodyTopology enum.
+func (e ConnectClusterInputBodyTopology) Valid() bool {
+	switch e {
+	case ConnectClusterInputBodyTopologyRegional:
+		return true
+	case ConnectClusterInputBodyTopologyZonal:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DatabaseFormBodyEngine.
 const (
 	DatabaseFormBodyEnginePostgres DatabaseFormBodyEngine = "postgres"
@@ -263,10 +299,14 @@ type ClusterResponse struct {
 	Kind          string                      `json:"kind"`
 	LastContactAt *time.Time                  `json:"last_contact_at,omitempty"`
 	Name          string                      `json:"name"`
+	Topology      ClusterResponseTopology     `json:"topology"`
 }
 
 // ClusterResponseEnvironment defines model for ClusterResponse.Environment.
 type ClusterResponseEnvironment string
+
+// ClusterResponseTopology defines model for ClusterResponse.Topology.
+type ClusterResponseTopology string
 
 // ClustersOutputBody defines model for ClustersOutputBody.
 type ClustersOutputBody struct {
@@ -315,7 +355,13 @@ type ConnectClusterInputBody struct {
 
 	// Token Токен доступа ограниченного ServiceAccount
 	Token string `json:"token"`
+
+	// Topology Топология кластера: zonal — ноды в одной зоне, regional — владелец обещает ноды минимум в двух зонах
+	Topology ConnectClusterInputBodyTopology `json:"topology"`
 }
+
+// ConnectClusterInputBodyTopology Топология кластера: zonal — ноды в одной зоне, regional — владелец обещает ноды минимум в двух зонах
+type ConnectClusterInputBodyTopology string
 
 // ConsumerCompatibilityResponse defines model for ConsumerCompatibilityResponse.
 type ConsumerCompatibilityResponse struct {

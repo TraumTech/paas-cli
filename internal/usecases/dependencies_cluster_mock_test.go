@@ -149,16 +149,16 @@ func (m *MockClusterRegistrar) EXPECT() *MockClusterRegistrarMockRecorder {
 }
 
 // Register mocks base method.
-func (m *MockClusterRegistrar) Register(ctx context.Context, name string, credential entities.ClusterCredential) (*entities.ConnectedCluster, error) {
+func (m *MockClusterRegistrar) Register(ctx context.Context, name string, credential entities.ClusterCredential, topology entities.ClusterTopology) (*entities.ConnectedCluster, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Register", ctx, name, credential)
+	ret := m.ctrl.Call(m, "Register", ctx, name, credential, topology)
 	ret0, _ := ret[0].(*entities.ConnectedCluster)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Register indicates an expected call of Register.
-func (mr *MockClusterRegistrarMockRecorder) Register(ctx, name, credential any) *gomock.Call {
+func (mr *MockClusterRegistrarMockRecorder) Register(ctx, name, credential, topology any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Register", reflect.TypeOf((*MockClusterRegistrar)(nil).Register), ctx, name, credential)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Register", reflect.TypeOf((*MockClusterRegistrar)(nil).Register), ctx, name, credential, topology)
 }

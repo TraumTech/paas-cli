@@ -146,15 +146,15 @@ func Run(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	connectCluster := clusterconnectcommandcli.New(
-		usecases.NewConnectCluster(clusterAccess, clusterprovisionerk8s.New(), clusterRegistrar),
-	)
-
-	operatorSource, err := databaseoperatorhttp.New(baseURL, client)
+	clusterDirectory, err := clusterdirectoryhttp.New(baseURL, client)
 	if err != nil {
 		return err
 	}
-	clusterDirectory, err := clusterdirectoryhttp.New(baseURL, client)
+	connectCluster := clusterconnectcommandcli.New(
+		usecases.NewConnectCluster(clusterAccess, clusterprovisionerk8s.New(), clusterRegistrar, clusterDirectory),
+	)
+
+	operatorSource, err := databaseoperatorhttp.New(baseURL, client)
 	if err != nil {
 		return err
 	}

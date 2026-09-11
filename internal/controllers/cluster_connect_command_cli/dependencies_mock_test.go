@@ -43,12 +43,13 @@ func (m *MockClusterConnector) EXPECT() *MockClusterConnectorMockRecorder {
 }
 
 // Execute mocks base method.
-func (m *MockClusterConnector) Execute(ctx context.Context, input usecases.ConnectClusterInput, confirm usecases.ConfirmFunc) (*entities.ConnectedCluster, error) {
+func (m *MockClusterConnector) Execute(ctx context.Context, input usecases.ConnectClusterInput, confirm usecases.ConfirmFunc) (*entities.ConnectedCluster, *usecases.AlreadyConnected, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Execute", ctx, input, confirm)
 	ret0, _ := ret[0].(*entities.ConnectedCluster)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(*usecases.AlreadyConnected)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // Execute indicates an expected call of Execute.

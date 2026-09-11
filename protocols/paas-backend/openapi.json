@@ -154,6 +154,13 @@
           },
           "name": {
             "type": "string"
+          },
+          "topology": {
+            "enum": [
+              "zonal",
+              "regional"
+            ],
+            "type": "string"
           }
         },
         "required": [
@@ -162,7 +169,8 @@
           "kind",
           "endpoint",
           "connected",
-          "created_at"
+          "created_at",
+          "topology"
         ],
         "type": "object"
       },
@@ -274,13 +282,22 @@
           "token": {
             "description": "Токен доступа ограниченного ServiceAccount",
             "type": "string"
+          },
+          "topology": {
+            "description": "Топология кластера: zonal — ноды в одной зоне, regional — владелец обещает ноды минимум в двух зонах",
+            "enum": [
+              "zonal",
+              "regional"
+            ],
+            "type": "string"
           }
         },
         "required": [
           "name",
           "endpoint",
           "ca_certificate",
-          "token"
+          "token",
+          "topology"
         ],
         "type": "object"
       },

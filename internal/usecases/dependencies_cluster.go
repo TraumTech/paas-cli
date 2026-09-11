@@ -21,13 +21,16 @@ type ClusterTarget struct {
 	CACertificate string
 	// ContextName — какой контекст выбран; показывается владельцу.
 	ContextName string
+	// Zones — зоны, увиденные на нодах; подсказка для топологии (CLS-03).
+	Zones []string
 }
 
 // ClusterProvisioner заводит в кластере учётную запись для платформы, пользуясь
 // локальным доступом владельца. Личный креденшел наружу не отдаётся.
 type ClusterProvisioner interface {
-	// Target читает координаты кластера, ничего не меняя: нужен до
-	// подтверждения, чтобы показать владельцу, куда именно команда пойдёт.
+	// Target читает координаты кластера и зоны его нод, ничего не меняя:
+	// нужен до подтверждения, чтобы показать владельцу, куда именно команда
+	// пойдёт и какую топологию предлагает.
 	Target(kubeconfig, contextName string) (*ClusterTarget, error)
 	// AccountName — под каким именем заводится учётная запись.
 	AccountName() string
@@ -38,5 +41,5 @@ type ClusterProvisioner interface {
 
 // ClusterRegistrar регистрирует подключение на платформе.
 type ClusterRegistrar interface {
-	Register(ctx context.Context, name string, credential entities.ClusterCredential) (*entities.ConnectedCluster, error)
+	Register(ctx context.Context, name string, credential entities.ClusterCredential, topology entities.ClusterTopology) (*entities.ConnectedCluster, error)
 }

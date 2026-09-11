@@ -10,5 +10,6 @@ import (
 //go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=clusterconnectcommandcli github.com/TraumTech/paas-cli/internal/controllers/cluster_connect_command_cli ClusterConnector
 
 type ClusterConnector interface {
-	Execute(ctx context.Context, input usecases.ConnectClusterInput, confirm usecases.ConfirmFunc) (*entities.ConnectedCluster, error)
+	// Уже подключённый кластер приходит вторым значением — без изменений.
+	Execute(ctx context.Context, input usecases.ConnectClusterInput, confirm usecases.ConfirmFunc) (*entities.ConnectedCluster, *usecases.AlreadyConnected, error)
 }

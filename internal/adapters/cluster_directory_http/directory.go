@@ -39,6 +39,7 @@ func (d *Directory) ListClusters(ctx context.Context) ([]entities.ConnectedClust
 			Name:      c.Name,
 			Endpoint:  c.Endpoint,
 			Connected: c.Connected,
+			Topology:  entities.ClusterTopology(c.Topology),
 		})
 	}
 	return clusters, nil

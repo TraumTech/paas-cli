@@ -54,11 +54,31 @@ func (p *Provisioner) Target(kubeconfigPath, contextName string) (*usecases.Clus
 	if err != nil {
 		return nil, err
 	}
+	client, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("подключиться к кластеру: %w", err)
+	}
+	// Первое и единственное обращение до подтверждения — чтение: зоны нод
+	// нужны, чтобы предложить топологию (CLS-03).
+	nodes, err := client.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return nil, wrapAccess(err, "прочитать ноды кластера")
+	}
 	return &usecases.ClusterTarget{
 		Endpoint:      config.Host,
 		CACertificate: ca,
 		ContextName:   raw,
+		Zones:         nodeZones(nodes.Items),
 	}, nil
+}
+
+// nodeZones — зоны из стандартной метки топологии Kubernetes.
+func nodeZones(nodes []corev1.Node) []string {
+	labels := make([]string, 0, len(nodes))
+	for _, node := range nodes {
+		labels = append(labels, node.Labels[corev1.LabelTopologyZone])
+	}
+	return entities.DistinctZones(labels)
 }
 
 // Provision заводит учётную запись, роль, привязку и секрет с токеном.

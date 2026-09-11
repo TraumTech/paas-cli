@@ -26,4 +26,5 @@ type ConnectedCluster struct {
 	Name      string
 	Endpoint  string
 	Connected bool
+	Topology  ClusterTopology
 }
