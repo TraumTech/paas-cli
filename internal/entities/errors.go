@@ -60,12 +60,14 @@ var (
 	ErrUnknownClusterTopology = newDomainError("топология кластера должна быть одной из: zonal, regional")
 
 	// Установка оператора СУБД в подключённый кластер (DB-05).
-	ErrEmptyEngine            = newDomainError("укажите тип СУБД: --engine")
-	ErrUnknownEngine          = newDomainError("платформа не поддерживает СУБД этого типа")
-	ErrClusterNotConnected    = newDomainError("этот кластер не подключён к платформе — сначала выполните paas-cli clusters connect")
-	ErrOperatorInstallDenied  = newDomainError("вашего доступа не хватает, чтобы установить оператор — нужен доступ уровня администратора кластера")
-	ErrOperatorNotReady       = newDomainError("оператор установлен, но не поднялся за отведённое время — проверьте его поды в кластере")
-	ErrOperatorManifestBroken = newDomainError("манифест оператора, полученный от платформы, не разбирается")
+	ErrEmptyEngine         = newDomainError("укажите тип СУБД: --engine")
+	ErrUnknownEngine       = newDomainError("платформа не поддерживает СУБД этого типа")
+	ErrClusterNotConnected = newDomainError("этот кластер не подключён к платформе — сначала выполните paas-cli clusters connect")
+	// Кластер назван явно (DB-10), но такого имени среди подключённых нет.
+	ErrNamedClusterNotConnected = newDomainError("кластера с таким именем нет среди подключённых к платформе")
+	ErrOperatorInstallDenied    = newDomainError("вашего доступа не хватает, чтобы установить оператор — нужен доступ уровня администратора кластера")
+	ErrOperatorNotReady         = newDomainError("оператор установлен, но не поднялся за отведённое время — проверьте его поды в кластере")
+	ErrOperatorManifestBroken   = newDomainError("манифест оператора, полученный от платформы, не разбирается")
 
 	ErrLoginRequired = newDomainError("платформа требует вход: выполните `paas-cli auth login` или задайте токен доступа в PAAS_API_TOKEN")
 	ErrTokenRejected = newDomainError("токен из PAAS_API_TOKEN не принят платформой — он отозван, просрочен или неверен")

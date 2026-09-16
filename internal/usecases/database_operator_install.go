@@ -15,6 +15,9 @@ type InstallOperatorInput struct {
 	Context string
 	// Kubeconfig — путь к файлу; пусто означает обычное разрешение.
 	Kubeconfig string
+	// Cluster — имя подключённого кластера (DB-10). Пусто — кластер
+	// определяется совпадением адреса из kubeconfig с адресом подключения.
+	Cluster string
 }
 
 // InstallOperatorPlan — что команда собирается сделать в кластере владельца.
@@ -70,7 +73,7 @@ func (uc *InstallOperatorUseCase) Execute(
 	if err != nil {
 		return nil, err
 	}
-	cluster, err := uc.connectedCluster(ctx, target.Endpoint)
+	cluster, err := uc.connectedCluster(ctx, target.Endpoint, input.Cluster)
 	if err != nil {
 		return nil, err
 	}
@@ -101,15 +104,29 @@ func (uc *InstallOperatorUseCase) Execute(
 	return &InstallOperatorResult{ClusterName: cluster.Name, Report: *report}, nil
 }
 
-func (uc *InstallOperatorUseCase) connectedCluster(ctx context.Context, endpoint string) (*entities.ConnectedCluster, error) {
+// connectedCluster выбирает подключение, учётной записи которого достанется
+// право. Назван явно — ищем по имени (DB-10): адрес, по которому до кластера
+// дотягивается платформа, и адрес в kubeconfig владельца — разные вещи, и
+// совпадение адресов остаётся лишь умолчанием для случая, когда они совпадают.
+func (uc *InstallOperatorUseCase) connectedCluster(ctx context.Context, endpoint, name string) (*entities.ConnectedCluster, error) {
 	clusters, err := uc.clusters.ListClusters(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("получить перечень кластеров: %w", err)
 	}
+	name = strings.TrimSpace(name)
 	for _, cluster := range clusters {
+		if name != "" {
+			if cluster.Name == name {
+				return &cluster, nil
+			}
+			continue
+		}
 		if strings.TrimRight(cluster.Endpoint, "/") == strings.TrimRight(endpoint, "/") {
 			return &cluster, nil
 		}
+	}
+	if name != "" {
+		return nil, fmt.Errorf("%w: %q", entities.ErrNamedClusterNotConnected, name)
 	}
 	return nil, entities.ErrClusterNotConnected
 }

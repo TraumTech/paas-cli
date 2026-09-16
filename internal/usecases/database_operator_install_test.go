@@ -100,6 +100,49 @@ func TestInstallOperatorRequiresConnectedCluster(t *testing.T) {
 	assert.ErrorIs(t, err, entities.ErrClusterNotConnected)
 }
 
+// DB-10: кластер назван явно — адрес из kubeconfig с адресом подключения не
+// сверяется, потому что путь владельца в кластер и путь платформы разные.
+func TestInstallOperatorUsesNamedCluster(t *testing.T) {
+	f := newInstallFixture(t)
+	ctx := context.Background()
+	report := &entities.OperatorInstallReport{}
+
+	f.operators.EXPECT().Operator(ctx, "s3").Return(cnpg, nil)
+	f.installer.EXPECT().Target("", "").Return(&ClusterTarget{Endpoint: "https://127.0.0.1:54321"}, nil)
+	f.clusters.EXPECT().ListClusters(ctx).Return(connected, nil)
+	f.installer.EXPECT().Objects(cnpg.Manifest).Return(objects, nil)
+	f.installer.EXPECT().AccountName().Return("kube-system/paas-platform")
+	f.installer.EXPECT().Install(ctx, "", "", cnpg).Return(report, nil)
+
+	var shown InstallOperatorPlan
+	result, err := f.uc.Execute(ctx, InstallOperatorInput{Engine: "s3", Cluster: "yc-dev"}, func(plan InstallOperatorPlan) (bool, error) {
+		shown = plan
+		return true, nil
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, "yc-dev", result.ClusterName)
+	// Предпросмотр называет и имя на платформе, и адрес, куда ставим: расхождение
+	// видно до подтверждения.
+	assert.Equal(t, "yc-dev", shown.ClusterName)
+	assert.Equal(t, "https://127.0.0.1:54321", shown.Endpoint)
+}
+
+// Названного кластера нет среди подключённых — отказ называет искомое имя, в
+// кластер ничего не применяется.
+func TestInstallOperatorNamedClusterNotConnected(t *testing.T) {
+	f := newInstallFixture(t)
+	ctx := context.Background()
+	f.operators.EXPECT().Operator(ctx, "postgres").Return(cnpg, nil)
+	f.installer.EXPECT().Target("", "").Return(&ClusterTarget{Endpoint: "https://c"}, nil)
+	f.clusters.EXPECT().ListClusters(ctx).Return(connected, nil)
+
+	_, err := f.uc.Execute(ctx, InstallOperatorInput{Engine: "postgres", Cluster: "paas-local"}, agreeInstall)
+
+	assert.ErrorIs(t, err, entities.ErrNamedClusterNotConnected)
+	assert.Contains(t, err.Error(), "paas-local")
+}
+
 func TestInstallOperatorUnknownEngine(t *testing.T) {
 	f := newInstallFixture(t)
 	ctx := context.Background()

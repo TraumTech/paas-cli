@@ -37,6 +37,10 @@ func (c *Command) CLICommand() *cli.Command {
 				Required: true,
 			},
 			&cli.StringFlag{
+				Name:  "cluster",
+				Usage: "имя подключённого кластера; по умолчанию определяется по адресу из kubeconfig",
+			},
+			&cli.StringFlag{
 				Name:  "context",
 				Usage: "контекст kubeconfig; по умолчанию текущий",
 			},
@@ -61,6 +65,7 @@ func (c *Command) run(ctx context.Context, cmd *cli.Command) error {
 		Engine:     strings.TrimSpace(cmd.String("engine")),
 		Context:    cmd.String("context"),
 		Kubeconfig: cmd.String("kubeconfig"),
+		Cluster:    strings.TrimSpace(cmd.String("cluster")),
 	}, confirm)
 	if err != nil {
 		return err

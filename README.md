@@ -32,6 +32,7 @@ paas-cli clusters connect --name yc-prod --topology regional   # заявить 
 paas-cli databases operators install --engine postgres              # текущий контекст kubeconfig
 paas-cli databases operators install --engine postgres --context prod --yes
 paas-cli databases operators install --engine s3                    # объектное хранилище (SeaweedFS)
+paas-cli databases operators install --engine s3 --cluster paas-local   # кластер назван явно (DB-10)
 ```
 
 Ставит в **уже подключённый** кластер оператор типа ресурса (для Postgres —
@@ -42,6 +43,13 @@ CloudNativePG, для `s3` — SeaweedFS Operator), которым платфо�
 роли, вебхуки), поэтому делается **вашим доступом**; учётной записи платформы
 достаётся одно узкое право — на ресурс «кластер СУБД» оператора (роль
 `paas-platform-<engine>`). Ни CRD, ни роли платформа трогать не может.
+
+Какой кластер целевой, команда определяет **совпадением адреса**: адрес
+API-сервера из вашего kubeconfig ищется среди подключений. Там, где путь в
+кластер у вас и у платформы разный (туннель, NAT, локальный запуск платформы),
+назовите кластер явно — `--cluster <имя>` (то самое имя, что вы дали при
+`clusters connect`). Предпросмотр показывает и имя на платформе, и адрес, куда
+ставим, — расхождение видно до подтверждения.
 
 Перед применением команда показывает, что именно появится в кластере, и
 спрашивает подтверждение. Повтор безопасен: объекты приводятся к манифесту
