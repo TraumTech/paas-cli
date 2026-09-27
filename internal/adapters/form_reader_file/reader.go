@@ -27,6 +27,8 @@ type fileForm struct {
 	Processes []fileProcess `toml:"processes"`
 	// Databases — потребности в базах (DB-03): [[databases]].
 	Databases []fileDatabase `toml:"databases"`
+	// Buckets — потребности в бакетах (OBJ-06): [[buckets]].
+	Buckets []fileBucket `toml:"buckets"`
 	// Env — секции [env.default] и [env.<окружение>] (DEP-14/15): общие
 	// значения и переопределения. Разрешает их use case, зная окружение версии.
 	Env map[string]fileEnvironment `toml:"env"`
@@ -40,6 +42,19 @@ type fileEnvironment struct {
 	// Databases — [env.<окружение>.databases.<имя>]: окружение переопределяет
 	// только СУБД для объявленной базы.
 	Databases map[string]fileDatabaseOverride `toml:"databases"`
+	// Buckets — [env.<окружение>.buckets.<имя>]: хранилище и/или размер.
+	Buckets map[string]fileBucketOverride `toml:"buckets"`
+}
+
+type fileBucket struct {
+	Name   string `toml:"name"`
+	Server string `toml:"server"`
+	Size   string `toml:"size"`
+}
+
+type fileBucketOverride struct {
+	Server string `toml:"server"`
+	Size   string `toml:"size"`
 }
 
 type fileDatabase struct {
@@ -107,6 +122,9 @@ func (r *Reader) Read(_ context.Context, path string) (*entities.FormDeclaration
 			Variable: d.Variable,
 		})
 	}
+	for _, b := range file.Buckets {
+		declaration.Buckets = append(declaration.Buckets, entities.BucketForm{Name: b.Name, Server: b.Server, Size: b.Size})
+	}
 	for name, values := range file.Env {
 		if declaration.Environments == nil {
 			declaration.Environments = make(map[string]entities.EnvironmentValues, len(file.Env))
@@ -120,6 +138,12 @@ func (r *Reader) Read(_ context.Context, path string) (*entities.FormDeclaration
 				section.Databases = make(map[string]entities.DatabaseOverride, len(values.Databases))
 			}
 			section.Databases[database] = entities.DatabaseOverride{Server: override.Server}
+		}
+		for bucket, override := range values.Buckets {
+			if section.Buckets == nil {
+				section.Buckets = make(map[string]entities.BucketOverride, len(values.Buckets))
+			}
+			section.Buckets[bucket] = entities.BucketOverride{Server: override.Server, Size: override.Size}
 		}
 		declaration.Environments[name] = section
 	}

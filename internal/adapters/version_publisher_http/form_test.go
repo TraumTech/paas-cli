@@ -45,9 +45,48 @@ func TestBuildFormToAPI_Databases(t *testing.T) {
 	}, *dev.Databases)
 }
 
+// Объявление бакетов (OBJ-06): безымянный бакет остаётся с пустым именем,
+// переопределение несёт только заданные поля.
+func TestBuildFormToAPI_Buckets(t *testing.T) {
+	form := &entities.FormDeclaration{
+		Processes: []entities.ProcessForm{{Name: "server", Listen: 8080}},
+		Buckets: []entities.BucketForm{
+			{Server: "prod-s3", Size: "20Gi"},
+			{Name: "media", Server: "prod-s3", Size: "5Gi"},
+		},
+		Environments: map[string]entities.EnvironmentValues{
+			"dev": {Buckets: map[string]entities.BucketOverride{
+				"media":   {Size: "1Gi"},
+				"default": {Server: "dev-s3", Size: "1Gi"},
+			}},
+		},
+	}
+
+	body := buildFormToAPI(form)
+
+	require.NotNil(t, body.Buckets)
+	assert.Equal(t, []platformapi.BucketFormBody{
+		{Server: "prod-s3", Size: "20Gi"},
+		{Name: "media", Server: "prod-s3", Size: "5Gi"},
+	}, *body.Buckets)
+
+	require.NotNil(t, body.Environments)
+	dev := (*body.Environments)[0]
+	require.NotNil(t, dev.Buckets)
+	overrides := *dev.Buckets
+	require.Len(t, overrides, 2)
+	assert.Equal(t, "default", overrides[0].Name)
+	assert.Equal(t, "dev-s3", *overrides[0].Server)
+	assert.Equal(t, "1Gi", *overrides[0].Size)
+	assert.Equal(t, "media", overrides[1].Name)
+	assert.Nil(t, overrides[1].Server)
+	assert.Equal(t, "1Gi", *overrides[1].Size)
+}
+
 func TestBuildFormToAPI_WithoutDatabases(t *testing.T) {
 	body := buildFormToAPI(&entities.FormDeclaration{Processes: []entities.ProcessForm{{Name: "server"}}})
 
 	assert.Nil(t, body.Databases)
+	assert.Nil(t, body.Buckets)
 	assert.Nil(t, body.Environments)
 }

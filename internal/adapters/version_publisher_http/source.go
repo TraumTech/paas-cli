@@ -241,6 +241,14 @@ func buildFormToAPI(form *entities.FormDeclaration) *platformapi.BuildFormBody {
 		}
 		out.Databases = &databases
 	}
+	// Бакеты (OBJ-06) — тоже в порядке объявления.
+	if len(form.Buckets) > 0 {
+		buckets := make([]platformapi.BucketFormBody, 0, len(form.Buckets))
+		for _, b := range form.Buckets {
+			buckets = append(buckets, platformapi.BucketFormBody{Name: b.Name, Server: b.Server, Size: b.Size})
+		}
+		out.Buckets = &buckets
+	}
 
 	// Порядок секций детерминирован: одна и та же ревизия не должна публиковать
 	// форму по-разному от запуска к запуску.
@@ -271,6 +279,20 @@ func buildFormToAPI(form *entities.FormDeclaration) *platformapi.BuildFormBody {
 			}
 			section.Databases = &overrides
 		}
+		if len(values.Buckets) > 0 {
+			overrides := make([]platformapi.BucketOverrideBody, 0, len(values.Buckets))
+			for _, bucket := range sortedBucketOverrideKeys(values.Buckets) {
+				override := platformapi.BucketOverrideBody{Name: bucket}
+				if server := values.Buckets[bucket].Server; server != "" {
+					override.Server = &server
+				}
+				if size := values.Buckets[bucket].Size; size != "" {
+					override.Size = &size
+				}
+				overrides = append(overrides, override)
+			}
+			section.Buckets = &overrides
+		}
 		environments = append(environments, section)
 	}
 	if len(environments) > 0 {
@@ -282,6 +304,15 @@ func buildFormToAPI(form *entities.FormDeclaration) *platformapi.BuildFormBody {
 func sortedKeys(values map[string]string) []string {
 	names := make([]string, 0, len(values))
 	for name := range values {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func sortedBucketOverrideKeys(overrides map[string]entities.BucketOverride) []string {
+	names := make([]string, 0, len(overrides))
+	for name := range overrides {
 		names = append(names, name)
 	}
 	sort.Strings(names)

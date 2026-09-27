@@ -106,6 +106,47 @@ server = "dev-pg"
 	assert.Equal(t, map[string]entities.DatabaseOverride{"main": {Server: "dev-pg"}}, declaration.Environments["dev"].Databases)
 }
 
+// Объявление бакетов (OBJ-06) читается как есть: безымянный бакет остаётся
+// с пустым именем, переопределение может менять только размер.
+func TestReadFormBuckets(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "paas.toml")
+	require.NoError(t, os.WriteFile(path, []byte(`
+[[processes]]
+name = "server"
+listen = 9090
+
+[[buckets]]
+server = "prod-s3"
+size = "20Gi"
+
+[[buckets]]
+name = "media"
+server = "prod-s3"
+size = "5Gi"
+
+[env.dev.buckets.default]
+server = "dev-s3"
+size = "1Gi"
+
+[env.dev.buckets.media]
+size = "1Gi"
+`), 0o600))
+
+	declaration, err := New().Read(context.Background(), path)
+
+	require.NoError(t, err)
+	require.NotNil(t, declaration)
+	assert.Equal(t, []entities.BucketForm{
+		{Server: "prod-s3", Size: "20Gi"},
+		{Name: "media", Server: "prod-s3", Size: "5Gi"},
+	}, declaration.Buckets)
+	assert.Equal(t, map[string]entities.BucketOverride{
+		"default": {Server: "dev-s3", Size: "1Gi"},
+		"media":   {Size: "1Gi"},
+	}, declaration.Environments["dev"].Buckets)
+}
+
 // Секции [env.default] и [env.<окружение>] читаются как объявлены: разрешает
 // их use case, зная окружение публикуемой версии (DEP-14/15).
 func TestReadFormEnvironmentSections(t *testing.T) {

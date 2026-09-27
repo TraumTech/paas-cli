@@ -34,9 +34,64 @@
         ],
         "type": "object"
       },
+      "BucketFormBody": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "Имя бакета внутри сервиса (kebab-case); пустая строка — безымянный бакет, канонизируется платформой в default",
+            "type": "string"
+          },
+          "server": {
+            "description": "Имя объектного хранилища организации, где заводить бакет",
+            "type": "string"
+          },
+          "size": {
+            "description": "Сколько места бакет занимает в хранилище, в единицах Kubernetes (5Gi; Mi, Gi или Ti)",
+            "type": "string"
+          },
+          "variable_prefix": {
+            "description": "Префикс переменных доступа, вычисляет платформа: S3_\u003cИМЯ\u003e, у безымянного — S3; процесс получает \u003cпрефикс\u003e_ENDPOINT, _BUCKET, _ACCESS_KEY, _SECRET_KEY, _REGION",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "server",
+          "size"
+        ],
+        "type": "object"
+      },
+      "BucketOverrideBody": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "Имя объявленного бакета (безымянный — default)",
+            "type": "string"
+          },
+          "server": {
+            "description": "Объектное хранилище для этого окружения; пусто — как в форме",
+            "type": "string"
+          },
+          "size": {
+            "description": "Размер для этого окружения; пусто — как в форме",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
       "BuildFormBody": {
         "additionalProperties": false,
         "properties": {
+          "buckets": {
+            "description": "Бакеты, нужные сервису (OBJ-06), как объявлены манифестом",
+            "items": {
+              "$ref": "#/components/schemas/BucketFormBody"
+            },
+            "type": "array"
+          },
           "databases": {
             "description": "Базы, нужные сервису (DB-03), как объявлены манифестом",
             "items": {
@@ -520,6 +575,13 @@
       "FormEnvironmentBody": {
         "additionalProperties": false,
         "properties": {
+          "buckets": {
+            "description": "Переопределения хранилища и размера по имени бакета ([env.\u003cокружение\u003e.buckets.\u003cимя\u003e])",
+            "items": {
+              "$ref": "#/components/schemas/BucketOverrideBody"
+            },
+            "type": "array"
+          },
           "databases": {
             "description": "Переопределения СУБД по имени базы ([env.\u003cокружение\u003e.databases.\u003cимя\u003e])",
             "items": {
@@ -1151,6 +1213,13 @@
       "VersionFormBody": {
         "additionalProperties": false,
         "properties": {
+          "buckets": {
+            "description": "Бакеты, объявленные манифестом версии",
+            "items": {
+              "$ref": "#/components/schemas/BucketFormBody"
+            },
+            "type": "array"
+          },
           "databases": {
             "description": "Базы, объявленные манифестом версии",
             "items": {

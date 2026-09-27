@@ -257,8 +257,38 @@ type AccessRuleResponse struct {
 	Verbs     []string `json:"verbs"`
 }
 
+// BucketFormBody defines model for BucketFormBody.
+type BucketFormBody struct {
+	// Name Имя бакета внутри сервиса (kebab-case); пустая строка — безымянный бакет, канонизируется платформой в default
+	Name string `json:"name"`
+
+	// Server Имя объектного хранилища организации, где заводить бакет
+	Server string `json:"server"`
+
+	// Size Сколько места бакет занимает в хранилище, в единицах Kubernetes (5Gi; Mi, Gi или Ti)
+	Size string `json:"size"`
+
+	// VariablePrefix Префикс переменных доступа, вычисляет платформа: S3_<ИМЯ>, у безымянного — S3; процесс получает <префикс>_ENDPOINT, _BUCKET, _ACCESS_KEY, _SECRET_KEY, _REGION
+	VariablePrefix *string `json:"variable_prefix,omitempty"`
+}
+
+// BucketOverrideBody defines model for BucketOverrideBody.
+type BucketOverrideBody struct {
+	// Name Имя объявленного бакета (безымянный — default)
+	Name string `json:"name"`
+
+	// Server Объектное хранилище для этого окружения; пусто — как в форме
+	Server *string `json:"server,omitempty"`
+
+	// Size Размер для этого окружения; пусто — как в форме
+	Size *string `json:"size,omitempty"`
+}
+
 // BuildFormBody defines model for BuildFormBody.
 type BuildFormBody struct {
+	// Buckets Бакеты, нужные сервису (OBJ-06), как объявлены манифестом
+	Buckets *[]BucketFormBody `json:"buckets,omitempty"`
+
 	// Databases Базы, нужные сервису (DB-03), как объявлены манифестом
 	Databases *[]DatabaseFormBody `json:"databases,omitempty"`
 
@@ -466,6 +496,9 @@ type ErrorModel struct {
 
 // FormEnvironmentBody defines model for FormEnvironmentBody.
 type FormEnvironmentBody struct {
+	// Buckets Переопределения хранилища и размера по имени бакета ([env.<окружение>.buckets.<имя>])
+	Buckets *[]BucketOverrideBody `json:"buckets,omitempty"`
+
 	// Databases Переопределения СУБД по имени базы ([env.<окружение>.databases.<имя>])
 	Databases *[]DatabaseOverrideBody `json:"databases,omitempty"`
 
@@ -719,6 +752,9 @@ type ServiceResponse struct {
 
 // VersionFormBody defines model for VersionFormBody.
 type VersionFormBody struct {
+	// Buckets Бакеты, объявленные манифестом версии
+	Buckets *[]BucketFormBody `json:"buckets,omitempty"`
+
 	// Databases Базы, объявленные манифестом версии
 	Databases *[]DatabaseFormBody `json:"databases,omitempty"`
 

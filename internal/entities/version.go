@@ -119,6 +119,8 @@ type FormDeclaration struct {
 	// Databases — потребности в базах (DB-03), как объявлены [[databases]].
 	// Правила объявления и его сверка с подключёнными СУБД — у платформы.
 	Databases []DatabaseForm
+	// Buckets — потребности в бакетах (OBJ-06), как объявлены [[buckets]].
+	Buckets []BucketForm
 	// Environments — секции [env.*]: ключ DefaultEnvironmentKey несёт общие
 	// значения, остальные ключи — окружения платформы.
 	Environments map[string]EnvironmentValues
@@ -132,6 +134,23 @@ type EnvironmentValues struct {
 	// Databases — переопределения СУБД по имени базы
 	// ([env.<окружение>.databases.<имя>]).
 	Databases map[string]DatabaseOverride
+	// Buckets — переопределения хранилища и размера по имени бакета
+	// ([env.<окружение>.buckets.<имя>]).
+	Buckets map[string]BucketOverride
+}
+
+// BucketForm — потребность в бакете: имя внутри сервиса (пусто — default),
+// объектное хранилище организации и размер (5Gi).
+type BucketForm struct {
+	Name   string
+	Server string
+	Size   string
+}
+
+// BucketOverride — окружение меняет хранилище и/или размер одного бакета.
+type BucketOverride struct {
+	Server string
+	Size   string
 }
 
 // DatabaseForm — потребность в базе: имя внутри сервиса, тип СУБД, имя
