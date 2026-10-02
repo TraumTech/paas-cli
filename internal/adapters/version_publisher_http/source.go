@@ -115,6 +115,13 @@ func formToAPI(form *entities.VersionForm) *platformapi.VersionFormBody {
 			prefix := p.Prefix
 			body.Prefix = &prefix
 		}
+		if len(p.Ports) > 0 {
+			ports := make(map[string]int64, len(p.Ports))
+			for name, port := range p.Ports {
+				ports[name] = int64(port)
+			}
+			body.Ports = &ports
+		}
 		out.Processes = append(out.Processes, body)
 	}
 	return out
@@ -220,6 +227,13 @@ func buildFormToAPI(form *entities.FormDeclaration) *platformapi.BuildFormBody {
 		if p.Prefix != "" {
 			prefix := p.Prefix
 			process.Prefix = &prefix
+		}
+		if len(p.Ports) > 0 {
+			ports := make(map[string]int64, len(p.Ports))
+			for name, port := range p.Ports {
+				ports[name] = int64(port)
+			}
+			process.Ports = &ports
 		}
 		out.Processes = append(out.Processes, process)
 	}

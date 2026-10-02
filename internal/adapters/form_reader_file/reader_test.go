@@ -25,6 +25,10 @@ memory = "128Mi"
 zone = "main"
 prefix = "api"
 
+[processes.ports]
+admin = 4434
+metrics = 8003
+
 [[processes]]
 name = "worker"
 `), 0o644))
@@ -34,7 +38,7 @@ name = "worker"
 	require.NoError(t, err)
 	require.NotNil(t, form)
 	assert.Equal(t, []entities.ProcessForm{
-		{Name: "server", Listen: 9090, Command: []string{"./app", "serve"}, CPU: "100m", Memory: "128Mi", Zone: "main", Prefix: "api"},
+		{Name: "server", Listen: 9090, Command: []string{"./app", "serve"}, CPU: "100m", Memory: "128Mi", Zone: "main", Prefix: "api", Ports: map[string]int{"admin": 4434, "metrics": 8003}},
 		{Name: "worker"},
 	}, form.Processes)
 }

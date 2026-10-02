@@ -544,6 +544,9 @@ type ProcessFormBody struct {
 	// Name Имя процесса (kebab-case)
 	Name string `json:"name"`
 
+	// Ports Внутренние именованные порты «имя → номер» (DEP-24): в кластере под своими именами, во вход не попадают; имя listen зарезервировано за слушающим
+	Ports *map[string]int64 `json:"ports,omitempty"`
+
 	// Prefix Префикс под базовым хостом зоны; пусто — сам базовый хост
 	Prefix *string `json:"prefix,omitempty"`
 

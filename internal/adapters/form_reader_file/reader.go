@@ -81,6 +81,9 @@ type fileProcess struct {
 	// организации по имени и префикс под её базовым хостом.
 	Zone   string `toml:"zone"`
 	Prefix string `toml:"prefix"`
+	// ports — внутренние именованные порты (DEP-24): [processes.ports]
+	// с парами «имя = номер»; снаружи недоступны, соседям по кластеру — по имени.
+	Ports map[string]int `toml:"ports"`
 }
 
 func (r *Reader) Read(_ context.Context, path string) (*entities.FormDeclaration, error) {
@@ -112,6 +115,7 @@ func (r *Reader) Read(_ context.Context, path string) (*entities.FormDeclaration
 			Memory:  p.Memory,
 			Zone:    p.Zone,
 			Prefix:  p.Prefix,
+			Ports:   p.Ports,
 		})
 	}
 	for _, d := range file.Databases {

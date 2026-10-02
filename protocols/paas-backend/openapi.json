@@ -689,6 +689,14 @@
             "description": "Имя процесса (kebab-case)",
             "type": "string"
           },
+          "ports": {
+            "additionalProperties": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "description": "Внутренние именованные порты «имя → номер» (DEP-24): в кластере под своими именами, во вход не попадают; имя listen зарезервировано за слушающим",
+            "type": "object"
+          },
           "prefix": {
             "description": "Префикс под базовым хостом зоны; пусто — сам базовый хост",
             "type": "string"

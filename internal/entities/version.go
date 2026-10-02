@@ -62,6 +62,8 @@ type ProcessForm struct {
 	Memory  string
 	Zone    string
 	Prefix  string
+	// Ports — внутренние именованные порты (DEP-24); правила — у платформы.
+	Ports map[string]int
 }
 
 // Build — сборка ветки на платформе (DEP-18): артефакт без окружения.

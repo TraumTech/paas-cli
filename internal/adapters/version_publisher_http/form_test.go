@@ -90,3 +90,16 @@ func TestBuildFormToAPI_WithoutDatabases(t *testing.T) {
 	assert.Nil(t, body.Buckets)
 	assert.Nil(t, body.Environments)
 }
+
+// Внутренние именованные порты (DEP-24) едут как есть; без них поле не
+// отправляется — старый edge принял бы лишнее поле за ошибку формы.
+func TestBuildFormToAPI_Ports(t *testing.T) {
+	body := buildFormToAPI(&entities.FormDeclaration{Processes: []entities.ProcessForm{
+		{Name: "server", Listen: 8080, Ports: map[string]int{"admin": 4434, "metrics": 8003}},
+		{Name: "worker"},
+	}})
+
+	require.NotNil(t, body.Processes[0].Ports)
+	assert.Equal(t, map[string]int64{"admin": 4434, "metrics": 8003}, *body.Processes[0].Ports)
+	assert.Nil(t, body.Processes[1].Ports)
+}
