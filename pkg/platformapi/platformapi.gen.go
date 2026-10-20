@@ -18,6 +18,24 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for BuildDependencyBodyFormat.
+const (
+	BuildDependencyBodyFormatGrpc    BuildDependencyBodyFormat = "grpc"
+	BuildDependencyBodyFormatOpenapi BuildDependencyBodyFormat = "openapi"
+)
+
+// Valid indicates whether the value is a known member of the BuildDependencyBodyFormat enum.
+func (e BuildDependencyBodyFormat) Valid() bool {
+	switch e {
+	case BuildDependencyBodyFormatGrpc:
+		return true
+	case BuildDependencyBodyFormatOpenapi:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ClusterResponseEnvironment.
 const (
 	ClusterResponseEnvironmentDev   ClusterResponseEnvironment = "dev"
@@ -284,6 +302,34 @@ type BucketOverrideBody struct {
 	Size *string `json:"size,omitempty"`
 }
 
+// BuildDependencyBody defines model for BuildDependencyBody.
+type BuildDependencyBody struct {
+	// Document Снимок контракта продьюсера как есть
+	Document string `json:"document"`
+
+	// Format Формат снимка (пусто — openapi)
+	Format *BuildDependencyBodyFormat `json:"format,omitempty"`
+
+	// Methods Используемые методы продьюсера; пусто — зависимость от всего снимка
+	Methods *[]string `json:"methods,omitempty"`
+
+	// ProducerServiceId ID сервиса-продьюсера
+	ProducerServiceId openapi_types.UUID `json:"producer_service_id"`
+
+	// WaivedAttributes Атрибуты продьюсера, от которых потребитель отказался (PRT-26)
+	WaivedAttributes *[]string `json:"waived_attributes,omitempty"`
+}
+
+// BuildDependencyBodyFormat Формат снимка (пусто — openapi)
+type BuildDependencyBodyFormat string
+
+// BuildDependencyResponse defines model for BuildDependencyResponse.
+type BuildDependencyResponse struct {
+	Format            string             `json:"format"`
+	Methods           *[]string          `json:"methods,omitempty"`
+	ProducerServiceId openapi_types.UUID `json:"producer_service_id"`
+}
+
 // BuildFormBody defines model for BuildFormBody.
 type BuildFormBody struct {
 	// Buckets Бакеты, нужные сервису (OBJ-06), как объявлены манифестом
@@ -304,15 +350,16 @@ type BuildResponse struct {
 	// Schema A URL to the JSON Schema for this object.
 	//
 	// Examples: https://api.paas.traumtech.ru/schemas/BuildResponse.json
-	Schema         *string            `json:"$schema,omitempty"`
-	Branch         *string            `json:"branch,omitempty"`
-	CommitRevision string             `json:"commit_revision"`
-	ContractFormat *string            `json:"contract_format,omitempty"`
-	CreatedAt      time.Time          `json:"created_at"`
-	Form           *BuildFormBody     `json:"form,omitempty"`
-	HasContract    bool               `json:"has_contract"`
-	Id             openapi_types.UUID `json:"id"`
-	Image          *string            `json:"image,omitempty"`
+	Schema         *string                    `json:"$schema,omitempty"`
+	Branch         *string                    `json:"branch,omitempty"`
+	CommitRevision string                     `json:"commit_revision"`
+	ContractFormat *string                    `json:"contract_format,omitempty"`
+	CreatedAt      time.Time                  `json:"created_at"`
+	Dependencies   *[]BuildDependencyResponse `json:"dependencies,omitempty"`
+	Form           *BuildFormBody             `json:"form,omitempty"`
+	HasContract    bool                       `json:"has_contract"`
+	Id             openapi_types.UUID         `json:"id"`
+	Image          *string                    `json:"image,omitempty"`
 }
 
 // ClusterResponse defines model for ClusterResponse.
@@ -665,6 +712,9 @@ type PublishBuildInputBody struct {
 
 	// ContractFormat Формат контракта
 	ContractFormat *PublishBuildInputBodyContractFormat `json:"contract_format,omitempty"`
+
+	// Dependencies Зависимости потребителя со снимками контрактов продьюсеров: выкатка регистрирует их к заведённой версии
+	Dependencies *[]BuildDependencyBody `json:"dependencies,omitempty"`
 
 	// Form Форма сервиса и значения по окружениям
 	Form *BuildFormBody `json:"form,omitempty"`

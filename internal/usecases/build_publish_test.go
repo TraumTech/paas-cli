@@ -17,6 +17,7 @@ type buildFixture struct {
 	manifests *MockManifestReader
 	forms     *MockFormReader
 	resolver  *MockServiceResolver
+	snapshots *MockCandidateReader
 	publisher *MockBuildPublisher
 	uc        *PublishBuildUseCase
 }
@@ -28,9 +29,10 @@ func newBuildFixture(t *testing.T) *buildFixture {
 		manifests: NewMockManifestReader(ctrl),
 		forms:     NewMockFormReader(ctrl),
 		resolver:  NewMockServiceResolver(ctrl),
+		snapshots: NewMockCandidateReader(ctrl),
 		publisher: NewMockBuildPublisher(ctrl),
 	}
-	f.uc = NewPublishBuild(f.manifests, f.forms, f.resolver, f.publisher)
+	f.uc = NewPublishBuild(f.manifests, f.forms, f.resolver, f.snapshots, f.publisher)
 	return f
 }
 
@@ -172,4 +174,63 @@ func TestPublishBuildCarriesDefaultNamedContract(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, `{"openapi":"3.1.0"}`, got.Contract)
 	assert.Equal(t, "openapi", got.ContractFormat)
+}
+
+// Зависимости манифеста едут со сборкой вместе со снимками из раскладки —
+// регистрирует их выкатка, уже зная версию (DEP-25).
+func TestPublishBuildCarriesDependencies(t *testing.T) {
+	f := newBuildFixture(t)
+	manifest := &entities.Manifest{
+		Service: &entities.ManifestService{Name: "paas-frontend"},
+		Dependencies: []entities.ManifestDependency{{
+			Name: "paas-backend", Methods: []string{"GET /services"}, Waived: []string{"Service.owner"},
+		}},
+	}
+	f.manifests.EXPECT().Read(gomock.Any(), gomock.Any()).Return(manifest, nil)
+	f.resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"paas-frontend"}).Return(map[string]string{"paas-frontend": "svc"}, nil)
+	f.resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"paas-backend"}).Return(map[string]string{"paas-backend": "producer"}, nil)
+	f.forms.EXPECT().Read(gomock.Any(), gomock.Any()).Return(nil, nil)
+	dest := manifest.EffectiveDestination()
+	f.snapshots.EXPECT().Read(gomock.Any(), entities.ContractSnapshotPath(dest, "paas-backend", entities.ProtocolFormatOpenAPI)).
+		Return([]byte(validContract), nil)
+	f.snapshots.EXPECT().Read(gomock.Any(), entities.ContractSnapshotPath(dest, "paas-backend", entities.ProtocolFormatGRPC)).
+		Return(nil, os.ErrNotExist)
+
+	var got entities.BuildRequest
+	f.publisher.EXPECT().PublishBuild(gomock.Any(), "svc", gomock.Any()).DoAndReturn(
+		func(_ context.Context, _ string, request entities.BuildRequest) (*entities.Build, error) {
+			got = request
+			return &entities.Build{ID: "build-1"}, nil
+		})
+
+	_, err := f.uc.Execute(context.Background(), PublishBuildInput{CommitRevision: "abc123"})
+
+	require.NoError(t, err)
+	assert.Equal(t, []entities.BuildDependency{{
+		ProducerServiceID: "producer",
+		Format:            entities.ProtocolFormatOpenAPI,
+		Document:          []byte(validContract),
+		Methods:           []string{"GET /services"},
+		Waived:            []string{"Service.owner"},
+	}}, got.Dependencies)
+}
+
+// Нет снимка в раскладке — публикация падает целиком, а не уезжает без
+// зависимости: иначе выкатка молча сняла бы её из реестра.
+func TestPublishBuildFailsWithoutSnapshot(t *testing.T) {
+	f := newBuildFixture(t)
+	manifest := &entities.Manifest{
+		Service:      &entities.ManifestService{Name: "paas-frontend"},
+		Dependencies: []entities.ManifestDependency{{Name: "paas-backend"}},
+	}
+	f.manifests.EXPECT().Read(gomock.Any(), gomock.Any()).Return(manifest, nil)
+	f.resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"paas-frontend"}).Return(map[string]string{"paas-frontend": "svc"}, nil)
+	f.resolver.EXPECT().ResolveIDs(gomock.Any(), []string{"paas-backend"}).Return(map[string]string{"paas-backend": "producer"}, nil)
+	f.forms.EXPECT().Read(gomock.Any(), gomock.Any()).Return(nil, nil)
+	f.snapshots.EXPECT().Read(gomock.Any(), gomock.Any()).Return(nil, os.ErrNotExist).Times(2)
+
+	_, err := f.uc.Execute(context.Background(), PublishBuildInput{CommitRevision: "abc123"})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "paas-backend")
 }

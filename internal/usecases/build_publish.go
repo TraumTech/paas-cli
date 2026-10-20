@@ -12,11 +12,12 @@ type PublishBuildUseCase struct {
 	manifests ManifestReader
 	forms     FormReader
 	resolver  ServiceResolver
+	snapshots CandidateReader
 	publisher BuildPublisher
 }
 
-func NewPublishBuild(manifests ManifestReader, forms FormReader, resolver ServiceResolver, p BuildPublisher) *PublishBuildUseCase {
-	return &PublishBuildUseCase{manifests: manifests, forms: forms, resolver: resolver, publisher: p}
+func NewPublishBuild(manifests ManifestReader, forms FormReader, resolver ServiceResolver, snapshots CandidateReader, p BuildPublisher) *PublishBuildUseCase {
+	return &PublishBuildUseCase{manifests: manifests, forms: forms, resolver: resolver, snapshots: snapshots, publisher: p}
 }
 
 // Execute публикует сборку ветки (DEP-18). В отличие от публикации версии,
@@ -75,6 +76,9 @@ func (uc *PublishBuildUseCase) Execute(ctx context.Context, in PublishBuildInput
 			request.ContractFormat = "openapi"
 		}
 	}
+	if request.Dependencies, err = uc.dependencies(ctx, manifest); err != nil {
+		return nil, err
+	}
 	if err := request.Validate(); err != nil {
 		return nil, err
 	}
@@ -84,4 +88,49 @@ func (uc *PublishBuildUseCase) Execute(ctx context.Context, in PublishBuildInput
 		return nil, fmt.Errorf("publish build: %w", err)
 	}
 	return build, nil
+}
+
+// dependencies собирает [[dependencies]] манифеста со снимками из раскладки —
+// тем же путём, что dependencies register, только регистрирует их не CLI, а
+// выкатка, уже зная версию (DEP-25). Состав едет целиком или публикация падает.
+func (uc *PublishBuildUseCase) dependencies(ctx context.Context, manifest *entities.Manifest) ([]entities.BuildDependency, error) {
+	if len(manifest.Dependencies) == 0 {
+		return nil, nil
+	}
+	if err := manifest.Validate(); err != nil {
+		return nil, fmt.Errorf("validate manifest: %w", err)
+	}
+	names := make([]string, 0, len(manifest.Dependencies))
+	for _, dep := range manifest.Dependencies {
+		names = append(names, dep.Name)
+	}
+	ids, err := uc.resolver.ResolveIDs(ctx, names)
+	if err != nil {
+		return nil, fmt.Errorf("resolve services: %w", err)
+	}
+
+	dest := manifest.EffectiveDestination()
+	out := make([]entities.BuildDependency, 0, len(manifest.Dependencies))
+	for _, dep := range manifest.Dependencies {
+		producerID, ok := ids[dep.Name]
+		if !ok {
+			return nil, fmt.Errorf("зависимость %q: %w", dep.Name, entities.ErrServiceNotFound)
+		}
+		document, format, err := readDependencySnapshot(ctx, uc.snapshots, dest, dep.Name)
+		if err != nil {
+			return nil, fmt.Errorf("зависимость %q: %w", dep.Name, err)
+		}
+		contract := &entities.CandidateContract{Format: format, Document: document}
+		if err := contract.Validate(); err != nil {
+			return nil, fmt.Errorf("зависимость %q: %w", dep.Name, err)
+		}
+		out = append(out, entities.BuildDependency{
+			ProducerServiceID: producerID,
+			Format:            format,
+			Document:          contract.Document,
+			Methods:           dep.Methods,
+			Waived:            dep.Waived,
+		})
+	}
+	return out, nil
 }

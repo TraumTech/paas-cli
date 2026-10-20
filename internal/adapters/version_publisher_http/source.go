@@ -167,6 +167,9 @@ func (s *Source) PublishBuild(ctx context.Context, serviceID string, in entities
 		body.ContractFormat = &format
 	}
 	body.Form = buildFormToAPI(in.Form)
+	if body.Dependencies, err = buildDependenciesToAPI(in.Dependencies); err != nil {
+		return nil, err
+	}
 
 	resp, err := s.client.PublishBuildWithResponse(ctx, id, body)
 	if err != nil {
@@ -340,4 +343,31 @@ func sortedOverrideKeys(overrides map[string]entities.DatabaseOverride) []string
 	}
 	sort.Strings(names)
 	return names
+}
+
+func buildDependenciesToAPI(dependencies []entities.BuildDependency) (*[]platformapi.BuildDependencyBody, error) {
+	if len(dependencies) == 0 {
+		return nil, nil
+	}
+	out := make([]platformapi.BuildDependencyBody, 0, len(dependencies))
+	for _, d := range dependencies {
+		producerID, err := uuid.Parse(d.ProducerServiceID)
+		if err != nil {
+			return nil, fmt.Errorf("неверный id продьюсера %q: %w", d.ProducerServiceID, err)
+		}
+		format := platformapi.BuildDependencyBodyFormat(d.Format)
+		body := platformapi.BuildDependencyBody{
+			ProducerServiceId: producerID,
+			Format:            &format,
+			Document:          string(d.Document),
+		}
+		if len(d.Methods) > 0 {
+			body.Methods = &d.Methods
+		}
+		if len(d.Waived) > 0 {
+			body.WaivedAttributes = &d.Waived
+		}
+		out = append(out, body)
+	}
+	return &out, nil
 }
