@@ -56,7 +56,7 @@ func (uc *RegisterDependencyUseCase) Execute(ctx context.Context, in RegisterDep
 		if !ok {
 			return nil, fmt.Errorf("зависимость %q: %w", dep.Name, entities.ErrServiceNotFound)
 		}
-		document, format, err := uc.readSnapshot(ctx, dest, dep.Name)
+		document, format, err := readDependencySnapshot(ctx, uc.reader, dest, dep.Name)
 		if err != nil {
 			return nil, fmt.Errorf("зависимость %q: %w", dep.Name, err)
 		}
@@ -82,12 +82,13 @@ func (uc *RegisterDependencyUseCase) Execute(ctx context.Context, in RegisterDep
 	return &RegisterDependenciesResult{Registered: registered}, nil
 }
 
-// readSnapshot читает снимок зависимости из раскладки, определяя формат по имени
-// файла, которым его положил sync (CLI-19): openapi.json — прежний формат,
-// contract.proto — gRPC. Оба сразу — неоднозначность, а не молчаливый выбор.
-func (uc *RegisterDependencyUseCase) readSnapshot(ctx context.Context, dest, name string) ([]byte, entities.ProtocolFormat, error) {
-	openapiDoc, openapiErr := uc.reader.Read(ctx, entities.ContractSnapshotPath(dest, name, entities.ProtocolFormatOpenAPI))
-	grpcDoc, grpcErr := uc.reader.Read(ctx, entities.ContractSnapshotPath(dest, name, entities.ProtocolFormatGRPC))
+// readDependencySnapshot читает снимок зависимости из раскладки, определяя
+// формат по имени файла, которым его положил sync (CLI-19): openapi.json —
+// прежний формат, contract.proto — gRPC. Оба сразу — неоднозначность, а не
+// молчаливый выбор. Общий для регистрации и публикации сборки (DEP-25).
+func readDependencySnapshot(ctx context.Context, reader CandidateReader, dest, name string) ([]byte, entities.ProtocolFormat, error) {
+	openapiDoc, openapiErr := reader.Read(ctx, entities.ContractSnapshotPath(dest, name, entities.ProtocolFormatOpenAPI))
+	grpcDoc, grpcErr := reader.Read(ctx, entities.ContractSnapshotPath(dest, name, entities.ProtocolFormatGRPC))
 	switch {
 	case openapiErr == nil && grpcErr == nil:
 		return nil, "", fmt.Errorf("в раскладке два снимка (%s и %s) — оставьте один и повторите",

@@ -84,6 +84,19 @@ type BuildRequest struct {
 	Form           *FormDeclaration
 	Contract       string
 	ContractFormat string
+	// Dependencies — зависимости из манифеста со снимками из раскладки: их
+	// регистрирует выкатка, когда заведёт версию (DEP-25).
+	Dependencies []BuildDependency
+}
+
+// BuildDependency — зависимость сборки от контракта продьюсера, как её
+// регистрирует dependencies register.
+type BuildDependency struct {
+	ProducerServiceID string
+	Format            ProtocolFormat
+	Document          []byte
+	Methods           []string
+	Waived            []string
 }
 
 // Validate отсекает пустую ревизию до обращения к платформе.

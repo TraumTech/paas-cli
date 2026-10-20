@@ -144,6 +144,12 @@
             "format": "date-time",
             "type": "string"
           },
+          "dependencies": {
+            "items": {
+              "$ref": "#/components/schemas/BuildDependencyResponse"
+            },
+            "type": "array"
+          },
           "form": {
             "$ref": "#/components/schemas/BuildFormBody"
           },
@@ -1046,6 +1052,13 @@
             ],
             "type": "string"
           },
+          "dependencies": {
+            "description": "Зависимости потребителя со снимками контрактов продьюсеров: выкатка регистрирует их к заведённой версии",
+            "items": {
+              "$ref": "#/components/schemas/BuildDependencyBody"
+            },
+            "type": "array"
+          },
           "form": {
             "$ref": "#/components/schemas/BuildFormBody",
             "description": "Форма сервиса и значения по окружениям"
@@ -1311,6 +1324,70 @@
           "number",
           "commit_revision",
           "created_at"
+        ],
+        "type": "object"
+      },
+      "BuildDependencyBody": {
+        "additionalProperties": false,
+        "properties": {
+          "document": {
+            "description": "Снимок контракта продьюсера как есть",
+            "type": "string"
+          },
+          "format": {
+            "description": "Формат снимка (пусто — openapi)",
+            "enum": [
+              "openapi",
+              "grpc"
+            ],
+            "type": "string"
+          },
+          "methods": {
+            "description": "Используемые методы продьюсера; пусто — зависимость от всего снимка",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "producer_service_id": {
+            "description": "ID сервиса-продьюсера",
+            "format": "uuid",
+            "type": "string"
+          },
+          "waived_attributes": {
+            "description": "Атрибуты продьюсера, от которых потребитель отказался (PRT-26)",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "producer_service_id",
+          "document"
+        ],
+        "type": "object"
+      },
+      "BuildDependencyResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "format": {
+            "type": "string"
+          },
+          "methods": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "producer_service_id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "producer_service_id",
+          "format"
         ],
         "type": "object"
       }

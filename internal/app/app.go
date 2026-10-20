@@ -124,7 +124,7 @@ func Run(ctx context.Context, args []string) error {
 		return err
 	}
 	publishVersion := versionpublishcommandcli.New(usecases.NewPublishVersion(manifests, formreaderfile.New(), resolver, publisher))
-	publishBuild := buildpublishcommandcli.New(usecases.NewPublishBuild(manifests, formreaderfile.New(), resolver, publisher))
+	publishBuild := buildpublishcommandcli.New(usecases.NewPublishBuild(manifests, formreaderfile.New(), resolver, candidates, publisher))
 
 	publishSource, err := protocolpublishhttp.New(baseURL, client)
 	if err != nil {
