@@ -195,11 +195,8 @@
             "type": "string"
           },
           "environment": {
-            "enum": [
-              "dev",
-              "stage",
-              "prod"
-            ],
+            "maxLength": 32,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
             "type": "string"
           },
           "id": {
@@ -596,7 +593,7 @@
             "type": "array"
           },
           "name": {
-            "description": "Имя секции: default, dev, stage или prod",
+            "description": "Имя секции: default или окружение организации",
             "type": "string"
           },
           "replicas": {
@@ -1096,11 +1093,8 @@
           "environment": {
             "default": "prod",
             "description": "Окружение публикации; по умолчанию prod",
-            "enum": [
-              "dev",
-              "stage",
-              "prod"
-            ],
+            "maxLength": 32,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
             "type": "string"
           },
           "form": {
@@ -1296,11 +1290,8 @@
             "type": "string"
           },
           "environment": {
-            "enum": [
-              "dev",
-              "stage",
-              "prod"
-            ],
+            "maxLength": 32,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
             "type": "string"
           },
           "form": {

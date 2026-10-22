@@ -36,8 +36,7 @@ func (s *Source) PublishVersion(ctx context.Context, serviceID, environment, com
 
 	body := platformapi.PublishVersionJSONRequestBody{CommitRevision: commitRevision}
 	if environment != "" {
-		env := platformapi.PublishVersionInputBodyEnvironment(environment)
-		body.Environment = &env
+		body.Environment = &environment
 	}
 	if branch != "" {
 		body.Branch = &branch

@@ -135,11 +135,11 @@ func TestPublishVersionExecute_SourceError(t *testing.T) {
 	assert.ErrorIs(t, err, srcErr)
 }
 
-// Неизвестное окружение отсекается до чтения манифеста и сети (DEP-08).
+// Имя окружения не по правилам отсекается до чтения манифеста и сети (DEP-08).
 func TestPublishVersionExecute_UnknownEnvironment(t *testing.T) {
 	f := newPublishFixture(t)
 	in := f.input()
-	in.Environment = "qa"
+	in.Environment = "Q A"
 
 	_, err := f.uc.Execute(context.Background(), in)
 
@@ -186,7 +186,7 @@ func TestPublishVersionExecute_ResolvesEnvironmentValues(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// Секция [env.<имя>] для окружения, которого у платформы нет, — опечатка;
+// Секция [env.<имя>] с именем, которым окружение быть не может, — ошибка;
 // молча никуда не доехать она не должна.
 func TestPublishVersionExecute_UnknownFormEnvironment(t *testing.T) {
 	f := newPublishFixture(t)
@@ -194,7 +194,7 @@ func TestPublishVersionExecute_UnknownFormEnvironment(t *testing.T) {
 	f.expectResolved()
 	f.forms.EXPECT().Read(gomock.Any(), "paas.toml").Return(&entities.FormDeclaration{
 		Processes:    []entities.ProcessForm{{Name: "server"}},
-		Environments: map[string]entities.EnvironmentValues{"prd": {Replicas: 2}},
+		Environments: map[string]entities.EnvironmentValues{"Prod!": {Replicas: 2}},
 	}, nil)
 
 	in := f.input()

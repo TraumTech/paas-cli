@@ -36,27 +36,6 @@ func (e BuildDependencyBodyFormat) Valid() bool {
 	}
 }
 
-// Defines values for ClusterResponseEnvironment.
-const (
-	ClusterResponseEnvironmentDev   ClusterResponseEnvironment = "dev"
-	ClusterResponseEnvironmentProd  ClusterResponseEnvironment = "prod"
-	ClusterResponseEnvironmentStage ClusterResponseEnvironment = "stage"
-)
-
-// Valid indicates whether the value is a known member of the ClusterResponseEnvironment enum.
-func (e ClusterResponseEnvironment) Valid() bool {
-	switch e {
-	case ClusterResponseEnvironmentDev:
-		return true
-	case ClusterResponseEnvironmentProd:
-		return true
-	case ClusterResponseEnvironmentStage:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for ClusterResponseTopology.
 const (
 	ClusterResponseTopologyRegional ClusterResponseTopology = "regional"
@@ -153,27 +132,6 @@ func (e PublishBuildInputBodyContractFormat) Valid() bool {
 	}
 }
 
-// Defines values for PublishVersionInputBodyEnvironment.
-const (
-	PublishVersionInputBodyEnvironmentDev   PublishVersionInputBodyEnvironment = "dev"
-	PublishVersionInputBodyEnvironmentProd  PublishVersionInputBodyEnvironment = "prod"
-	PublishVersionInputBodyEnvironmentStage PublishVersionInputBodyEnvironment = "stage"
-)
-
-// Valid indicates whether the value is a known member of the PublishVersionInputBodyEnvironment enum.
-func (e PublishVersionInputBodyEnvironment) Valid() bool {
-	switch e {
-	case PublishVersionInputBodyEnvironmentDev:
-		return true
-	case PublishVersionInputBodyEnvironmentProd:
-		return true
-	case PublishVersionInputBodyEnvironmentStage:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for RegisterProtocolDependencyInputBodyFormat.
 const (
 	RegisterProtocolDependencyInputBodyFormatGrpc    RegisterProtocolDependencyInputBodyFormat = "grpc"
@@ -186,27 +144,6 @@ func (e RegisterProtocolDependencyInputBodyFormat) Valid() bool {
 	case RegisterProtocolDependencyInputBodyFormatGrpc:
 		return true
 	case RegisterProtocolDependencyInputBodyFormatOpenapi:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for VersionResponseEnvironment.
-const (
-	VersionResponseEnvironmentDev   VersionResponseEnvironment = "dev"
-	VersionResponseEnvironmentProd  VersionResponseEnvironment = "prod"
-	VersionResponseEnvironmentStage VersionResponseEnvironment = "stage"
-)
-
-// Valid indicates whether the value is a known member of the VersionResponseEnvironment enum.
-func (e VersionResponseEnvironment) Valid() bool {
-	switch e {
-	case VersionResponseEnvironmentDev:
-		return true
-	case VersionResponseEnvironmentProd:
-		return true
-	case VersionResponseEnvironmentStage:
 		return true
 	default:
 		return false
@@ -367,20 +304,17 @@ type ClusterResponse struct {
 	// Schema A URL to the JSON Schema for this object.
 	//
 	// Examples: https://api.paas.traumtech.ru/schemas/ClusterResponse.json
-	Schema        *string                     `json:"$schema,omitempty"`
-	Connected     bool                        `json:"connected"`
-	CreatedAt     time.Time                   `json:"created_at"`
-	Endpoint      string                      `json:"endpoint"`
-	Environment   *ClusterResponseEnvironment `json:"environment,omitempty"`
-	Id            openapi_types.UUID          `json:"id"`
-	Kind          string                      `json:"kind"`
-	LastContactAt *time.Time                  `json:"last_contact_at,omitempty"`
-	Name          string                      `json:"name"`
-	Topology      ClusterResponseTopology     `json:"topology"`
+	Schema        *string                 `json:"$schema,omitempty"`
+	Connected     bool                    `json:"connected"`
+	CreatedAt     time.Time               `json:"created_at"`
+	Endpoint      string                  `json:"endpoint"`
+	Environment   *string                 `json:"environment,omitempty"`
+	Id            openapi_types.UUID      `json:"id"`
+	Kind          string                  `json:"kind"`
+	LastContactAt *time.Time              `json:"last_contact_at,omitempty"`
+	Name          string                  `json:"name"`
+	Topology      ClusterResponseTopology `json:"topology"`
 }
-
-// ClusterResponseEnvironment defines model for ClusterResponse.Environment.
-type ClusterResponseEnvironment string
 
 // ClusterResponseTopology defines model for ClusterResponse.Topology.
 type ClusterResponseTopology string
@@ -549,7 +483,7 @@ type FormEnvironmentBody struct {
 	// Databases Переопределения СУБД по имени базы ([env.<окружение>.databases.<имя>])
 	Databases *[]DatabaseOverrideBody `json:"databases,omitempty"`
 
-	// Name Имя секции: default, dev, stage или prod
+	// Name Имя секции: default или окружение организации
 	Name      string              `json:"name"`
 	Replicas  *int64              `json:"replicas,omitempty"`
 	Variables *[]FormVariableBody `json:"variables,omitempty"`
@@ -740,7 +674,7 @@ type PublishVersionInputBody struct {
 	CommitRevision string `json:"commit_revision"`
 
 	// Environment Окружение публикации; по умолчанию prod
-	Environment *PublishVersionInputBodyEnvironment `json:"environment,omitempty"`
+	Environment *string `json:"environment,omitempty"`
 
 	// Form Форма сервиса: процессы и их коробки
 	Form *VersionFormBody `json:"form,omitempty"`
@@ -748,9 +682,6 @@ type PublishVersionInputBody struct {
 	// Image Адрес образа этой версии
 	Image *string `json:"image,omitempty"`
 }
-
-// PublishVersionInputBodyEnvironment Окружение публикации; по умолчанию prod
-type PublishVersionInputBodyEnvironment string
 
 // RegisterProtocolDependencyInputBody defines model for RegisterProtocolDependencyInputBody.
 type RegisterProtocolDependencyInputBody struct {
@@ -826,19 +757,16 @@ type VersionResponse struct {
 	// Schema A URL to the JSON Schema for this object.
 	//
 	// Examples: https://api.paas.traumtech.ru/schemas/VersionResponse.json
-	Schema         *string                    `json:"$schema,omitempty"`
-	Branch         *string                    `json:"branch,omitempty"`
-	CommitRevision string                     `json:"commit_revision"`
-	CreatedAt      time.Time                  `json:"created_at"`
-	Environment    VersionResponseEnvironment `json:"environment"`
-	Form           *VersionFormBody           `json:"form,omitempty"`
-	Id             openapi_types.UUID         `json:"id"`
-	Image          *string                    `json:"image,omitempty"`
-	Number         int64                      `json:"number"`
+	Schema         *string            `json:"$schema,omitempty"`
+	Branch         *string            `json:"branch,omitempty"`
+	CommitRevision string             `json:"commit_revision"`
+	CreatedAt      time.Time          `json:"created_at"`
+	Environment    string             `json:"environment"`
+	Form           *VersionFormBody   `json:"form,omitempty"`
+	Id             openapi_types.UUID `json:"id"`
+	Image          *string            `json:"image,omitempty"`
+	Number         int64              `json:"number"`
 }
-
-// VersionResponseEnvironment defines model for VersionResponse.Environment.
-type VersionResponseEnvironment string
 
 // GetDatabaseOperatorParamsEngine defines parameters for GetDatabaseOperator.
 type GetDatabaseOperatorParamsEngine string
