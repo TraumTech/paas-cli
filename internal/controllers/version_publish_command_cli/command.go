@@ -64,7 +64,7 @@ func (c *Command) CLICommand() *cli.Command {
 				Name:    environmentFlag,
 				Aliases: []string{"e"},
 				Value:   defaultEnvironment,
-				Usage:   "окружение публикации: dev, stage или prod",
+				Usage:   "окружение публикации — окружение организации",
 			},
 			&cli.StringFlag{
 				Name:  branchFlag,

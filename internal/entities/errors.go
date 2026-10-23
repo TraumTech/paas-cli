@@ -24,9 +24,9 @@ var (
 	// до обращения к сети (DEP-02).
 	ErrFormRequiresImage = newDomainError("paas.toml найден — укажите адрес образа флагом --image")
 
-	ErrUnknownEnvironment = newDomainError("окружение должно быть одним из: dev, stage, prod")
-	// Секция [env.<имя>] в манифесте для окружения, которого у платформы нет.
-	ErrUnknownFormEnvironment = newDomainError("секция [env.<окружение>] в paas.toml указывает на неизвестное окружение: допустимы default, dev, stage, prod")
+	ErrUnknownEnvironment = newDomainError("имя окружения — строчные латинские буквы, цифры и дефис, до 32 символов, не default")
+	// Секция [env.<имя>] в манифесте, имя которой окружением быть не может.
+	ErrUnknownFormEnvironment = newDomainError("секция [env.<окружение>] в paas.toml: имя окружения — строчные латинские буквы, цифры и дефис, до 32 символов; общая секция — default")
 
 	ErrMethodsUnsupportedForFormat = newDomainError("сужение до методов для контракта этого формата не поддерживается — уберите methods у этой зависимости")
 	// Срез до атрибутов (PRT-29) пока умеет только OpenAPI.

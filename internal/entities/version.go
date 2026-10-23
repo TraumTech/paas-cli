@@ -1,6 +1,7 @@
 package entities
 
 import (
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -20,17 +21,16 @@ type Version struct {
 	CreatedAt time.Time
 }
 
-// Environments — окружения платформы; словарь совпадает с DEP-01.
-var Environments = []string{"dev", "stage", "prod"}
+var environmentNameRe = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
-// ValidateEnvironment отсекает неизвестное окружение до обращения к платформе.
+// ValidateEnvironment отсекает имя окружения не по правилам платформы до
+// обращения к ней. Набор окружений заводит организация (DEP-27): есть ли
+// такое окружение, проверяет платформа.
 func ValidateEnvironment(environment string) error {
-	for _, env := range Environments {
-		if environment == env {
-			return nil
-		}
+	if len(environment) > 32 || !environmentNameRe.MatchString(environment) || environment == DefaultEnvironmentKey {
+		return ErrUnknownEnvironment
 	}
-	return ErrUnknownEnvironment
+	return nil
 }
 
 // VersionForm — форма сервиса из paas.toml (DEP-02): набор процессов, из
@@ -185,8 +185,9 @@ type DatabaseOverride struct {
 // DefaultEnvironmentKey — секция общих значений: [env.default].
 const DefaultEnvironmentKey = "default"
 
-// Validate отсекает секции для неизвестных окружений до обращения к платформе:
-// опечатка в [env.prd] иначе молча не доехала бы никуда.
+// Validate отсекает секции с именем не по правилам окружений до обращения к
+// платформе; секцию для окружения, которого нет у организации, отклонит
+// платформа при публикации.
 func (d *FormDeclaration) Validate() error {
 	for name := range d.Environments {
 		if name == DefaultEnvironmentKey {
