@@ -2,11 +2,12 @@ package browserauthorizerlocal
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"io"
 	"net/http"
 	"net/url"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -14,15 +15,38 @@ import (
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
-// browserStub изображает браузер: разбирает ссылку подтверждения и стучится на
-// адрес возврата с готовым ответом платформы.
+// flowStub изображает сервер авторизации: собирает ссылку входа и помнит, что
+// CLI принёс на обмен.
+type flowStub struct {
+	exchanged struct{ code, verifier, redirectURI string }
+	challenge string
+	err       error
+}
+
+func (f *flowStub) AuthorizeURL(redirectURI, state, codeChallenge string) string {
+	f.challenge = codeChallenge
+	return "https://oauth.example/oauth2/auth?" + url.Values{
+		"redirect_uri": {redirectURI}, "state": {state}, "code_challenge": {codeChallenge},
+	}.Encode()
+}
+
+func (f *flowStub) Exchange(_ context.Context, code, verifier, redirectURI string) (*entities.Credential, error) {
+	f.exchanged.code, f.exchanged.verifier, f.exchanged.redirectURI = code, verifier, redirectURI
+	if f.err != nil {
+		return nil, f.err
+	}
+	return &entities.Credential{Kind: entities.CredentialOIDC, Token: "access", RefreshToken: "refresh", Email: "user@example.com"}, nil
+}
+
+// browserStub изображает браузер: разбирает ссылку входа и стучится на адрес
+// возврата с ответом сервера авторизации.
 func browserStub(t *testing.T, respond func(callback string, state string)) func(string) error {
 	t.Helper()
 	return func(target string) error {
 		parsed, err := url.Parse(target)
 		require.NoError(t, err)
 		query := parsed.Query()
-		go respond(query.Get("callback"), query.Get("state"))
+		go respond(query.Get("redirect_uri"), query.Get("state"))
 		return nil
 	}
 }
@@ -37,34 +61,32 @@ func get(t *testing.T, target string) {
 	resp.Body.Close()
 }
 
-func TestAuthorize_ReturnsIssuedToken(t *testing.T) {
-	authorizer := New("https://paas.example", io.Discard)
-	expiresAt := time.Date(2026, 9, 13, 12, 0, 0, 0, time.UTC)
+func TestAuthorize_ExchangesCodeWithPKCE(t *testing.T) {
+	flow := &flowStub{}
+	authorizer := New(flow, io.Discard)
+	var redirectURI string
 	authorizer.openBrowser = browserStub(t, func(callback, state string) {
-		query := url.Values{}
-		query.Set("state", state)
-		query.Set("token", "paas_uat_secret")
-		query.Set("token_id", "tok-id")
-		query.Set("email", "user@example.com")
-		query.Set("expires_at", expiresAt.Format(time.RFC3339))
-		get(t, callback+"?"+query.Encode())
+		redirectURI = callback
+		get(t, callback+"?state="+state+"&code=code-1")
 	})
 
 	credential, err := authorizer.Authorize(context.Background())
 
 	require.NoError(t, err)
-	assert.Equal(t, entities.CredentialPersonalToken, credential.Kind)
-	assert.Equal(t, "paas_uat_secret", credential.Token)
-	assert.Equal(t, "tok-id", credential.TokenID)
+	assert.Equal(t, entities.CredentialOIDC, credential.Kind)
 	assert.Equal(t, "user@example.com", credential.Email)
-	assert.True(t, expiresAt.Equal(credential.ExpiresAt))
+	assert.Equal(t, "code-1", flow.exchanged.code)
+	assert.Equal(t, redirectURI, flow.exchanged.redirectURI)
+	sum := sha256.Sum256([]byte(flow.exchanged.verifier))
+	assert.Equal(t, base64.RawURLEncoding.EncodeToString(sum[:]), flow.challenge, "challenge — SHA-256 от verifier")
+	assert.GreaterOrEqual(t, len(flow.exchanged.verifier), 43)
 }
 
 // Пользователь отказал в браузере — вход не выполняется, и CLI не ждёт таймаута.
 func TestAuthorize_Denied(t *testing.T) {
-	authorizer := New("https://paas.example", io.Discard)
+	authorizer := New(&flowStub{}, io.Discard)
 	authorizer.openBrowser = browserStub(t, func(callback, state string) {
-		get(t, callback+"?state="+state+"&error=denied")
+		get(t, callback+"?state="+state+"&error=access_denied")
 	})
 
 	_, err := authorizer.Authorize(context.Background())
@@ -72,53 +94,68 @@ func TestAuthorize_Denied(t *testing.T) {
 	assert.ErrorIs(t, err, entities.ErrAuthorizationDenied)
 }
 
-// Чужой ответ (другой запуск CLI, подложенная ссылка) не принимается: свой
-// ответ узнаётся по одноразовому нонсу.
-func TestAuthorize_ForeignStateIgnored(t *testing.T) {
-	authorizer := New("https://paas.example", io.Discard)
+// Иной отказ сервера авторизации доносится с его кодом.
+func TestAuthorize_ServerError(t *testing.T) {
+	authorizer := New(&flowStub{}, io.Discard)
 	authorizer.openBrowser = browserStub(t, func(callback, state string) {
-		get(t, callback+"?state=someone-else&token=paas_uat_stolen")
-		// Свой ответ приходит следом — вход завершается им.
-		get(t, callback+"?state="+state+"&token=paas_uat_secret&token_id=tok-id")
+		get(t, callback+"?state="+state+"&error=invalid_scope&error_description=nope")
 	})
-
-	credential, err := authorizer.Authorize(context.Background())
-
-	require.NoError(t, err)
-	assert.Equal(t, "paas_uat_secret", credential.Token)
-}
-
-// Браузер открыть не удалось — подсказываем путь без него, а не молча ждём.
-func TestAuthorize_BrowserUnavailable(t *testing.T) {
-	authorizer := New("https://paas.example", io.Discard)
-	authorizer.openBrowser = func(string) error { return assert.AnError }
 
 	_, err := authorizer.Authorize(context.Background())
 
-	assert.ErrorIs(t, err, entities.ErrBrowserUnavailable)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid_scope")
 }
 
-// Ссылка подтверждения ведёт в интерфейс платформы и несёт петлевой адрес
-// возврата, нонс и имя машины — по нему человек узнаёт, кто просит доступ.
-func TestAuthorize_AuthorizeURLShape(t *testing.T) {
-	authorizer := New("https://paas.example/", io.Discard)
+// Чужой ответ (другой запуск CLI, подложенная ссылка) не принимается: свой
+// ответ узнаётся по одноразовому state.
+func TestAuthorize_ForeignStateIgnored(t *testing.T) {
+	flow := &flowStub{}
+	authorizer := New(flow, io.Discard)
+	authorizer.openBrowser = browserStub(t, func(callback, state string) {
+		get(t, callback+"?state=someone-else&code=stolen")
+		get(t, callback+"?state="+state+"&code=mine")
+	})
+
+	_, err := authorizer.Authorize(context.Background())
+
+	require.NoError(t, err)
+	assert.Equal(t, "mine", flow.exchanged.code)
+}
+
+// Браузер открыть не удалось — ссылка уже напечатана, ждём, что её откроют руками.
+func TestAuthorize_BrowserUnavailable_KeepsWaiting(t *testing.T) {
+	authorizer := New(&flowStub{}, io.Discard)
+	authorizer.openBrowser = func(string) error { return assert.AnError }
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := authorizer.Authorize(ctx)
+
+	assert.ErrorIs(t, err, context.Canceled)
+}
+
+// Ссылка входа ведёт к серверу авторизации и несёт петлевой адрес возврата.
+func TestAuthorize_RedirectURIIsLoopback(t *testing.T) {
+	flow := &flowStub{}
+	authorizer := New(flow, io.Discard)
 	var got *url.URL
 	authorizer.openBrowser = func(target string) error {
 		parsed, err := url.Parse(target)
 		require.NoError(t, err)
 		got = parsed
-		return assert.AnError // дальше идти незачем: проверяем только ссылку
+		return nil
 	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
 
-	_, _ = authorizer.Authorize(context.Background())
+	_, _ = authorizer.Authorize(ctx)
 
 	require.NotNil(t, got)
-	assert.Equal(t, "https://paas.example/cli/authorize", got.Scheme+"://"+got.Host+got.Path)
-	callback, err := url.Parse(got.Query().Get("callback"))
+	callback, err := url.Parse(got.Query().Get("redirect_uri"))
 	require.NoError(t, err)
 	assert.Equal(t, "http", callback.Scheme)
 	assert.Equal(t, "127.0.0.1", callback.Hostname())
 	assert.Equal(t, callbackPath, callback.Path)
 	assert.NotEmpty(t, got.Query().Get("state"))
-	assert.NotEmpty(t, got.Query().Get("label"))
 }

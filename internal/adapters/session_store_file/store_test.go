@@ -72,6 +72,30 @@ func TestStore_SaveLoad_PersonalToken(t *testing.T) {
 	assert.True(t, expiresAt.Equal(got.ExpiresAt))
 }
 
+// Вход OIDC (IAP-03) хранит пару токенов и срок токена доступа.
+func TestStore_SaveLoad_OIDC(t *testing.T) {
+	withTempConfigDir(t)
+	store := New()
+	ctx := context.Background()
+	expiresAt := time.Date(2026, 10, 29, 12, 10, 0, 0, time.UTC)
+
+	require.NoError(t, store.Save(ctx, entities.Credential{
+		Kind:         entities.CredentialOIDC,
+		Token:        "access-1",
+		RefreshToken: "refresh-1",
+		Email:        "user@example.com",
+		ExpiresAt:    expiresAt,
+	}))
+
+	got, err := store.Load(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, entities.CredentialOIDC, got.Kind)
+	assert.Equal(t, "access-1", got.Token)
+	assert.Equal(t, "refresh-1", got.RefreshToken)
+	assert.Equal(t, "user@example.com", got.Email)
+	assert.True(t, expiresAt.Equal(got.ExpiresAt))
+}
+
 // Вход, сохранённый прежними версиями CLI, — голая строка токена сессии:
 // обновление CLI не должно выкидывать пользователя.
 func TestStore_Load_LegacyPlainToken(t *testing.T) {

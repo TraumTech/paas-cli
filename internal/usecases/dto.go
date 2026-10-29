@@ -113,21 +113,10 @@ type RegisteredDependency struct {
 	ProducerServiceID string
 }
 
-type LoginInput struct {
-	Email    string
-	Password string
-}
-
-// LoginResult — итог входа для отчёта пользователю: под кем выполнен вход.
-type LoginResult struct {
-	Email string
-}
-
-// BrowserLoginResult — итог браузерного входа: под кем вошли и до какого числа
-// действует выданный токен.
+// BrowserLoginResult — итог браузерного входа: под кем вошли (пусто, если вход
+// e-mail не несёт).
 type BrowserLoginResult struct {
-	Email     string
-	ExpiresAt time.Time
+	Email string
 }
 
 // WhoAmIResult — кому принадлежит текущий сохранённый вход. У входа личным
@@ -135,6 +124,7 @@ type BrowserLoginResult struct {
 // докуда он действует: платформа e-mail не знает, его помнит сам вход.
 type WhoAmIResult struct {
 	Email     string
+	UserID    string
 	TokenName string
 	ExpiresAt time.Time
 }

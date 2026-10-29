@@ -37,6 +37,10 @@ func (c *Command) run(ctx context.Context, cmd *cli.Command) error {
 			whom(result.Email), result.TokenName, result.ExpiresAt.Local().Format("02.01.2006"))
 		return nil
 	}
+	if result.Email == "" && result.UserID != "" {
+		fmt.Fprintf(out, "✓ Вы вошли как пользователь %s\n", result.UserID)
+		return nil
+	}
 	fmt.Fprintf(out, "✓ Вы вошли как %s\n", result.Email)
 	return nil
 }
