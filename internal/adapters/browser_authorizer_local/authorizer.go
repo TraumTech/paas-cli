@@ -1,39 +1,44 @@
-// Package browserauthorizerlocal — выходной адаптер браузерного входа (AUTH-22).
-// CLI поднимает слушателя на петлевом адресе, открывает в браузере страницу
-// подтверждения платформы и ждёт, пока та вернёт выпущенный личный токен на этот
-// адрес. Секрет не покидает машину пользователя и не копируется руками.
+// Package browserauthorizerlocal — выходной адаптер браузерного входа (IAP-03):
+// CLI поднимает слушателя на петлевом адресе, открывает в браузере вход
+// платформы (сервер авторизации → провайдер входа) и ждёт, пока браузер вернёт
+// код выдачи на этот адрес; код тут же меняется на токены. Секрет не покидает
+// машину пользователя и не копируется руками.
 package browserauthorizerlocal
 
 import (
 	"context"
 	"crypto/rand"
-	"encoding/hex"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"os/exec"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
-// waitTimeout ограничивает ожидание подтверждения: закрытую вкладку CLI никак не
-// увидит, поэтому висеть бесконечно он не должен.
+// waitTimeout ограничивает ожидание: закрытую вкладку CLI никак не увидит,
+// поэтому висеть бесконечно он не должен.
 const waitTimeout = 5 * time.Minute
 
 // callbackPath — единственный путь локального слушателя; всё прочее ему чужое.
 const callbackPath = "/callback"
 
+// OAuthFlow — сервер авторизации глазами входа: куда вести браузер и как
+// обменять принесённый им код на токены.
+type OAuthFlow interface {
+	AuthorizeURL(redirectURI, state, codeChallenge string) string
+	Exchange(ctx context.Context, code, codeVerifier, redirectURI string) (*entities.Credential, error)
+}
+
 type Authorizer struct {
-	// webBaseURL — адрес интерфейса платформы: страница подтверждения живёт там,
-	// потому что там уже есть вход пользователя.
-	webBaseURL string
+	flow OAuthFlow
 	// openBrowser подменяется в тестах; в бою — системная команда открытия ссылки.
 	openBrowser func(url string) error
 	// announce печатает пользователю адрес — на случай, если браузер открылся не
@@ -41,16 +46,16 @@ type Authorizer struct {
 	announce io.Writer
 }
 
-func New(webBaseURL string, announce io.Writer) *Authorizer {
-	return &Authorizer{
-		webBaseURL:  strings.TrimRight(webBaseURL, "/"),
-		openBrowser: openBrowser,
-		announce:    announce,
-	}
+func New(flow OAuthFlow, announce io.Writer) *Authorizer {
+	return &Authorizer{flow: flow, openBrowser: openBrowser, announce: announce}
 }
 
 func (a *Authorizer) Authorize(ctx context.Context) (*entities.Credential, error) {
-	state, err := randomState()
+	state, err := randomToken()
+	if err != nil {
+		return nil, err
+	}
+	verifier, err := randomToken()
 	if err != nil {
 		return nil, err
 	}
@@ -70,11 +75,12 @@ func (a *Authorizer) Authorize(ctx context.Context) (*entities.Credential, error
 		_ = server.Shutdown(shutdownCtx)
 	}()
 
-	callback := fmt.Sprintf("http://%s%s", listener.Addr().String(), callbackPath)
-	authorizeURL := a.authorizeURL(callback, state)
-	fmt.Fprintf(a.announce, "Открываем браузер для подтверждения входа:\n%s\n", authorizeURL)
+	redirectURI := fmt.Sprintf("http://%s%s", listener.Addr().String(), callbackPath)
+	authorizeURL := a.flow.AuthorizeURL(redirectURI, state, codeChallenge(verifier))
+	fmt.Fprintf(a.announce, "Открываем браузер для входа:\n%s\n", authorizeURL)
 	if err := a.openBrowser(authorizeURL); err != nil {
-		return nil, entities.ErrBrowserUnavailable
+		// Код вернётся только на эту машину, поэтому ссылку нужно открыть здесь же.
+		fmt.Fprintln(a.announce, "Браузер открыть не удалось — откройте ссылку на этой машине вручную.")
 	}
 
 	waitCtx, cancel := context.WithTimeout(ctx, waitTimeout)
@@ -84,7 +90,7 @@ func (a *Authorizer) Authorize(ctx context.Context) (*entities.Credential, error
 		if res.err != nil {
 			return nil, res.err
 		}
-		return res.credential, nil
+		return a.flow.Exchange(ctx, res.code, verifier, redirectURI)
 	case <-waitCtx.Done():
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
@@ -94,16 +100,8 @@ func (a *Authorizer) Authorize(ctx context.Context) (*entities.Credential, error
 }
 
 type result struct {
-	credential *entities.Credential
-	err        error
-}
-
-func (a *Authorizer) authorizeURL(callback, state string) string {
-	query := url.Values{}
-	query.Set("callback", callback)
-	query.Set("state", state)
-	query.Set("label", machineLabel())
-	return a.webBaseURL + "/cli/authorize?" + query.Encode()
+	code string
+	err  error
 }
 
 func (a *Authorizer) callbackHandler(state string, results chan<- result) http.Handler {
@@ -117,14 +115,14 @@ func (a *Authorizer) callbackHandler(state string, results chan<- result) http.H
 			return
 		}
 
-		credential, err := parseCallback(query)
+		code, err := parseCallback(query)
 		select {
-		case results <- result{credential: credential, err: err}:
+		case results <- result{code: code, err: err}:
 		default: // ответ уже получен — второй игнорируем
 		}
 
 		if err != nil {
-			writePage(w, "Вход не подтверждён", "Вернитесь в терминал — CLI сообщит подробности.")
+			writePage(w, "Вход не выполнен", "Вернитесь в терминал — CLI сообщит подробности.")
 			return
 		}
 		writePage(w, "Готово", "Вход выполнен. Можно вернуться в терминал.")
@@ -132,28 +130,19 @@ func (a *Authorizer) callbackHandler(state string, results chan<- result) http.H
 	return mux
 }
 
-func parseCallback(query url.Values) (*entities.Credential, error) {
-	if query.Get("error") != "" {
-		return nil, entities.ErrAuthorizationDenied
+func parseCallback(query url.Values) (string, error) {
+	switch failure := query.Get("error"); failure {
+	case "":
+	case "access_denied":
+		return "", entities.ErrAuthorizationDenied
+	default:
+		return "", fmt.Errorf("сервер авторизации отказал: %s (%s)", failure, query.Get("error_description"))
 	}
-	token := query.Get("token")
-	if token == "" {
-		return nil, entities.ErrAuthorizationDenied
+	code := query.Get("code")
+	if code == "" {
+		return "", entities.ErrAuthorizationDenied
 	}
-	credential := &entities.Credential{
-		Kind:    entities.CredentialPersonalToken,
-		Token:   token,
-		TokenID: query.Get("token_id"),
-		Email:   query.Get("email"),
-	}
-	if expiresAt := query.Get("expires_at"); expiresAt != "" {
-		parsed, err := time.Parse(time.RFC3339, expiresAt)
-		if err != nil {
-			return nil, fmt.Errorf("разбор срока действия токена: %w", err)
-		}
-		credential.ExpiresAt = parsed
-	}
-	return credential, nil
+	return code, nil
 }
 
 func writePage(w http.ResponseWriter, title, message string) {
@@ -163,22 +152,19 @@ func writePage(w http.ResponseWriter, title, message string) {
 		`<h1>%s</h1><p>%s</p></body>`, title, title, message)
 }
 
-func randomState() (string, error) {
+// randomToken — 32 случайных байта в base64url: годится и как state, и как
+// PKCE code_verifier (43 символа из разрешённого алфавита).
+func randomToken() (string, error) {
 	raw := make([]byte, 32)
 	if _, err := rand.Read(raw); err != nil {
 		return "", fmt.Errorf("подготовка запроса входа: %w", err)
 	}
-	return hex.EncodeToString(raw), nil
+	return base64.RawURLEncoding.EncodeToString(raw), nil
 }
 
-// machineLabel — как назвать машину человеку в браузере: по имени хоста понятно,
-// с какого компьютера пришёл запрос.
-func machineLabel() string {
-	host, err := os.Hostname()
-	if err != nil || host == "" {
-		return "неизвестная машина"
-	}
-	return host
+func codeChallenge(verifier string) string {
+	sum := sha256.Sum256([]byte(verifier))
+	return base64.RawURLEncoding.EncodeToString(sum[:])
 }
 
 func openBrowser(target string) error {

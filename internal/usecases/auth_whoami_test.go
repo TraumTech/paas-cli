@@ -16,6 +16,15 @@ func sessionCredential(token string) *entities.Credential {
 	return &entities.Credential{Kind: entities.CredentialSession, Token: token}
 }
 
+func oidcCredential() *entities.Credential {
+	return &entities.Credential{
+		Kind:         entities.CredentialOIDC,
+		Token:        "access-1",
+		RefreshToken: "refresh-1",
+		Email:        "user@example.com",
+	}
+}
+
 func personalCredential(tokenID string) *entities.Credential {
 	return &entities.Credential{
 		Kind:    entities.CredentialPersonalToken,
@@ -36,7 +45,7 @@ func TestWhoAmIExecute_Success(t *testing.T) {
 	inspector.EXPECT().Inspect(gomock.Any(), "tok-1").
 		Return(&entities.UserSession{Token: "tok-1", Email: "user@example.com"}, nil)
 
-	got, err := NewWhoAmI(sessions, inspector, tokens).Execute(context.Background())
+	got, err := NewWhoAmI(sessions, NewMockLoginInspector(ctrl), inspector, tokens).Execute(context.Background())
 
 	require.NoError(t, err)
 	assert.Equal(t, "user@example.com", got.Email)
@@ -52,7 +61,7 @@ func TestWhoAmIExecute_NoSession(t *testing.T) {
 
 	sessions.EXPECT().Load(gomock.Any()).Return(nil, entities.ErrNoSession)
 
-	_, err := NewWhoAmI(sessions, inspector, tokens).Execute(context.Background())
+	_, err := NewWhoAmI(sessions, NewMockLoginInspector(ctrl), inspector, tokens).Execute(context.Background())
 
 	assert.ErrorIs(t, err, entities.ErrNoSession)
 }
@@ -67,7 +76,7 @@ func TestWhoAmIExecute_SessionExpired(t *testing.T) {
 	sessions.EXPECT().Load(gomock.Any()).Return(sessionCredential("tok-1"), nil)
 	inspector.EXPECT().Inspect(gomock.Any(), "tok-1").Return(nil, entities.ErrSessionExpired)
 
-	_, err := NewWhoAmI(sessions, inspector, tokens).Execute(context.Background())
+	_, err := NewWhoAmI(sessions, NewMockLoginInspector(ctrl), inspector, tokens).Execute(context.Background())
 
 	assert.ErrorIs(t, err, entities.ErrSessionExpired)
 }
@@ -88,7 +97,7 @@ func TestWhoAmIExecute_PersonalToken(t *testing.T) {
 		{ID: "tok-id", Name: "ноутбук", ExpiresAt: expiresAt},
 	}, nil)
 
-	got, err := NewWhoAmI(sessions, inspector, tokens).Execute(context.Background())
+	got, err := NewWhoAmI(sessions, NewMockLoginInspector(ctrl), inspector, tokens).Execute(context.Background())
 
 	require.NoError(t, err)
 	assert.Equal(t, "user@example.com", got.Email)
@@ -107,7 +116,39 @@ func TestWhoAmIExecute_PersonalTokenRevoked(t *testing.T) {
 	sessions.EXPECT().Load(gomock.Any()).Return(personalCredential("tok-id"), nil)
 	tokens.EXPECT().List(gomock.Any()).Return([]entities.PersonalToken{{ID: "other"}}, nil)
 
-	_, err := NewWhoAmI(sessions, inspector, tokens).Execute(context.Background())
+	_, err := NewWhoAmI(sessions, NewMockLoginInspector(ctrl), inspector, tokens).Execute(context.Background())
 
 	assert.ErrorIs(t, err, entities.ErrPersonalTokenRejected)
+}
+
+// Вход OIDC подтверждается у сервера авторизации тем же входом, которым CLI
+// ходит на платформу: ответ и есть доказательство, что вход жив.
+func TestWhoAmIExecute_OIDC(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	sessions := NewMockSessionStore(ctrl)
+	login := NewMockLoginInspector(ctrl)
+
+	sessions.EXPECT().Load(gomock.Any()).Return(oidcCredential(), nil)
+	login.EXPECT().Inspect(gomock.Any()).Return(&entities.UserSession{Email: "user@example.com", UserID: "u-1"}, nil)
+
+	got, err := NewWhoAmI(sessions, login, NewMockSessionInspector(ctrl), NewMockPersonalTokenDirectory(ctrl)).
+		Execute(context.Background())
+
+	require.NoError(t, err)
+	assert.Equal(t, "user@example.com", got.Email)
+	assert.Equal(t, "u-1", got.UserID)
+}
+
+func TestWhoAmIExecute_OIDC_Expired(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	sessions := NewMockSessionStore(ctrl)
+	login := NewMockLoginInspector(ctrl)
+
+	sessions.EXPECT().Load(gomock.Any()).Return(oidcCredential(), nil)
+	login.EXPECT().Inspect(gomock.Any()).Return(nil, entities.ErrSessionExpired)
+
+	_, err := NewWhoAmI(sessions, login, NewMockSessionInspector(ctrl), NewMockPersonalTokenDirectory(ctrl)).
+		Execute(context.Background())
+
+	assert.ErrorIs(t, err, entities.ErrSessionExpired)
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/TraumTech/paas-cli/internal/adapters/dependency_registrar_http"
 	formreaderfile "github.com/TraumTech/paas-cli/internal/adapters/form_reader_file"
 	"github.com/TraumTech/paas-cli/internal/adapters/manifest_reader_file"
+	oauthclienthydra "github.com/TraumTech/paas-cli/internal/adapters/oauth_client_hydra"
 	operatorinstallerk8s "github.com/TraumTech/paas-cli/internal/adapters/operator_installer_k8s"
 	personaltokenhttp "github.com/TraumTech/paas-cli/internal/adapters/personal_token_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/protocol_compatibility_http"
@@ -30,6 +31,7 @@ import (
 	"github.com/TraumTech/paas-cli/internal/adapters/service_resolver_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/session_gateway_http"
 	"github.com/TraumTech/paas-cli/internal/adapters/session_store_file"
+	userinfohydra "github.com/TraumTech/paas-cli/internal/adapters/user_info_hydra"
 	"github.com/TraumTech/paas-cli/internal/adapters/version_publisher_http"
 	"github.com/TraumTech/paas-cli/internal/controllers/auth_login_command_cli"
 	"github.com/TraumTech/paas-cli/internal/controllers/auth_logout_command_cli"
@@ -48,9 +50,12 @@ import (
 )
 
 const (
-	defaultAPIURL      = "https://api.paas.traumtech.ru"
-	defaultAuthURL     = "https://auth.paas.traumtech.ru"
-	defaultWebURL      = "https://paas.traumtech.ru"
+	defaultAPIURL   = "https://api.paas.traumtech.ru"
+	defaultAuthURL  = "https://auth.paas.traumtech.ru"
+	defaultOAuthURL = "https://oauth.paas.traumtech.ru"
+	// oauthClientID — публичный OAuth-клиент CLI у сервера авторизации платформы
+	// (IAP-03); регистрируется в paas-kratos (deploy/hydra-clients.sh).
+	oauthClientID      = "paas-cli"
 	defaultDestination = "protocols"
 	httpTimeout        = 30 * time.Second
 	// obsFlushTimeout ограничивает досылку трасс при завершении: без сети
@@ -58,11 +63,12 @@ const (
 	obsFlushTimeout = 3 * time.Second
 	// envAPIToken — машинный креденшел сервиса для неинтерактивного доступа (CI, скрипты).
 	envAPIToken = "PAAS_API_TOKEN"
-	// envAuthURL — адрес identity-провайдера платформы для входа пользователя.
+	// envAuthURL — адрес identity-провайдера платформы: проверка и завершение
+	// входа прежнего вида (сессия).
 	envAuthURL = "PAAS_AUTH_URL"
-	// envWebURL — адрес интерфейса платформы: там живёт страница подтверждения
-	// браузерного входа (AUTH-22).
-	envWebURL = "PAAS_WEB_URL"
+	// envOAuthURL — адрес сервера авторизации платформы (issuer): вход через
+	// браузер, продление и отзыв входа (IAP-03).
+	envOAuthURL = "PAAS_OAUTH_URL"
 )
 
 // Version — версия бинаря; подставляется при сборке релиза (GoReleaser, ldflags).
@@ -90,7 +96,14 @@ func Run(ctx context.Context, args []string) error {
 			credential = saved
 		}
 	}
-	client := httpClient(obs, envToken, credential)
+	// Сервер авторизации — отдельный хост и клиент без креденшелов платформы:
+	// код, refresh и отзыв он принимает от публичного клиента сами по себе.
+	oauthURL := strings.TrimRight(envOr(envOAuthURL, defaultOAuthURL), "/")
+	oauth := oauthclienthydra.New(oauthURL, oauthClientID, &http.Client{
+		Timeout:   httpTimeout,
+		Transport: observabilityhttp.NewTransport(obs, nil),
+	})
+	client := httpClient(obs, envToken, credential, oauth, sessions)
 
 	source, err := protocolsourcehttp.New(baseURL, client)
 	if err != nil {
@@ -173,16 +186,11 @@ func Run(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	// Страница подтверждения живёт в интерфейсе платформы, где пользователь уже
-	// вошёл, — отсюда отдельный адрес.
-	webURL := strings.TrimRight(envOr(envWebURL, defaultWebURL), "/")
-	authorizer := browserauthorizerlocal.New(webURL, os.Stderr)
-	login := authlogincommandcli.New(
-		usecases.NewLogin(gateway, sessions),
-		usecases.NewBrowserLogin(authorizer, sessions),
-	)
-	whoami := authwhoamicommandcli.New(usecases.NewWhoAmI(sessions, gateway, personalTokens))
-	logout := authlogoutcommandcli.New(usecases.NewLogout(sessions, gateway, personalTokens))
+	login := authlogincommandcli.New(usecases.NewBrowserLogin(browserauthorizerlocal.New(oauth, os.Stderr), sessions))
+	// Проверка входа OIDC идёт клиентом платформы: тем же токеном доступа, с тем
+	// же продлением.
+	whoami := authwhoamicommandcli.New(usecases.NewWhoAmI(sessions, userinfohydra.New(oauthURL, client), gateway, personalTokens))
+	logout := authlogoutcommandcli.New(usecases.NewLogout(sessions, oauth, gateway, personalTokens))
 
 	root := &cli.Command{
 		Name:    "paas-cli",

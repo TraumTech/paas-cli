@@ -47,10 +47,8 @@ var (
 	ErrBuildMultipleContracts = newDomainError("сборка несёт один контракт: несколько записей [[protocols]] в сборке пока не поддерживаются")
 	ErrBuildNamedContract     = newDomainError("сборка несёт контракт без имени протокола: именованная запись [[protocols]] в сборке пока не поддерживается")
 
-	ErrEmptyCredentials   = newDomainError("укажите e-mail и пароль")
-	ErrInvalidCredentials = newDomainError("войти не удалось: проверьте учётные данные")
-	ErrNoSession          = newDomainError("вход не выполнен — выполните `paas-cli auth login`")
-	ErrSessionExpired     = newDomainError("сессия истекла или отозвана — войдите заново: `paas-cli auth login`")
+	ErrNoSession      = newDomainError("вход не выполнен — выполните `paas-cli auth login`")
+	ErrSessionExpired = newDomainError("вход истёк или отозван — войдите заново: `paas-cli auth login`")
 
 	ErrCancelled           = newDomainError("отменено — в кластере ничего не изменено")
 	ErrEmptyClusterName    = newDomainError("укажите имя кластера: --name")
@@ -72,10 +70,9 @@ var (
 	ErrLoginRequired = newDomainError("платформа требует вход: выполните `paas-cli auth login` или задайте токен доступа в PAAS_API_TOKEN")
 	ErrTokenRejected = newDomainError("токен из PAAS_API_TOKEN не принят платформой — он отозван, просрочен или неверен")
 
-	// Браузерный вход (AUTH-22).
+	// Браузерный вход (IAP-03).
 	ErrAuthorizationDenied  = newDomainError("вход не подтверждён в браузере — ничего не сохранено")
-	ErrAuthorizationTimeout = newDomainError("подтверждение из браузера не пришло — повторите вход")
-	ErrBrowserUnavailable   = newDomainError("не удалось открыть браузер — войдите паролем: `paas-cli auth login --password`")
+	ErrAuthorizationTimeout = newDomainError("ответ из браузера не пришёл — повторите вход")
 	// Личный токен предъявляется платформе, а не провайдеру: истёкший и
 	// отозванный она одинаково не принимает.
 	ErrPersonalTokenRejected = newDomainError("личный токен истёк или отозван — войдите заново: `paas-cli auth login`")

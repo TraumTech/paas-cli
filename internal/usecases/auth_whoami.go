@@ -8,17 +8,18 @@ import (
 )
 
 // WhoAmIUseCase отвечает, под кем выполнен вход. Сохранённый вход не берётся на
-// веру: сессия проверяется у identity-провайдера, личный токен — у платформы
-// (она же владеет его сроком и отзывом), поэтому истёкший или отозванный вход
-// честно сообщается пользователю.
+// веру: вход OIDC проверяется у сервера авторизации, сессия — у
+// identity-провайдера, личный токен — у платформы (она же владеет его сроком и
+// отзывом), поэтому истёкший или отозванный вход честно сообщается пользователю.
 type WhoAmIUseCase struct {
 	sessions  SessionStore
+	login     LoginInspector
 	inspector SessionInspector
 	tokens    PersonalTokenDirectory
 }
 
-func NewWhoAmI(sessions SessionStore, inspector SessionInspector, tokens PersonalTokenDirectory) *WhoAmIUseCase {
-	return &WhoAmIUseCase{sessions: sessions, inspector: inspector, tokens: tokens}
+func NewWhoAmI(sessions SessionStore, login LoginInspector, inspector SessionInspector, tokens PersonalTokenDirectory) *WhoAmIUseCase {
+	return &WhoAmIUseCase{sessions: sessions, login: login, inspector: inspector, tokens: tokens}
 }
 
 func (uc *WhoAmIUseCase) Execute(ctx context.Context) (*WhoAmIResult, error) {
@@ -27,7 +28,14 @@ func (uc *WhoAmIUseCase) Execute(ctx context.Context) (*WhoAmIResult, error) {
 		return nil, fmt.Errorf("load credential: %w", err)
 	}
 
-	if credential.Kind == entities.CredentialPersonalToken {
+	switch credential.Kind {
+	case entities.CredentialOIDC:
+		user, err := uc.login.Inspect(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("inspect login: %w", err)
+		}
+		return &WhoAmIResult{Email: user.Email, UserID: user.UserID}, nil
+	case entities.CredentialPersonalToken:
 		return uc.inspectPersonalToken(ctx, credential)
 	}
 

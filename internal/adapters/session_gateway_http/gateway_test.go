@@ -13,52 +13,6 @@ import (
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
-func TestAuthenticate_Success(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.Method == http.MethodGet && r.URL.Path == "/self-service/login/api":
-			json.NewEncoder(w).Encode(map[string]any{"id": "flow-1"})
-		case r.Method == http.MethodPost && r.URL.Path == "/self-service/login":
-			assert.Equal(t, "flow-1", r.URL.Query().Get("flow"))
-			var body map[string]string
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
-			assert.Equal(t, "password", body["method"])
-			assert.Equal(t, "user@example.com", body["identifier"])
-			assert.Equal(t, "secret", body["password"])
-			json.NewEncoder(w).Encode(map[string]any{
-				"session_token": "tok-1",
-				"session": map[string]any{
-					"identity": map[string]any{"traits": map[string]any{"email": "user@example.com"}},
-				},
-			})
-		default:
-			t.Errorf("неожиданный запрос: %s %s", r.Method, r.URL.Path)
-		}
-	}))
-	defer srv.Close()
-
-	got, err := New(srv.URL, srv.Client()).Authenticate(context.Background(), "user@example.com", "secret")
-
-	require.NoError(t, err)
-	assert.Equal(t, "tok-1", got.Token)
-	assert.Equal(t, "user@example.com", got.Email)
-}
-
-func TestAuthenticate_InvalidCredentials(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/self-service/login/api" {
-			json.NewEncoder(w).Encode(map[string]any{"id": "flow-1"})
-			return
-		}
-		w.WriteHeader(http.StatusBadRequest)
-	}))
-	defer srv.Close()
-
-	_, err := New(srv.URL, srv.Client()).Authenticate(context.Background(), "user@example.com", "wrong")
-
-	assert.ErrorIs(t, err, entities.ErrInvalidCredentials)
-}
-
 func TestInspect_Success(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/sessions/whoami", r.URL.Path)

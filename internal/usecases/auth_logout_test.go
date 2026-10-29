@@ -23,7 +23,7 @@ func TestLogoutExecute_Success(t *testing.T) {
 	revoker.EXPECT().Revoke(gomock.Any(), "tok-1").Return(nil)
 	sessions.EXPECT().Delete(gomock.Any()).Return(nil)
 
-	got, err := NewLogout(sessions, revoker, tokens).Execute(context.Background())
+	got, err := NewLogout(sessions, NewMockLoginRevoker(ctrl), revoker, tokens).Execute(context.Background())
 
 	require.NoError(t, err)
 	assert.True(t, got.WasLoggedIn)
@@ -39,7 +39,7 @@ func TestLogoutExecute_NoSession_NotAnError(t *testing.T) {
 
 	sessions.EXPECT().Load(gomock.Any()).Return(nil, entities.ErrNoSession)
 
-	got, err := NewLogout(sessions, revoker, tokens).Execute(context.Background())
+	got, err := NewLogout(sessions, NewMockLoginRevoker(ctrl), revoker, tokens).Execute(context.Background())
 
 	require.NoError(t, err)
 	assert.False(t, got.WasLoggedIn)
@@ -57,7 +57,7 @@ func TestLogoutExecute_RevokeError_KeepsLocalSession(t *testing.T) {
 	revoker.EXPECT().Revoke(gomock.Any(), "tok-1").Return(revokeErr)
 	// Delete не вызывается — сессия у провайдера жива, выход можно повторить.
 
-	_, err := NewLogout(sessions, revoker, tokens).Execute(context.Background())
+	_, err := NewLogout(sessions, NewMockLoginRevoker(ctrl), revoker, tokens).Execute(context.Background())
 
 	assert.ErrorIs(t, err, revokeErr)
 }
@@ -74,7 +74,7 @@ func TestLogoutExecute_PersonalToken_RevokedOnPlatform(t *testing.T) {
 	tokens.EXPECT().Revoke(gomock.Any(), "tok-id").Return(nil)
 	sessions.EXPECT().Delete(gomock.Any()).Return(nil)
 
-	got, err := NewLogout(sessions, revoker, tokens).Execute(context.Background())
+	got, err := NewLogout(sessions, NewMockLoginRevoker(ctrl), revoker, tokens).Execute(context.Background())
 
 	require.NoError(t, err)
 	assert.True(t, got.WasLoggedIn)
@@ -92,7 +92,25 @@ func TestLogoutExecute_PersonalTokenAlreadyRevoked(t *testing.T) {
 	tokens.EXPECT().Revoke(gomock.Any(), "tok-id").Return(entities.ErrPersonalTokenRejected)
 	sessions.EXPECT().Delete(gomock.Any()).Return(nil)
 
-	got, err := NewLogout(sessions, revoker, tokens).Execute(context.Background())
+	got, err := NewLogout(sessions, NewMockLoginRevoker(ctrl), revoker, tokens).Execute(context.Background())
+
+	require.NoError(t, err)
+	assert.True(t, got.WasLoggedIn)
+}
+
+// Вход OIDC гасится у сервера авторизации по refresh-токену — вместе с ним
+// умирают и токены доступа; сессию браузера выход CLI не трогает.
+func TestLogoutExecute_OIDC_RevokesRefreshToken(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	sessions := NewMockSessionStore(ctrl)
+	login := NewMockLoginRevoker(ctrl)
+
+	sessions.EXPECT().Load(gomock.Any()).Return(oidcCredential(), nil)
+	login.EXPECT().Revoke(gomock.Any(), "refresh-1").Return(nil)
+	sessions.EXPECT().Delete(gomock.Any()).Return(nil)
+
+	got, err := NewLogout(sessions, login, NewMockSessionRevoker(ctrl), NewMockPersonalTokenDirectory(ctrl)).
+		Execute(context.Background())
 
 	require.NoError(t, err)
 	assert.True(t, got.WasLoggedIn)

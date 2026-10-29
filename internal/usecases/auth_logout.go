@@ -8,16 +8,18 @@ import (
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
-// LogoutUseCase завершает вход: сессию — у identity-провайдера, личный токен —
-// на платформе (выданный браузером токен не должен пережить выход, AUTH-22).
+// LogoutUseCase завершает вход там, где он живёт: вход OIDC — у сервера
+// авторизации (отзыв refresh-токена), сессию — у identity-провайдера, личный
+// токен — на платформе (выданный браузером токен не должен пережить выход).
 type LogoutUseCase struct {
 	sessions SessionStore
+	login    LoginRevoker
 	revoker  SessionRevoker
 	tokens   PersonalTokenDirectory
 }
 
-func NewLogout(sessions SessionStore, revoker SessionRevoker, tokens PersonalTokenDirectory) *LogoutUseCase {
-	return &LogoutUseCase{sessions: sessions, revoker: revoker, tokens: tokens}
+func NewLogout(sessions SessionStore, login LoginRevoker, revoker SessionRevoker, tokens PersonalTokenDirectory) *LogoutUseCase {
+	return &LogoutUseCase{sessions: sessions, login: login, revoker: revoker, tokens: tokens}
 }
 
 func (uc *LogoutUseCase) Execute(ctx context.Context) (*LogoutResult, error) {
@@ -40,21 +42,27 @@ func (uc *LogoutUseCase) Execute(ctx context.Context) (*LogoutResult, error) {
 }
 
 func (uc *LogoutUseCase) revokeCredential(ctx context.Context, credential *entities.Credential) error {
-	if credential.Kind != entities.CredentialPersonalToken {
-		if err := uc.revoker.Revoke(ctx, credential.Token); err != nil {
-			return fmt.Errorf("revoke session: %w", err)
+	switch credential.Kind {
+	case entities.CredentialOIDC:
+		if err := uc.login.Revoke(ctx, credential.RefreshToken); err != nil {
+			return fmt.Errorf("revoke login: %w", err)
+		}
+		return nil
+	case entities.CredentialPersonalToken:
+		// Личный токен, выданный не браузерным входом (положен руками в файл), id не
+		// несёт — отзывать нечего, достаточно забыть его локально.
+		if credential.TokenID == "" {
+			return nil
+		}
+		// Токен, отозванный из интерфейса раньше, — цель уже достигнута.
+		if err := uc.tokens.Revoke(ctx, credential.TokenID); err != nil &&
+			!errors.Is(err, entities.ErrPersonalTokenRejected) {
+			return fmt.Errorf("revoke personal token: %w", err)
 		}
 		return nil
 	}
-	// Личный токен, выданный не браузерным входом (положен руками в файл), id не
-	// несёт — отзывать нечего, достаточно забыть его локально.
-	if credential.TokenID == "" {
-		return nil
-	}
-	// Токен, отозванный из интерфейса раньше, — цель уже достигнута.
-	if err := uc.tokens.Revoke(ctx, credential.TokenID); err != nil &&
-		!errors.Is(err, entities.ErrPersonalTokenRejected) {
-		return fmt.Errorf("revoke personal token: %w", err)
+	if err := uc.revoker.Revoke(ctx, credential.Token); err != nil {
+		return fmt.Errorf("revoke session: %w", err)
 	}
 	return nil
 }

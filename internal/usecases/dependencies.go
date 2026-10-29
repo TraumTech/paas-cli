@@ -6,7 +6,7 @@ import (
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
-//go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=usecases github.com/TraumTech/paas-cli/internal/usecases ProtocolSource,ProtocolStore,CandidateReader,CompatibilitySource,RegistryDirectory,VersionPublisher,BuildPublisher,ProtocolPublisher,DependencyRegistrar,ManifestReader,FormReader,ServiceResolver,CredentialAuthenticator,SessionInspector,SessionRevoker,SessionStore,BrowserAuthorizer,PersonalTokenDirectory
+//go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=usecases github.com/TraumTech/paas-cli/internal/usecases ProtocolSource,ProtocolStore,CandidateReader,CompatibilitySource,RegistryDirectory,VersionPublisher,BuildPublisher,ProtocolPublisher,DependencyRegistrar,ManifestReader,FormReader,ServiceResolver,SessionInspector,SessionRevoker,LoginInspector,LoginRevoker,SessionStore,BrowserAuthorizer,PersonalTokenDirectory
 
 // ProtocolSource достаёт актуальный опубликованный контракт сервиса из платформы.
 // Непустой methods — контракт, суженный платформой до этих методов (CLI-09);
@@ -113,17 +113,23 @@ type FormReader interface {
 	Read(ctx context.Context, path string) (*entities.FormDeclaration, error)
 }
 
-// CredentialAuthenticator обменивает учётные данные пользователя на сессию у
-// identity-провайдера платформы. Возвращает entities.ErrInvalidCredentials, когда
-// провайдер не признал учётные данные (без уточнения, что именно неверно), — use
-// case транслирует её пользователю как есть.
-type CredentialAuthenticator interface {
-	Authenticate(ctx context.Context, email, password string) (*entities.UserSession, error)
+// LoginInspector проверяет сохранённый вход OIDC у сервера авторизации тем же
+// входом, которым CLI ходит на платформу, и возвращает, кому он принадлежит.
+// Возвращает entities.ErrSessionExpired, когда вход истёк или отозван.
+type LoginInspector interface {
+	Inspect(ctx context.Context) (*entities.UserSession, error)
 }
 
-// SessionInspector проверяет токен сессии у identity-провайдера и возвращает,
-// кому сессия принадлежит. Возвращает entities.ErrSessionExpired, когда токен
-// недействителен (истёк или отозван).
+// LoginRevoker гасит вход OIDC у сервера авторизации по refresh-токену: вместе с
+// ним отзываются и выданные по нему токены доступа. Уже негодный токен ошибкой
+// не считается.
+type LoginRevoker interface {
+	Revoke(ctx context.Context, refreshToken string) error
+}
+
+// SessionInspector проверяет токен сессии у identity-провайдера (прежний вид
+// входа) и возвращает, кому сессия принадлежит. Возвращает
+// entities.ErrSessionExpired, когда токен недействителен (истёк или отозван).
 type SessionInspector interface {
 	Inspect(ctx context.Context, token string) (*entities.UserSession, error)
 }
@@ -143,10 +149,10 @@ type SessionStore interface {
 	Delete(ctx context.Context) error
 }
 
-// BrowserAuthorizer проводит выдачу личного токена через браузер (AUTH-22):
-// открывает страницу подтверждения платформы и дожидается, пока она вернёт
-// выпущенный токен на локальный адрес. Возвращает entities.ErrAuthorizationDenied,
-// если пользователь отказал, и ошибку ожидания, если подтверждение не пришло.
+// BrowserAuthorizer проводит вход через браузер (IAP-03): открывает вход
+// платформы и дожидается, пока сервер авторизации вернёт код на локальный адрес,
+// затем меняет его на токены. Возвращает entities.ErrAuthorizationDenied, если
+// пользователь отказал, и ошибку ожидания, если ответ не пришёл.
 type BrowserAuthorizer interface {
 	Authorize(ctx context.Context) (*entities.Credential, error)
 }
