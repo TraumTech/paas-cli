@@ -142,3 +142,37 @@ func TestEmailClaim_Malformed(t *testing.T) {
 	assert.Empty(t, emailClaim("a.!!!.c"))
 	assert.Empty(t, emailClaim(idToken(map[string]any{"sub": "u-1"})))
 }
+
+// Токен платформы (IAP-04): client_credentials с креденшелами в Basic.
+func TestClientCredentials(t *testing.T) {
+	var gotForm url.Values
+	var gotUser, gotPass string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.NoError(t, r.ParseForm())
+		gotForm = r.PostForm
+		gotUser, gotPass, _ = r.BasicAuth()
+		_ = json.NewEncoder(w).Encode(map[string]any{"access_token": "jwt-1", "expires_in": 600, "token_type": "bearer"})
+	}))
+	defer srv.Close()
+	client := New(srv.URL, "paas-cli", srv.Client())
+	client.now = func() time.Time { return time.Date(2026, 10, 29, 12, 0, 0, 0, time.UTC) }
+
+	got, err := client.ClientCredentials(context.Background(), entities.MachineToken{ClientID: "paas_pat_1", Secret: "s3cret"})
+
+	require.NoError(t, err)
+	assert.Equal(t, "client_credentials", gotForm.Get("grant_type"))
+	assert.Equal(t, "paas_pat_1", gotUser)
+	assert.Equal(t, "s3cret", gotPass)
+	assert.Equal(t, &entities.Credential{Kind: entities.CredentialMachine, Token: "jwt-1", ExpiresAt: time.Date(2026, 10, 29, 12, 10, 0, 0, time.UTC)}, got)
+}
+
+func TestClientCredentials_InvalidClient(t *testing.T) {
+	srv := tokenServer(t, func(url.Values) (int, any) {
+		return http.StatusUnauthorized, map[string]any{"error": "invalid_client"}
+	})
+	defer srv.Close()
+
+	_, err := New(srv.URL, "paas-cli", srv.Client()).ClientCredentials(context.Background(), entities.MachineToken{ClientID: "paas_pat_1", Secret: "bad"})
+
+	assert.ErrorIs(t, err, entities.ErrTokenRejected)
+}

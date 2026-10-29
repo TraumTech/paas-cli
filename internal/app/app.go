@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -95,6 +96,8 @@ func Run(ctx context.Context, args []string) error {
 		if saved, err := sessions.Load(ctx); err == nil {
 			credential = saved
 		}
+	} else if _, ok := entities.ParseMachineToken(envToken); !ok {
+		fmt.Fprintln(os.Stderr, entities.LegacyTokenWarning)
 	}
 	// Сервер авторизации — отдельный хост и клиент без креденшелов платформы:
 	// код, refresh и отзыв он принимает от публичного клиента сами по себе.

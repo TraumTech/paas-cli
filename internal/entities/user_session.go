@@ -19,7 +19,10 @@ type UserSession struct {
 type CredentialKind string
 
 const (
-	CredentialOIDC          CredentialKind = "oidc"
+	CredentialOIDC CredentialKind = "oidc"
+	// CredentialMachine — JWT, полученный за токен платформы из PAAS_API_TOKEN
+	// (IAP-04): живёт только в процессе, в файл входа не пишется.
+	CredentialMachine       CredentialKind = "machine"
 	CredentialSession       CredentialKind = "session"
 	CredentialPersonalToken CredentialKind = "personal_token"
 )

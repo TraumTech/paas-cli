@@ -151,6 +151,57 @@ func (c *Client) token(ctx context.Context, form url.Values) (*entities.Credenti
 	}, nil
 }
 
+// ClientCredentials меняет токен платформы (IAP-04) — клиента входа с секретом —
+// на короткий JWT. Клиент конфиденциальный, поэтому креденшелы идут в
+// Authorization: Basic; refresh-токена у гранта нет — по истечении CLI просто
+// просит новый. Отозванный или неверный токен сервер отвергает как
+// invalid_client → entities.ErrTokenRejected.
+func (c *Client) ClientCredentials(ctx context.Context, token entities.MachineToken) (*entities.Credential, error) {
+	form := url.Values{}
+	form.Set("grant_type", "client_credentials")
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.issuer+tokenPath, strings.NewReader(form.Encode()))
+	if err != nil {
+		return nil, fmt.Errorf("создание запроса: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+	req.SetBasicAuth(url.QueryEscape(token.ClientID), url.QueryEscape(token.Secret))
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("запрос к серверу авторизации: %w", err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return nil, fmt.Errorf("чтение ответа сервера авторизации: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		var failure tokenError
+		_ = json.Unmarshal(body, &failure)
+		// invalid_client — секрет не подошёл или клиента (токена) больше нет;
+		// access_denied — hook платформы отказал: токен отозван или истёк.
+		if failure.Code == "invalid_client" || failure.Code == "access_denied" || resp.StatusCode == http.StatusUnauthorized {
+			return nil, entities.ErrTokenRejected
+		}
+		if failure.Code != "" {
+			return nil, fmt.Errorf("сервер авторизации отказал: %s (%s)", failure.Code, failure.Description)
+		}
+		return nil, fmt.Errorf("неожиданный ответ сервера авторизации (HTTP %d)", resp.StatusCode)
+	}
+	var tokens tokenResponse
+	if err := json.Unmarshal(body, &tokens); err != nil {
+		return nil, fmt.Errorf("разбор ответа сервера авторизации: %w", err)
+	}
+	if tokens.AccessToken == "" {
+		return nil, errors.New("сервер авторизации не вернул токен доступа")
+	}
+	return &entities.Credential{
+		Kind:      entities.CredentialMachine,
+		Token:     tokens.AccessToken,
+		ExpiresAt: c.now().Add(time.Duration(tokens.ExpiresIn) * time.Second),
+	}, nil
+}
+
 func (c *Client) post(ctx context.Context, path string, form url.Values) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.issuer+path, strings.NewReader(form.Encode()))
 	if err != nil {
