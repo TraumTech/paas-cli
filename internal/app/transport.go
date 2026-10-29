@@ -64,19 +64,26 @@ func (t *unauthorizedTransport) RoundTrip(req *http.Request) (*http.Response, er
 }
 
 // httpClient собирает клиент платформы. Приоритет у токена из окружения
-// (CI-сценарий, поведение TKN-06 не меняется); без него запросы идут сохранённым
-// входом (`paas-cli auth login`) — входом OIDC, который транспорт продлевает
-// сам, либо прежним видом: сессией провайдера или личным токеном; без того и
-// другого — анонимно, как прежде. Observability-транспорт — внешним слоем: спан
-// и traceparent появляются до креденшелов, логи и спан покрывают весь запрос.
-func httpClient(obs observability.Observer, envToken string, credential *entities.Credential, refresher loginRefresher, sessions usecases.SessionStore) *http.Client {
+// (CI-сценарий, поведение TKN-06 не меняется): токен платформы нового вида
+// (`<клиент>.<секрет>`, IAP-04) транспорт сам меняет на короткий JWT и
+// обновляет его; секрет прежнего вида уходит как есть, пока платформа его
+// принимает. Без токена запросы идут сохранённым входом (`paas-cli auth
+// login`) — входом OIDC, который транспорт продлевает сам, либо прежним
+// видом: сессией провайдера или личным токеном; без того и другого — анонимно,
+// как прежде. Observability-транспорт — внешним слоем: спан и traceparent
+// появляются до креденшелов, логи и спан покрывают весь запрос.
+func httpClient(obs observability.Observer, envToken string, credential *entities.Credential, oauth tokenGrantor, sessions usecases.SessionStore) *http.Client {
 	base, reason := http.RoundTripper(http.DefaultTransport), error(entities.ErrLoginRequired)
 	switch {
 	case envToken != "":
-		base = &bearerTransport{token: envToken, base: http.DefaultTransport}
 		reason = entities.ErrTokenRejected
+		if machine, ok := entities.ParseMachineToken(envToken); ok {
+			base = newMachineTransport(oauth, machine, http.DefaultTransport)
+		} else {
+			base = &bearerTransport{token: envToken, base: http.DefaultTransport}
+		}
 	case credential != nil && credential.Kind == entities.CredentialOIDC:
-		base = newOIDCTransport(refresher, sessions, *credential, http.DefaultTransport)
+		base = newOIDCTransport(oauth, sessions, *credential, http.DefaultTransport)
 		reason = entities.ErrSessionExpired
 	case credential != nil && credential.Kind == entities.CredentialPersonalToken:
 		base = &bearerTransport{token: credential.Token, base: http.DefaultTransport}
@@ -89,34 +96,59 @@ func httpClient(obs observability.Observer, envToken string, credential *entitie
 	return &http.Client{Timeout: httpTimeout, Transport: observabilityhttp.NewTransport(obs, unauthorized)}
 }
 
-// loginRefresher продлевает вход OIDC по refresh-токену.
-type loginRefresher interface {
+// tokenGrantor — сервер авторизации платформы: продлевает вход OIDC по
+// refresh-токену и выдаёт JWT за токен платформы (IAP-04).
+type tokenGrantor interface {
 	Refresh(ctx context.Context, refreshToken string) (*entities.Credential, error)
+	ClientCredentials(ctx context.Context, token entities.MachineToken) (*entities.Credential, error)
 }
 
 // refreshLeeway — за сколько до истечения токен доступа считается негодным:
 // запрос не должен доехать до платформы с токеном, истёкшим в пути.
 const refreshLeeway = 30 * time.Second
 
-// oidcTransport прикладывает к каждому запросу токен доступа входа OIDC
-// (IAP-03) и сам поддерживает его живым: истекающий токен продлевается до
-// запроса, отвергнутый платформой — один раз после, и запрос повторяется.
-// Новая пара сохраняется в хранилище входа: refresh-токен ротируется сервером,
-// прежний после продления негоден.
-type oidcTransport struct {
-	refresher  loginRefresher
-	sessions   usecases.SessionStore
+// accessTokenTransport прикладывает к каждому запросу короткий токен доступа и
+// сам поддерживает его живым: истекающий обновляется до запроса, отвергнутый
+// платформой — один раз после, и запрос повторяется. Как именно добывается
+// новый токен, знает renew: у входа OIDC (IAP-03) — refresh-токеном с
+// сохранением новой пары (refresh ротируется сервером, прежний негоден), у
+// токена платформы (IAP-04) — повторным client_credentials.
+type accessTokenTransport struct {
+	renew      func(ctx context.Context, current entities.Credential) (*entities.Credential, error)
 	base       http.RoundTripper
 	now        func() time.Time
 	mu         sync.Mutex
 	credential entities.Credential
 }
 
-func newOIDCTransport(refresher loginRefresher, sessions usecases.SessionStore, credential entities.Credential, base http.RoundTripper) *oidcTransport {
-	return &oidcTransport{refresher: refresher, sessions: sessions, base: base, now: time.Now, credential: credential}
+func newOIDCTransport(refresher tokenGrantor, sessions usecases.SessionStore, credential entities.Credential, base http.RoundTripper) *accessTokenTransport {
+	renew := func(ctx context.Context, current entities.Credential) (*entities.Credential, error) {
+		fresh, err := refresher.Refresh(ctx, current.RefreshToken)
+		if err != nil {
+			return nil, err
+		}
+		// Что нельзя получить от сервера — e-mail — переносим из прежнего входа.
+		if fresh.Email == "" {
+			fresh.Email = current.Email
+		}
+		if err := sessions.Save(ctx, *fresh); err != nil {
+			return nil, fmt.Errorf("сохранение продлённого входа: %w", err)
+		}
+		return fresh, nil
+	}
+	return &accessTokenTransport{renew: renew, base: base, now: time.Now, credential: credential}
 }
 
-func (t *oidcTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+// newMachineTransport: JWT ещё нет — первый запрос его и добудет (пустой
+// креденшел с нулевым сроком — заведомо устаревший).
+func newMachineTransport(grantor tokenGrantor, token entities.MachineToken, base http.RoundTripper) *accessTokenTransport {
+	renew := func(ctx context.Context, _ entities.Credential) (*entities.Credential, error) {
+		return grantor.ClientCredentials(ctx, token)
+	}
+	return &accessTokenTransport{renew: renew, base: base, now: time.Now}
+}
+
+func (t *accessTokenTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	token, err := t.accessToken(req.Context(), "")
 	if err != nil {
 		return nil, err
@@ -137,7 +169,7 @@ func (t *oidcTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return t.send(req, token)
 }
 
-func (t *oidcTransport) send(req *http.Request, token string) (*http.Response, error) {
+func (t *accessTokenTransport) send(req *http.Request, token string) (*http.Response, error) {
 	clone := req.Clone(req.Context())
 	if req.Body != nil && req.GetBody != nil {
 		body, err := req.GetBody()
@@ -151,25 +183,18 @@ func (t *oidcTransport) send(req *http.Request, token string) (*http.Response, e
 }
 
 // accessToken отдаёт живой токен доступа. rejected — токен, который платформа
-// только что отвергла: продлеваем, если никто не успел раньше; иначе — если
+// только что отвергла: обновляем, если никто не успел раньше; иначе — если
 // срок ещё не вышел, токен годен как есть.
-func (t *oidcTransport) accessToken(ctx context.Context, rejected string) (string, error) {
+func (t *accessTokenTransport) accessToken(ctx context.Context, rejected string) (string, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	stale := t.credential.Token == rejected || t.credential.ExpiresAt.Before(t.now().Add(refreshLeeway))
 	if !stale {
 		return t.credential.Token, nil
 	}
-	fresh, err := t.refresher.Refresh(ctx, t.credential.RefreshToken)
+	fresh, err := t.renew(ctx, t.credential)
 	if err != nil {
 		return "", err
-	}
-	// Что нельзя получить от сервера — e-mail — переносим из прежнего входа.
-	if fresh.Email == "" {
-		fresh.Email = t.credential.Email
-	}
-	if err := t.sessions.Save(ctx, *fresh); err != nil {
-		return "", fmt.Errorf("сохранение продлённого входа: %w", err)
 	}
 	t.credential = *fresh
 	return t.credential.Token, nil

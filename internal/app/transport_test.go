@@ -185,6 +185,15 @@ func (r *refresherStub) Refresh(_ context.Context, refresh string) (*entities.Cr
 	return &entities.Credential{Kind: entities.CredentialOIDC, Token: "access-" + refresh + "-" + string(rune('0'+n)), RefreshToken: "refresh-" + string(rune('0'+n)), ExpiresAt: time.Now().Add(10 * time.Minute)}, nil
 }
 
+// Токен платформы (IAP-04): каждый грант — новый JWT.
+func (r *refresherStub) ClientCredentials(_ context.Context, token entities.MachineToken) (*entities.Credential, error) {
+	n := r.calls.Add(1)
+	if r.err != nil {
+		return nil, r.err
+	}
+	return &entities.Credential{Kind: entities.CredentialMachine, Token: "jwt-" + token.ClientID + "-" + string(rune('0'+n)), ExpiresAt: time.Now().Add(10 * time.Minute)}, nil
+}
+
 type storeStub struct {
 	saved []entities.Credential
 }
@@ -291,3 +300,40 @@ func TestOIDCTransport_RefreshFailureAsksToLogin(t *testing.T) {
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+// Токен платформы нового вида не уходит в заголовке сам: первый запрос меняет
+// его на JWT (client_credentials), второй идёт с тем же JWT.
+func TestMachineTransport_ExchangesTokenForJWT(t *testing.T) {
+	var got []string
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { got = append(got, r.Header.Get("Authorization")) }))
+	defer srv.Close()
+	grantor := &refresherStub{}
+	client := httpClient(apitest.NewObserver(), "paas_pat_id.s3cret", nil, grantor, &storeStub{})
+
+	for range 2 {
+		resp, err := client.Get(srv.URL)
+		if err != nil {
+			t.Fatalf("запрос не удался: %v", err)
+		}
+		resp.Body.Close()
+	}
+
+	if len(got) != 2 || got[0] != "Bearer jwt-paas_pat_id-1" || got[1] != "Bearer jwt-paas_pat_id-1" {
+		t.Fatalf("Authorization = %q, ожидался один и тот же JWT", got)
+	}
+	if grantor.calls.Load() != 1 {
+		t.Fatalf("грантов %d, ожидался один на процесс", grantor.calls.Load())
+	}
+}
+
+// Отвергнутый токен платформы (отозван) — понятная ошибка, а не 401.
+func TestMachineTransport_RejectedToken(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {}))
+	defer srv.Close()
+
+	_, err := httpClient(apitest.NewObserver(), "paas_pat_id.s3cret", nil, &refresherStub{err: entities.ErrTokenRejected}, &storeStub{}).Get(srv.URL)
+
+	if !errors.Is(err, entities.ErrTokenRejected) {
+		t.Fatalf("err = %v, ожидалась ErrTokenRejected", err)
+	}
+}

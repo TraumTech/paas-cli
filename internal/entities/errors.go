@@ -69,6 +69,9 @@ var (
 
 	ErrLoginRequired = newDomainError("платформа требует вход: выполните `paas-cli auth login` или задайте токен доступа в PAAS_API_TOKEN")
 	ErrTokenRejected = newDomainError("токен из PAAS_API_TOKEN не принят платформой — он отозван, просрочен или неверен")
+	// LegacyTokenWarning печатается, когда PAAS_API_TOKEN прежнего вида (IAP-04):
+	// он ещё работает, но перестанет приниматься, когда платформа оставит только JWT.
+	LegacyTokenWarning = "предупреждение: токен в PAAS_API_TOKEN прежнего вида — перевыпустите его в интерфейсе платформы (раздел токенов), старые перестанут приниматься"
 
 	// Браузерный вход (IAP-03).
 	ErrAuthorizationDenied  = newDomainError("вход не подтверждён в браузере — ничего не сохранено")
