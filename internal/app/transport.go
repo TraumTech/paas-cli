@@ -14,38 +14,6 @@ import (
 	"github.com/TraumTech/paas-cli/internal/usecases"
 )
 
-// bearerTransport прикладывает к каждому исходящему запросу токен доступа
-// заголовком `Authorization: Bearer <token>` — машинный (токен сервиса) или
-// личный токен пользователя (AUTH-19): предъявляются они одинаково. Прокси
-// платформы (Oathkeeper) валидирует токен introspection'ом и связывает запрос с
-// сервисом либо с человеком — сам CLI про схему валидации не знает
-// (auth-агностичные адаптеры).
-type bearerTransport struct {
-	token string
-	base  http.RoundTripper
-}
-
-func (t *bearerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	clone := req.Clone(req.Context())
-	clone.Header.Set("Authorization", "Bearer "+t.token)
-	return t.base.RoundTrip(clone)
-}
-
-// sessionTransport прикладывает к каждому исходящему запросу токен сессии
-// вошедшего пользователя заголовком `X-Session-Token`. Прокси платформы
-// (Oathkeeper) валидирует сессию у identity-провайдера и связывает запрос с
-// пользователем — сам CLI про схему валидации не знает (auth-агностичные адаптеры).
-type sessionTransport struct {
-	token string
-	base  http.RoundTripper
-}
-
-func (t *sessionTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	clone := req.Clone(req.Context())
-	clone.Header.Set("X-Session-Token", t.token)
-	return t.base.RoundTrip(clone)
-}
-
 // unauthorizedTransport переводит отказ платформы «не аутентифицирован» на язык
 // пользователя: какой креденшел предъявлялся и, значит, что делать, знает только
 // composition root — поэтому перевод живёт здесь, а не в адаптерах (AUTH-17).
@@ -64,32 +32,24 @@ func (t *unauthorizedTransport) RoundTrip(req *http.Request) (*http.Response, er
 }
 
 // httpClient собирает клиент платформы. Приоритет у токена из окружения
-// (CI-сценарий, поведение TKN-06 не меняется): токен платформы нового вида
+// (CI-сценарий, поведение TKN-06 не меняется): токен платформы
 // (`<клиент>.<секрет>`, IAP-04) транспорт сам меняет на короткий JWT и
-// обновляет его; секрет прежнего вида уходит как есть, пока платформа его
-// принимает. Без токена запросы идут сохранённым входом (`paas-cli auth
-// login`) — входом OIDC, который транспорт продлевает сам, либо прежним
-// видом: сессией провайдера или личным токеном; без того и другого — анонимно,
-// как прежде. Observability-транспорт — внешним слоем: спан и traceparent
+// обновляет его; секрет прежнего вида платформа не принимает (IAP-05) — он не
+// предъявляется, а отказ объясняет, что токен нужно перевыпустить. Без токена
+// запросы идут сохранённым входом OIDC (`paas-cli auth login`), который
+// транспорт продлевает сам; без того и другого — анонимно. Observability-транспорт — внешним слоем: спан и traceparent
 // появляются до креденшелов, логи и спан покрывают весь запрос.
 func httpClient(obs observability.Observer, envToken string, credential *entities.Credential, oauth tokenGrantor, sessions usecases.SessionStore) *http.Client {
 	base, reason := http.RoundTripper(http.DefaultTransport), error(entities.ErrLoginRequired)
 	switch {
 	case envToken != "":
-		reason = entities.ErrTokenRejected
+		reason = entities.ErrLegacyToken
 		if machine, ok := entities.ParseMachineToken(envToken); ok {
 			base = newMachineTransport(oauth, machine, http.DefaultTransport)
-		} else {
-			base = &bearerTransport{token: envToken, base: http.DefaultTransport}
+			reason = entities.ErrTokenRejected
 		}
-	case credential != nil && credential.Kind == entities.CredentialOIDC:
-		base = newOIDCTransport(oauth, sessions, *credential, http.DefaultTransport)
-		reason = entities.ErrSessionExpired
-	case credential != nil && credential.Kind == entities.CredentialPersonalToken:
-		base = &bearerTransport{token: credential.Token, base: http.DefaultTransport}
-		reason = entities.ErrPersonalTokenRejected
 	case credential != nil:
-		base = &sessionTransport{token: credential.Token, base: http.DefaultTransport}
+		base = newOIDCTransport(oauth, sessions, *credential, http.DefaultTransport)
 		reason = entities.ErrSessionExpired
 	}
 	unauthorized := &unauthorizedTransport{base: base, reason: reason}
