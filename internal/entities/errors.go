@@ -69,16 +69,13 @@ var (
 
 	ErrLoginRequired = newDomainError("платформа требует вход: выполните `paas-cli auth login` или задайте токен доступа в PAAS_API_TOKEN")
 	ErrTokenRejected = newDomainError("токен из PAAS_API_TOKEN не принят платформой — он отозван, просрочен или неверен")
-	// LegacyTokenWarning печатается, когда PAAS_API_TOKEN прежнего вида (IAP-04):
-	// он ещё работает, но перестанет приниматься, когда платформа оставит только JWT.
-	LegacyTokenWarning = "предупреждение: токен в PAAS_API_TOKEN прежнего вида — перевыпустите его в интерфейсе платформы (раздел токенов), старые перестанут приниматься"
+	// Секрет прежнего вида (до IAP-04) платформа с IAP-05 не принимает: обменять
+	// его на JWT нельзя, нужен перевыпуск.
+	ErrLegacyToken = newDomainError("токен в PAAS_API_TOKEN прежнего вида больше не принимается — перевыпустите его в интерфейсе платформы (раздел токенов)")
 
 	// Браузерный вход (IAP-03).
 	ErrAuthorizationDenied  = newDomainError("вход не подтверждён в браузере — ничего не сохранено")
 	ErrAuthorizationTimeout = newDomainError("ответ из браузера не пришёл — повторите вход")
-	// Личный токен предъявляется платформе, а не провайдеру: истёкший и
-	// отозванный она одинаково не принимает.
-	ErrPersonalTokenRejected = newDomainError("личный токен истёк или отозван — войдите заново: `paas-cli auth login`")
 )
 
 // UnsupportedProtocolFormatError сообщает, какой формат из манифеста CLI не

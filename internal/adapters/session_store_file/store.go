@@ -81,16 +81,12 @@ func (s *Store) Load(_ context.Context) (*entities.Credential, error) {
 		return nil, entities.ErrNoSession
 	}
 
+	// Вход прежних версий CLI (голый токен сессии, сессия, личный токен)
+	// платформа не принимает (IAP-05) — его как бы нет, `auth login` его заменит.
 	var credential entities.Credential
-	if err := json.Unmarshal([]byte(raw), &credential); err != nil {
-		// Вход прежних версий CLI — голый токен сессии.
-		return &entities.Credential{Kind: entities.CredentialSession, Token: raw}, nil
-	}
-	if credential.Token == "" {
+	if err := json.Unmarshal([]byte(raw), &credential); err != nil ||
+		credential.Token == "" || credential.Kind != entities.CredentialOIDC {
 		return nil, entities.ErrNoSession
-	}
-	if credential.Kind == "" {
-		credential.Kind = entities.CredentialSession
 	}
 	return &credential, nil
 }

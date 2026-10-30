@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -12,47 +11,44 @@ import (
 	"github.com/urfave/cli/v3"
 
 	browserauthorizerlocal "github.com/TraumTech/paas-cli/internal/adapters/browser_authorizer_local"
-	"github.com/TraumTech/paas-cli/internal/adapters/candidate_reader_file"
+	candidatereaderfile "github.com/TraumTech/paas-cli/internal/adapters/candidate_reader_file"
 	clusteraccesshttp "github.com/TraumTech/paas-cli/internal/adapters/cluster_access_http"
 	clusterdirectoryhttp "github.com/TraumTech/paas-cli/internal/adapters/cluster_directory_http"
 	clusterprovisionerk8s "github.com/TraumTech/paas-cli/internal/adapters/cluster_provisioner_k8s"
 	clusterregistrarhttp "github.com/TraumTech/paas-cli/internal/adapters/cluster_registrar_http"
 	databaseoperatorhttp "github.com/TraumTech/paas-cli/internal/adapters/database_operator_http"
-	"github.com/TraumTech/paas-cli/internal/adapters/dependency_registrar_http"
+	dependencyregistrarhttp "github.com/TraumTech/paas-cli/internal/adapters/dependency_registrar_http"
 	formreaderfile "github.com/TraumTech/paas-cli/internal/adapters/form_reader_file"
-	"github.com/TraumTech/paas-cli/internal/adapters/manifest_reader_file"
+	manifestreaderfile "github.com/TraumTech/paas-cli/internal/adapters/manifest_reader_file"
 	oauthclienthydra "github.com/TraumTech/paas-cli/internal/adapters/oauth_client_hydra"
 	operatorinstallerk8s "github.com/TraumTech/paas-cli/internal/adapters/operator_installer_k8s"
-	personaltokenhttp "github.com/TraumTech/paas-cli/internal/adapters/personal_token_http"
-	"github.com/TraumTech/paas-cli/internal/adapters/protocol_compatibility_http"
-	"github.com/TraumTech/paas-cli/internal/adapters/protocol_publish_http"
-	"github.com/TraumTech/paas-cli/internal/adapters/protocol_source_http"
-	"github.com/TraumTech/paas-cli/internal/adapters/protocol_store_file"
-	"github.com/TraumTech/paas-cli/internal/adapters/registry_directory_http"
-	"github.com/TraumTech/paas-cli/internal/adapters/service_resolver_http"
-	"github.com/TraumTech/paas-cli/internal/adapters/session_gateway_http"
-	"github.com/TraumTech/paas-cli/internal/adapters/session_store_file"
+	protocolcompatibilityhttp "github.com/TraumTech/paas-cli/internal/adapters/protocol_compatibility_http"
+	protocolpublishhttp "github.com/TraumTech/paas-cli/internal/adapters/protocol_publish_http"
+	protocolsourcehttp "github.com/TraumTech/paas-cli/internal/adapters/protocol_source_http"
+	protocolstorefile "github.com/TraumTech/paas-cli/internal/adapters/protocol_store_file"
+	registrydirectoryhttp "github.com/TraumTech/paas-cli/internal/adapters/registry_directory_http"
+	serviceresolverhttp "github.com/TraumTech/paas-cli/internal/adapters/service_resolver_http"
+	sessionstorefile "github.com/TraumTech/paas-cli/internal/adapters/session_store_file"
 	userinfohydra "github.com/TraumTech/paas-cli/internal/adapters/user_info_hydra"
-	"github.com/TraumTech/paas-cli/internal/adapters/version_publisher_http"
-	"github.com/TraumTech/paas-cli/internal/controllers/auth_login_command_cli"
-	"github.com/TraumTech/paas-cli/internal/controllers/auth_logout_command_cli"
-	"github.com/TraumTech/paas-cli/internal/controllers/auth_whoami_command_cli"
+	versionpublisherhttp "github.com/TraumTech/paas-cli/internal/adapters/version_publisher_http"
+	authlogincommandcli "github.com/TraumTech/paas-cli/internal/controllers/auth_login_command_cli"
+	authlogoutcommandcli "github.com/TraumTech/paas-cli/internal/controllers/auth_logout_command_cli"
+	authwhoamicommandcli "github.com/TraumTech/paas-cli/internal/controllers/auth_whoami_command_cli"
 	buildpublishcommandcli "github.com/TraumTech/paas-cli/internal/controllers/build_publish_command_cli"
 	clusterconnectcommandcli "github.com/TraumTech/paas-cli/internal/controllers/cluster_connect_command_cli"
 	databaseoperatorinstallcommandcli "github.com/TraumTech/paas-cli/internal/controllers/database_operator_install_command_cli"
-	"github.com/TraumTech/paas-cli/internal/controllers/dependency_register_command_cli"
-	"github.com/TraumTech/paas-cli/internal/controllers/protocol_compatibility_command_cli"
-	"github.com/TraumTech/paas-cli/internal/controllers/protocol_fetch_command_cli"
-	"github.com/TraumTech/paas-cli/internal/controllers/protocol_publish_command_cli"
-	"github.com/TraumTech/paas-cli/internal/controllers/protocol_sync_command_cli"
-	"github.com/TraumTech/paas-cli/internal/controllers/version_publish_command_cli"
+	dependencyregistercommandcli "github.com/TraumTech/paas-cli/internal/controllers/dependency_register_command_cli"
+	protocolcompatibilitycommandcli "github.com/TraumTech/paas-cli/internal/controllers/protocol_compatibility_command_cli"
+	protocolfetchcommandcli "github.com/TraumTech/paas-cli/internal/controllers/protocol_fetch_command_cli"
+	protocolpublishcommandcli "github.com/TraumTech/paas-cli/internal/controllers/protocol_publish_command_cli"
+	protocolsynccommandcli "github.com/TraumTech/paas-cli/internal/controllers/protocol_sync_command_cli"
+	versionpublishcommandcli "github.com/TraumTech/paas-cli/internal/controllers/version_publish_command_cli"
 	"github.com/TraumTech/paas-cli/internal/entities"
 	"github.com/TraumTech/paas-cli/internal/usecases"
 )
 
 const (
 	defaultAPIURL   = "https://api.paas.traumtech.ru"
-	defaultAuthURL  = "https://auth.paas.traumtech.ru"
 	defaultOAuthURL = "https://oauth.paas.traumtech.ru"
 	// oauthClientID — публичный OAuth-клиент CLI у сервера авторизации платформы
 	// (IAP-03); регистрируется в paas-kratos (deploy/hydra-clients.sh).
@@ -64,9 +60,6 @@ const (
 	obsFlushTimeout = 3 * time.Second
 	// envAPIToken — машинный креденшел сервиса для неинтерактивного доступа (CI, скрипты).
 	envAPIToken = "PAAS_API_TOKEN"
-	// envAuthURL — адрес identity-провайдера платформы: проверка и завершение
-	// входа прежнего вида (сессия).
-	envAuthURL = "PAAS_AUTH_URL"
 	// envOAuthURL — адрес сервера авторизации платформы (issuer): вход через
 	// браузер, продление и отзыв входа (IAP-03).
 	envOAuthURL = "PAAS_OAUTH_URL"
@@ -96,8 +89,6 @@ func Run(ctx context.Context, args []string) error {
 		if saved, err := sessions.Load(ctx); err == nil {
 			credential = saved
 		}
-	} else if _, ok := entities.ParseMachineToken(envToken); !ok {
-		fmt.Fprintln(os.Stderr, entities.LegacyTokenWarning)
 	}
 	// Сервер авторизации — отдельный хост и клиент без креденшелов платформы:
 	// код, refresh и отзыв он принимает от публичного клиента сами по себе.
@@ -178,22 +169,11 @@ func Run(ctx context.Context, args []string) error {
 		usecases.NewInstallOperator(operatorSource, clusterDirectory, operatorinstallerk8s.New()),
 	)
 
-	// Identity-провайдер — отдельный хост со своим клиентом: креденшелы платформы
-	// (bearer/сессия) к нему не прикладываются.
-	authURL := strings.TrimRight(envOr(envAuthURL, defaultAuthURL), "/")
-	gateway := sessiongatewayhttp.New(authURL, &http.Client{
-		Timeout:   httpTimeout,
-		Transport: observabilityhttp.NewTransport(obs, nil),
-	})
-	personalTokens, err := personaltokenhttp.New(baseURL, client)
-	if err != nil {
-		return err
-	}
 	login := authlogincommandcli.New(usecases.NewBrowserLogin(browserauthorizerlocal.New(oauth, os.Stderr), sessions))
 	// Проверка входа OIDC идёт клиентом платформы: тем же токеном доступа, с тем
 	// же продлением.
-	whoami := authwhoamicommandcli.New(usecases.NewWhoAmI(sessions, userinfohydra.New(oauthURL, client), gateway, personalTokens))
-	logout := authlogoutcommandcli.New(usecases.NewLogout(sessions, oauth, gateway, personalTokens))
+	whoami := authwhoamicommandcli.New(usecases.NewWhoAmI(sessions, userinfohydra.New(oauthURL, client)))
+	logout := authlogoutcommandcli.New(usecases.NewLogout(sessions, oauth))
 
 	root := &cli.Command{
 		Name:    "paas-cli",

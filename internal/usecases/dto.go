@@ -1,8 +1,6 @@
 package usecases
 
 import (
-	"time"
-
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
@@ -123,10 +121,8 @@ type BrowserLoginResult struct {
 // токеном (AUTH-22) кроме владельца известно, каким именно токеном вошли и
 // докуда он действует: платформа e-mail не знает, его помнит сам вход.
 type WhoAmIResult struct {
-	Email     string
-	UserID    string
-	TokenName string
-	ExpiresAt time.Time
+	Email  string
+	UserID string
 }
 
 // LogoutResult — итог выхода. WasLoggedIn=false — сохранённого входа и не было:
