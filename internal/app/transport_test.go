@@ -26,7 +26,7 @@ func TestHTTPClientDoesNotSendLegacyToken(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	_, err := httpClient(apitest.NewObserver(), "paas_pat_legacy", nil, nil, nil).Get(srv.URL)
+	_, err := httpClient(apitest.NewObserver(), "paas_pat_legacy", nil, nil, nil, nil).Get(srv.URL)
 
 	if !errors.Is(err, entities.ErrLegacyToken) {
 		t.Fatalf("err = %v, ожидалась %v", err, entities.ErrLegacyToken)
@@ -43,7 +43,7 @@ func TestHTTPClientOmitsAuthorizationWhenTokenEmpty(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	resp, err := httpClient(apitest.NewObserver(), "", nil, nil, nil).Get(srv.URL)
+	resp, err := httpClient(apitest.NewObserver(), "", nil, nil, nil, nil).Get(srv.URL)
 	if err != nil {
 		t.Fatalf("запрос не удался: %v", err)
 	}
@@ -71,7 +71,7 @@ func TestHTTPClientTranslatesUnauthorizedByCredential(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := httpClient(apitest.NewObserver(), tc.envToken, tc.credential, nil, nil).Get(srv.URL)
+			_, err := httpClient(apitest.NewObserver(), tc.envToken, tc.credential, nil, nil, nil).Get(srv.URL)
 			if !errors.Is(err, tc.want) {
 				t.Fatalf("err = %v, ожидалась %v", err, tc.want)
 			}
@@ -125,7 +125,7 @@ func TestOIDCTransport_SendsLiveAccessToken(t *testing.T) {
 	defer srv.Close()
 	refresher, store := &refresherStub{}, &storeStub{}
 
-	resp, err := httpClient(apitest.NewObserver(), "", oidc("access-1", "refresh-1", time.Now().Add(time.Hour)), refresher, store).Get(srv.URL)
+	resp, err := httpClient(apitest.NewObserver(), "", oidc("access-1", "refresh-1", time.Now().Add(time.Hour)), refresher, store, nil).Get(srv.URL)
 	if err != nil {
 		t.Fatalf("запрос не удался: %v", err)
 	}
@@ -147,7 +147,7 @@ func TestOIDCTransport_RefreshesExpiringTokenBeforeRequest(t *testing.T) {
 	defer srv.Close()
 	refresher, store := &refresherStub{}, &storeStub{}
 
-	resp, err := httpClient(apitest.NewObserver(), "", oidc("access-old", "refresh-1", time.Now().Add(5*time.Second)), refresher, store).Get(srv.URL)
+	resp, err := httpClient(apitest.NewObserver(), "", oidc("access-old", "refresh-1", time.Now().Add(5*time.Second)), refresher, store, nil).Get(srv.URL)
 	if err != nil {
 		t.Fatalf("запрос не удался: %v", err)
 	}
@@ -180,7 +180,7 @@ func TestOIDCTransport_RetriesOnceAfterUnauthorized(t *testing.T) {
 	defer srv.Close()
 	refresher, store := &refresherStub{}, &storeStub{}
 
-	client := httpClient(apitest.NewObserver(), "", oidc("access-1", "refresh-1", time.Now().Add(time.Hour)), refresher, store)
+	client := httpClient(apitest.NewObserver(), "", oidc("access-1", "refresh-1", time.Now().Add(time.Hour)), refresher, store, nil)
 	resp, err := client.Post(srv.URL, "text/plain", strings.NewReader("payload"))
 	if err != nil {
 		t.Fatalf("запрос не удался: %v", err)
@@ -202,7 +202,7 @@ func TestOIDCTransport_RefreshFailureAsksToLogin(t *testing.T) {
 	defer srv.Close()
 	refresher := &refresherStub{err: entities.ErrSessionExpired}
 
-	_, err := httpClient(apitest.NewObserver(), "", oidc("access-1", "refresh-1", time.Now().Add(time.Hour)), refresher, &storeStub{}).Get(srv.URL)
+	_, err := httpClient(apitest.NewObserver(), "", oidc("access-1", "refresh-1", time.Now().Add(time.Hour)), refresher, &storeStub{}, nil).Get(srv.URL)
 
 	if !errors.Is(err, entities.ErrSessionExpired) {
 		t.Fatalf("err = %v, ожидалась %v", err, entities.ErrSessionExpired)
@@ -220,7 +220,7 @@ func TestMachineTransport_ExchangesTokenForJWT(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { got = append(got, r.Header.Get("Authorization")) }))
 	defer srv.Close()
 	grantor := &refresherStub{}
-	client := httpClient(apitest.NewObserver(), "paas_pat_id.s3cret", nil, grantor, &storeStub{})
+	client := httpClient(apitest.NewObserver(), "paas_pat_id.s3cret", nil, grantor, &storeStub{}, nil)
 
 	for range 2 {
 		resp, err := client.Get(srv.URL)
@@ -243,9 +243,93 @@ func TestMachineTransport_RejectedToken(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {}))
 	defer srv.Close()
 
-	_, err := httpClient(apitest.NewObserver(), "paas_pat_id.s3cret", nil, &refresherStub{err: entities.ErrTokenRejected}, &storeStub{}).Get(srv.URL)
+	_, err := httpClient(apitest.NewObserver(), "paas_pat_id.s3cret", nil, &refresherStub{err: entities.ErrTokenRejected}, &storeStub{}, nil).Get(srv.URL)
 
 	if !errors.Is(err, entities.ErrTokenRejected) {
 		t.Fatalf("err = %v, ожидалась ErrTokenRejected", err)
+	}
+}
+
+type ciSourceStub struct {
+	calls atomic.Int32
+	ttl   time.Duration
+}
+
+func (s *ciSourceStub) Token(context.Context) (*entities.Credential, error) {
+	n := s.calls.Add(1)
+	return &entities.Credential{Kind: entities.CredentialCI, Token: "gh-" + string(rune('0'+n)), ExpiresAt: time.Now().Add(s.ttl)}, nil
+}
+
+// TRA-485: без PAAS_API_TOKEN в GitHub Actions предъявляется токен запуска и
+// переиспользуется, пока жив.
+func TestCITransport_SendsGitHubToken(t *testing.T) {
+	var got []string
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { got = append(got, r.Header.Get("Authorization")) }))
+	defer srv.Close()
+	source := &ciSourceStub{ttl: time.Hour}
+	client := httpClient(apitest.NewObserver(), "", nil, nil, nil, source)
+
+	for range 2 {
+		resp, err := client.Get(srv.URL)
+		if err != nil {
+			t.Fatalf("запрос не удался: %v", err)
+		}
+		resp.Body.Close()
+	}
+
+	if len(got) != 2 || got[0] != "Bearer gh-1" || got[1] != "Bearer gh-1" {
+		t.Fatalf("Authorization = %q", got)
+	}
+}
+
+// Токен запуска короткий: истекающий запрашивается заново до запроса.
+func TestCITransport_RenewsExpiringToken(t *testing.T) {
+	var got []string
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { got = append(got, r.Header.Get("Authorization")) }))
+	defer srv.Close()
+	source := &ciSourceStub{ttl: 10 * time.Second}
+	client := httpClient(apitest.NewObserver(), "", nil, nil, nil, source)
+
+	for range 2 {
+		resp, err := client.Get(srv.URL)
+		if err != nil {
+			t.Fatalf("запрос не удался: %v", err)
+		}
+		resp.Body.Close()
+	}
+
+	if len(got) != 2 || got[0] != "Bearer gh-1" || got[1] != "Bearer gh-2" {
+		t.Fatalf("Authorization = %q, ожидался свежий токен на каждый запрос", got)
+	}
+}
+
+// Секрет в окружении важнее токена запуска (AC-6): поведение CI с
+// PAAS_API_TOKEN не меняется.
+func TestCITransport_EnvTokenWins(t *testing.T) {
+	var got string
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { got = r.Header.Get("Authorization") }))
+	defer srv.Close()
+	source := &ciSourceStub{ttl: time.Hour}
+
+	resp, err := httpClient(apitest.NewObserver(), "paas_pat_id.s3cret", nil, &refresherStub{}, &storeStub{}, source).Get(srv.URL)
+	if err != nil {
+		t.Fatalf("запрос не удался: %v", err)
+	}
+	resp.Body.Close()
+
+	if got != "Bearer jwt-paas_pat_id-1" || source.calls.Load() != 0 {
+		t.Fatalf("Authorization = %q, токенов запуска %d", got, source.calls.Load())
+	}
+}
+
+// Репозиторий не привязан к сервису — отказ объясняет, что делать.
+func TestCITransport_RejectedByPlatform(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusUnauthorized) }))
+	defer srv.Close()
+
+	_, err := httpClient(apitest.NewObserver(), "", nil, nil, nil, &ciSourceStub{ttl: time.Hour}).Get(srv.URL)
+
+	if !errors.Is(err, entities.ErrCITokenRejected) {
+		t.Fatalf("err = %v, ожидалась ErrCITokenRejected", err)
 	}
 }

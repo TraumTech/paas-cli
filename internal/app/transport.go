@@ -35,11 +35,13 @@ func (t *unauthorizedTransport) RoundTrip(req *http.Request) (*http.Response, er
 // (CI-сценарий, поведение TKN-06 не меняется): токен платформы
 // (`<клиент>.<секрет>`, IAP-04) транспорт сам меняет на короткий JWT и
 // обновляет его; секрет прежнего вида платформа не принимает (IAP-05) — он не
-// предъявляется, а отказ объясняет, что токен нужно перевыпустить. Без токена
-// запросы идут сохранённым входом OIDC (`paas-cli auth login`), который
+// предъявляется, а отказ объясняет, что токен нужно перевыпустить. Без токена в
+// GitHub Actions с правом `id-token: write` предъявляется токен запуска
+// (TRA-485): платформа узнаёт сервис по репозиторию. Иначе запросы идут
+// сохранённым входом OIDC (`paas-cli auth login`), который
 // транспорт продлевает сам; без того и другого — анонимно. Observability-транспорт — внешним слоем: спан и traceparent
 // появляются до креденшелов, логи и спан покрывают весь запрос.
-func httpClient(obs observability.Observer, envToken string, credential *entities.Credential, oauth tokenGrantor, sessions usecases.SessionStore) *http.Client {
+func httpClient(obs observability.Observer, envToken string, credential *entities.Credential, oauth tokenGrantor, sessions usecases.SessionStore, ci ciTokenSource) *http.Client {
 	base, reason := http.RoundTripper(http.DefaultTransport), error(entities.ErrLoginRequired)
 	switch {
 	case envToken != "":
@@ -48,6 +50,9 @@ func httpClient(obs observability.Observer, envToken string, credential *entitie
 			base = newMachineTransport(oauth, machine, http.DefaultTransport)
 			reason = entities.ErrTokenRejected
 		}
+	case ci != nil:
+		base = newCITransport(ci, http.DefaultTransport)
+		reason = entities.ErrCITokenRejected
 	case credential != nil:
 		base = newOIDCTransport(oauth, sessions, *credential, http.DefaultTransport)
 		reason = entities.ErrSessionExpired
@@ -61,6 +66,12 @@ func httpClient(obs observability.Observer, envToken string, credential *entitie
 type tokenGrantor interface {
 	Refresh(ctx context.Context, refreshToken string) (*entities.Credential, error)
 	ClientCredentials(ctx context.Context, token entities.MachineToken) (*entities.Credential, error)
+}
+
+// ciTokenSource — токен запуска CI (TRA-485): каждый вызов — свежий короткий JWT
+// от хостинга, обмена на стороне платформы нет.
+type ciTokenSource interface {
+	Token(ctx context.Context) (*entities.Credential, error)
 }
 
 // refreshLeeway — за сколько до истечения токен доступа считается негодным:
@@ -104,6 +115,15 @@ func newOIDCTransport(refresher tokenGrantor, sessions usecases.SessionStore, cr
 func newMachineTransport(grantor tokenGrantor, token entities.MachineToken, base http.RoundTripper) *accessTokenTransport {
 	renew := func(ctx context.Context, _ entities.Credential) (*entities.Credential, error) {
 		return grantor.ClientCredentials(ctx, token)
+	}
+	return &accessTokenTransport{renew: renew, base: base, now: time.Now}
+}
+
+// newCITransport: токен запуска CI запрашивается у хостинга при первом запросе
+// и заново, когда истекает.
+func newCITransport(source ciTokenSource, base http.RoundTripper) *accessTokenTransport {
+	renew := func(ctx context.Context, _ entities.Credential) (*entities.Credential, error) {
+		return source.Token(ctx)
 	}
 	return &accessTokenTransport{renew: renew, base: base, now: time.Now}
 }

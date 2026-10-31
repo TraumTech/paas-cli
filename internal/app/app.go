@@ -12,6 +12,7 @@ import (
 
 	browserauthorizerlocal "github.com/TraumTech/paas-cli/internal/adapters/browser_authorizer_local"
 	candidatereaderfile "github.com/TraumTech/paas-cli/internal/adapters/candidate_reader_file"
+	citokengithub "github.com/TraumTech/paas-cli/internal/adapters/ci_token_github"
 	clusteraccesshttp "github.com/TraumTech/paas-cli/internal/adapters/cluster_access_http"
 	clusterdirectoryhttp "github.com/TraumTech/paas-cli/internal/adapters/cluster_directory_http"
 	clusterprovisionerk8s "github.com/TraumTech/paas-cli/internal/adapters/cluster_provisioner_k8s"
@@ -97,7 +98,16 @@ func Run(ctx context.Context, args []string) error {
 		Timeout:   httpTimeout,
 		Transport: observabilityhttp.NewTransport(obs, nil),
 	})
-	client := httpClient(obs, envToken, credential, oauth, sessions)
+	// Токен запуска GitHub Actions (TRA-485) — только если PAAS_API_TOKEN не
+	// задан: секрет, если он есть, по-прежнему в приоритете. Audience — адрес
+	// API платформы: под него её прокси и ждёт токен.
+	var ci ciTokenSource
+	if envToken == "" {
+		if source, ok := citokengithub.New(os.Getenv, baseURL, &http.Client{Timeout: httpTimeout}); ok {
+			ci = source
+		}
+	}
+	client := httpClient(obs, envToken, credential, oauth, sessions, ci)
 
 	source, err := protocolsourcehttp.New(baseURL, client)
 	if err != nil {
