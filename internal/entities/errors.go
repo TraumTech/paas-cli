@@ -69,6 +69,9 @@ var (
 
 	ErrLoginRequired = newDomainError("платформа требует вход: выполните `paas-cli auth login` или задайте токен доступа в PAAS_API_TOKEN")
 	ErrTokenRejected = newDomainError("токен из PAAS_API_TOKEN не принят платформой — он отозван, просрочен или неверен")
+	// ErrCITokenRejected — токен запуска GitHub Actions (TRA-485) платформа не
+	// приняла: репозиторий не привязан к сервису.
+	ErrCITokenRejected = newDomainError("токен запуска GitHub Actions не принят платформой — репозиторий не привязан к сервису на платформе; привяжите его или задайте PAAS_API_TOKEN")
 	// Секрет прежнего вида (до IAP-04) платформа с IAP-05 не принимает: обменять
 	// его на JWT нельзя, нужен перевыпуск.
 	ErrLegacyToken = newDomainError("токен в PAAS_API_TOKEN прежнего вида больше не принимается — перевыпустите его в интерфейсе платформы (раздел токенов)")

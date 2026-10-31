@@ -21,6 +21,9 @@ const (
 	// CredentialMachine — JWT, полученный за токен платформы из PAAS_API_TOKEN
 	// (IAP-04): живёт только в процессе, в файл входа не пишется.
 	CredentialMachine CredentialKind = "machine"
+	// CredentialCI — OIDC-токен запуска GitHub Actions (TRA-485): CI без
+	// PAAS_API_TOKEN; живёт только в процессе.
+	CredentialCI CredentialKind = "ci"
 )
 
 // Credential — сохранённый локально вход. Помимо токена доступа хранит то, что
