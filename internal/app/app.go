@@ -107,7 +107,7 @@ func Run(ctx context.Context, args []string) error {
 			ci = source
 		}
 	}
-	client := httpClient(obs, envToken, credential, oauth, sessions, ci)
+	client := withOrganization(httpClient(obs, envToken, credential, oauth, sessions, ci), os.Getenv(envOrganizationID))
 
 	source, err := protocolsourcehttp.New(baseURL, client)
 	if err != nil {

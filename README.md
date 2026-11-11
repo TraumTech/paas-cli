@@ -149,6 +149,19 @@ paas-cli protocols fetch <service-id> -m "GET /services" -a "GET /services#respo
 PAAS_API_URL=http://localhost:8080 paas-cli protocols fetch <service-id>
 ```
 
+#### Организация (`PAAS_ORGANIZATION_ID`)
+
+По умолчанию команды работают в личной организации пользователя. Другую
+организацию, где вы участник, задаёт `PAAS_ORGANIZATION_ID` (её id — в разделе
+«Организация» интерфейса): CLI передаёт его заголовком `X-Organization-Id` в
+каждом запросе (TRA-506). Выбор у каждого клиента свой — интерфейс и агент от
+него не переключаются. Не участник — платформа отвечает 403. Токенам сервисов и
+CI заголовок не важен: их организация — организация сервиса.
+
+```sh
+PAAS_ORGANIZATION_ID=<id организации> paas-cli databases operators install ...
+```
+
 #### Аутентификация токеном (`PAAS_API_TOKEN`)
 
 Для неинтерактивного доступа (CI, скрипты выкатки) `paas-cli` предъявляет платформе
