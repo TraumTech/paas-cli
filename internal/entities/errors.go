@@ -67,6 +67,15 @@ var (
 	ErrOperatorNotReady         = newDomainError("оператор установлен, но не поднялся за отведённое время — проверьте его поды в кластере")
 	ErrOperatorManifestBroken   = newDomainError("манифест оператора, полученный от платформы, не разбирается")
 
+	ErrEmptyDatabaseServer     = newDomainError("укажите имя СУБД")
+	ErrDatabaseServerNotFound  = newDomainError("СУБД с таким именем в кластере нет")
+	ErrInvalidPersonalRole     = newDomainError("имя роли — строчные латинские буквы, цифры и _, начинается с буквы, до 63 символов; postgres, app, streaming_replica, pg_* и cnpg_* заняты")
+	ErrInvalidLocalPort        = newDomainError("локальный порт — число от 1 до 65535")
+	ErrLocalPortBusy           = newDomainError("локальный порт занят — укажите другой флагом --port")
+	ErrDatabaseRoleNotReady    = newDomainError("оператор СУБД не завёл роль за отведённое время — проверьте статус CR СУБД")
+	ErrDatabasePrimaryNotReady = newDomainError("основной инстанс СУБД сейчас не запущен")
+	ErrDatabaseAccessDenied    = newDomainError("вашего доступа к кластеру не хватает, чтобы прочитать СУБД или завести роль")
+
 	ErrLoginRequired = newDomainError("платформа требует вход: выполните `paas-cli auth login` или задайте токен доступа в PAAS_API_TOKEN")
 	ErrTokenRejected = newDomainError("токен из PAAS_API_TOKEN не принят платформой — он отозван, просрочен или неверен")
 	// ErrCITokenRejected — токен запуска GitHub Actions (TRA-485) платформа не

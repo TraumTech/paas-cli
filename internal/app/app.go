@@ -17,6 +17,7 @@ import (
 	clusterdirectoryhttp "github.com/TraumTech/paas-cli/internal/adapters/cluster_directory_http"
 	clusterprovisionerk8s "github.com/TraumTech/paas-cli/internal/adapters/cluster_provisioner_k8s"
 	clusterregistrarhttp "github.com/TraumTech/paas-cli/internal/adapters/cluster_registrar_http"
+	databaseaccessk8s "github.com/TraumTech/paas-cli/internal/adapters/database_access_k8s"
 	databaseoperatorhttp "github.com/TraumTech/paas-cli/internal/adapters/database_operator_http"
 	dependencyregistrarhttp "github.com/TraumTech/paas-cli/internal/adapters/dependency_registrar_http"
 	formreaderfile "github.com/TraumTech/paas-cli/internal/adapters/form_reader_file"
@@ -37,6 +38,7 @@ import (
 	authwhoamicommandcli "github.com/TraumTech/paas-cli/internal/controllers/auth_whoami_command_cli"
 	buildpublishcommandcli "github.com/TraumTech/paas-cli/internal/controllers/build_publish_command_cli"
 	clusterconnectcommandcli "github.com/TraumTech/paas-cli/internal/controllers/cluster_connect_command_cli"
+	databaseforwardcommandcli "github.com/TraumTech/paas-cli/internal/controllers/database_forward_command_cli"
 	databaseoperatorinstallcommandcli "github.com/TraumTech/paas-cli/internal/controllers/database_operator_install_command_cli"
 	dependencyregistercommandcli "github.com/TraumTech/paas-cli/internal/controllers/dependency_register_command_cli"
 	protocolcompatibilitycommandcli "github.com/TraumTech/paas-cli/internal/controllers/protocol_compatibility_command_cli"
@@ -179,6 +181,8 @@ func Run(ctx context.Context, args []string) error {
 		usecases.NewInstallOperator(operatorSource, clusterDirectory, operatorinstallerk8s.New()),
 	)
 
+	forwardDatabase := databaseforwardcommandcli.New(usecases.NewForwardDatabase(databaseaccessk8s.New()))
+
 	login := authlogincommandcli.New(usecases.NewBrowserLogin(browserauthorizerlocal.New(oauth, os.Stderr), sessions))
 	// Проверка входа OIDC идёт клиентом платформы: тем же токеном доступа, с тем
 	// же продлением.
@@ -245,6 +249,7 @@ func Run(ctx context.Context, args []string) error {
 						Usage:    "операторы СУБД в подключённых кластерах",
 						Commands: []*cli.Command{installOperator.CLICommand()},
 					},
+					forwardDatabase.CLICommand(),
 				},
 			},
 			{
