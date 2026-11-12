@@ -19,6 +19,7 @@ import (
 	clusterregistrarhttp "github.com/TraumTech/paas-cli/internal/adapters/cluster_registrar_http"
 	databaseoperatorhttp "github.com/TraumTech/paas-cli/internal/adapters/database_operator_http"
 	dependencyregistrarhttp "github.com/TraumTech/paas-cli/internal/adapters/dependency_registrar_http"
+	dockerloginexec "github.com/TraumTech/paas-cli/internal/adapters/docker_login_exec"
 	formreaderfile "github.com/TraumTech/paas-cli/internal/adapters/form_reader_file"
 	manifestreaderfile "github.com/TraumTech/paas-cli/internal/adapters/manifest_reader_file"
 	oauthclienthydra "github.com/TraumTech/paas-cli/internal/adapters/oauth_client_hydra"
@@ -28,6 +29,7 @@ import (
 	protocolsourcehttp "github.com/TraumTech/paas-cli/internal/adapters/protocol_source_http"
 	protocolstorefile "github.com/TraumTech/paas-cli/internal/adapters/protocol_store_file"
 	registrydirectoryhttp "github.com/TraumTech/paas-cli/internal/adapters/registry_directory_http"
+	registryloginhttp "github.com/TraumTech/paas-cli/internal/adapters/registry_login_http"
 	serviceresolverhttp "github.com/TraumTech/paas-cli/internal/adapters/service_resolver_http"
 	sessionstorefile "github.com/TraumTech/paas-cli/internal/adapters/session_store_file"
 	userinfohydra "github.com/TraumTech/paas-cli/internal/adapters/user_info_hydra"
@@ -43,6 +45,7 @@ import (
 	protocolfetchcommandcli "github.com/TraumTech/paas-cli/internal/controllers/protocol_fetch_command_cli"
 	protocolpublishcommandcli "github.com/TraumTech/paas-cli/internal/controllers/protocol_publish_command_cli"
 	protocolsynccommandcli "github.com/TraumTech/paas-cli/internal/controllers/protocol_sync_command_cli"
+	registrylogincommandcli "github.com/TraumTech/paas-cli/internal/controllers/registry_login_command_cli"
 	versionpublishcommandcli "github.com/TraumTech/paas-cli/internal/controllers/version_publish_command_cli"
 	"github.com/TraumTech/paas-cli/internal/entities"
 	"github.com/TraumTech/paas-cli/internal/usecases"
@@ -135,6 +138,9 @@ func Run(ctx context.Context, args []string) error {
 	compat := protocolcompatibilitycommandcli.New(
 		usecases.NewCheckCompatibility(candidates, compatSource),
 		usecases.NewCheckManifestCompatibility(manifests, resolver, candidates, compatSource, registry))
+
+	registryLogin := registrylogincommandcli.New(usecases.NewRegistryLogin(
+		registryloginhttp.New(baseURL, client), dockerloginexec.New(os.Stderr)))
 
 	publisher, err := versionpublisherhttp.New(baseURL, client)
 	if err != nil {
@@ -246,6 +252,11 @@ func Run(ctx context.Context, args []string) error {
 						Commands: []*cli.Command{installOperator.CLICommand()},
 					},
 				},
+			},
+			{
+				Name:     "registry",
+				Usage:    "реестр образов платформы",
+				Commands: []*cli.Command{registryLogin.CLICommand()},
 			},
 			{
 				Name:  "auth",
