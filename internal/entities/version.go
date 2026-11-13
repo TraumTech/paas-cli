@@ -64,6 +64,19 @@ type ProcessForm struct {
 	Prefix  string
 	// Ports — внутренние именованные порты (DEP-24); правила — у платформы.
 	Ports map[string]int
+	// Streaming — основной маршрут отдаёт потоковые ответы (TRA-509).
+	Streaming bool
+	// Routes — дополнительные входы на внутренние порты (TRA-509).
+	Routes []RouteForm
+}
+
+// RouteForm — дополнительный вход процесса: внутренний порт по имени из
+// Ports публикуется по своему адресу в зоне.
+type RouteForm struct {
+	Port      string
+	Zone      string
+	Prefix    string
+	Streaming bool
 }
 
 // Build — сборка ветки на платформе (DEP-18): артефакт без окружения.
