@@ -697,12 +697,23 @@
               "format": "int64",
               "type": "integer"
             },
-            "description": "Внутренние именованные порты «имя → номер» (DEP-24): в кластере под своими именами, во вход не попадают; имя listen зарезервировано за слушающим",
+            "description": "Внутренние именованные порты «имя → номер» (DEP-24): в кластере под своими именами, наружу — только через routes; имя listen зарезервировано за слушающим",
             "type": "object"
           },
           "prefix": {
             "description": "Префикс под базовым хостом зоны; пусто — сам базовый хост",
             "type": "string"
+          },
+          "routes": {
+            "description": "Дополнительные входы на внутренние порты (TRA-509)",
+            "items": {
+              "$ref": "#/components/schemas/RouteFormBody"
+            },
+            "type": "array"
+          },
+          "streaming": {
+            "description": "Основной маршрут отдаёт потоковые ответы (TRA-509): вход не буферизует их и держит соединение до часа",
+            "type": "boolean"
           },
           "zone": {
             "description": "Доменная зона организации по имени; пусто — маршрута нет",
@@ -711,6 +722,32 @@
         },
         "required": [
           "name"
+        ],
+        "type": "object"
+      },
+      "RouteFormBody": {
+        "additionalProperties": false,
+        "properties": {
+          "port": {
+            "description": "Имя внутреннего порта из ports",
+            "type": "string"
+          },
+          "prefix": {
+            "description": "Префикс под базовым хостом зоны; пусто — сам базовый хост",
+            "type": "string"
+          },
+          "streaming": {
+            "description": "Вход отдаёт потоковые ответы: без буферизации, соединение до часа",
+            "type": "boolean"
+          },
+          "zone": {
+            "description": "Доменная зона организации по имени",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port",
+          "zone"
         ],
         "type": "object"
       },

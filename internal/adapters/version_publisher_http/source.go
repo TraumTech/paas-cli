@@ -121,6 +121,7 @@ func formToAPI(form *entities.VersionForm) *platformapi.VersionFormBody {
 			}
 			body.Ports = &ports
 		}
+		body.Streaming, body.Routes = routesBody(p)
 		out.Processes = append(out.Processes, body)
 	}
 	return out
@@ -237,6 +238,7 @@ func buildFormToAPI(form *entities.FormDeclaration) *platformapi.BuildFormBody {
 			}
 			process.Ports = &ports
 		}
+		process.Streaming, process.Routes = routesBody(p)
 		out.Processes = append(out.Processes, process)
 	}
 
@@ -369,4 +371,30 @@ func buildDependenciesToAPI(dependencies []entities.BuildDependency) (*[]platfor
 		out = append(out, body)
 	}
 	return &out, nil
+}
+
+// routesBody — потоковость основного маршрута и дополнительные входы
+// (TRA-509); не объявлены — поля не отправляются.
+func routesBody(p entities.ProcessForm) (*bool, *[]platformapi.RouteFormBody) {
+	var streaming *bool
+	if p.Streaming {
+		streaming = &p.Streaming
+	}
+	if len(p.Routes) == 0 {
+		return streaming, nil
+	}
+	routes := make([]platformapi.RouteFormBody, 0, len(p.Routes))
+	for _, r := range p.Routes {
+		route := platformapi.RouteFormBody{Port: r.Port, Zone: r.Zone}
+		if r.Prefix != "" {
+			prefix := r.Prefix
+			route.Prefix = &prefix
+		}
+		if r.Streaming {
+			on := true
+			route.Streaming = &on
+		}
+		routes = append(routes, route)
+	}
+	return streaming, &routes
 }

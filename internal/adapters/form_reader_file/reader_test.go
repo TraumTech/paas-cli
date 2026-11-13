@@ -192,3 +192,32 @@ LOG_LEVEL = "warn"
 	assert.Equal(t, []entities.FormVariable{{Name: "LOG_LEVEL", Value: "info"}}, dev.Variables)
 	assert.Equal(t, 1, dev.Replicas)
 }
+
+// Дополнительные входы на внутренние порты и потоковость (TRA-509).
+func TestReadFormRoutes(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "paas.toml")
+	require.NoError(t, os.WriteFile(path, []byte(`
+[[processes]]
+name = "web"
+listen = 8080
+command = ["/app"]
+zone = "nomadvisa"
+prefix = "api"
+
+[processes.ports]
+mcp = 8081
+
+[[processes.routes]]
+port = "mcp"
+zone = "nomadvisa"
+prefix = "mcp"
+streaming = true
+`), 0o644))
+
+	form, err := New().Read(context.Background(), path)
+
+	require.NoError(t, err)
+	require.Len(t, form.Processes, 1)
+	assert.False(t, form.Processes[0].Streaming)
+	assert.Equal(t, []entities.RouteForm{{Port: "mcp", Zone: "nomadvisa", Prefix: "mcp", Streaming: true}}, form.Processes[0].Routes)
+}

@@ -103,3 +103,23 @@ func TestBuildFormToAPI_Ports(t *testing.T) {
 	assert.Equal(t, map[string]int64{"admin": 4434, "metrics": 8003}, *body.Processes[0].Ports)
 	assert.Nil(t, body.Processes[1].Ports)
 }
+
+func TestBuildFormToAPI_Routes(t *testing.T) {
+	body := buildFormToAPI(&entities.FormDeclaration{Processes: []entities.ProcessForm{
+		{Name: "web", Listen: 8080, Zone: "main", Streaming: true, Ports: map[string]int{"mcp": 8081},
+			Routes: []entities.RouteForm{{Port: "mcp", Zone: "main", Prefix: "mcp", Streaming: true}}},
+		{Name: "worker"},
+	}})
+
+	require.NotNil(t, body.Processes[0].Streaming)
+	assert.True(t, *body.Processes[0].Streaming)
+	require.NotNil(t, body.Processes[0].Routes)
+	routes := *body.Processes[0].Routes
+	require.Len(t, routes, 1)
+	assert.Equal(t, "mcp", routes[0].Port)
+	assert.Equal(t, "main", routes[0].Zone)
+	assert.Equal(t, "mcp", *routes[0].Prefix)
+	assert.True(t, *routes[0].Streaming)
+	assert.Nil(t, body.Processes[1].Streaming)
+	assert.Nil(t, body.Processes[1].Routes)
+}

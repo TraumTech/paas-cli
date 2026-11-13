@@ -84,6 +84,18 @@ type fileProcess struct {
 	// ports — внутренние именованные порты (DEP-24): [processes.ports]
 	// с парами «имя = номер»; снаружи недоступны, соседям по кластеру — по имени.
 	Ports map[string]int `toml:"ports"`
+	// streaming — основной маршрут отдаёт потоковые ответы (TRA-509).
+	Streaming bool `toml:"streaming"`
+	// routes — дополнительные входы на внутренние порты (TRA-509):
+	// [[processes.routes]] с port, zone, prefix, streaming.
+	Routes []fileRoute `toml:"routes"`
+}
+
+type fileRoute struct {
+	Port      string `toml:"port"`
+	Zone      string `toml:"zone"`
+	Prefix    string `toml:"prefix"`
+	Streaming bool   `toml:"streaming"`
 }
 
 func (r *Reader) Read(_ context.Context, path string) (*entities.FormDeclaration, error) {
@@ -107,16 +119,21 @@ func (r *Reader) Read(_ context.Context, path string) (*entities.FormDeclaration
 
 	declaration := &entities.FormDeclaration{}
 	for _, p := range file.Processes {
-		declaration.Processes = append(declaration.Processes, entities.ProcessForm{
-			Name:    p.Name,
-			Listen:  p.Listen,
-			Command: p.Command,
-			CPU:     p.CPU,
-			Memory:  p.Memory,
-			Zone:    p.Zone,
-			Prefix:  p.Prefix,
-			Ports:   p.Ports,
-		})
+		process := entities.ProcessForm{
+			Name:      p.Name,
+			Listen:    p.Listen,
+			Command:   p.Command,
+			CPU:       p.CPU,
+			Memory:    p.Memory,
+			Zone:      p.Zone,
+			Prefix:    p.Prefix,
+			Ports:     p.Ports,
+			Streaming: p.Streaming,
+		}
+		for _, r := range p.Routes {
+			process.Routes = append(process.Routes, entities.RouteForm(r))
+		}
+		declaration.Processes = append(declaration.Processes, process)
 	}
 	for _, d := range file.Databases {
 		declaration.Databases = append(declaration.Databases, entities.DatabaseForm{
