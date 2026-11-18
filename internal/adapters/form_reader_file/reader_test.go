@@ -221,3 +221,51 @@ streaming = true
 	assert.False(t, form.Processes[0].Streaming)
 	assert.Equal(t, []entities.RouteForm{{Port: "mcp", Zone: "nomadvisa", Prefix: "mcp", Streaming: true}}, form.Processes[0].Routes)
 }
+
+// Правила доступа основного и дополнительного входов (TRA-518).
+func TestReadFormAccess(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "paas.toml")
+	require.NoError(t, os.WriteFile(path, []byte(`
+[[processes]]
+name = "web"
+listen = 8080
+command = ["/app"]
+zone = "main"
+prefix = "api"
+
+[processes.ports]
+mcp = 8081
+
+[[processes.access]]
+paths = ["/docs", "/schemas/**"]
+methods = ["GET"]
+anonymous = true
+
+[[processes.access]]
+paths = ["/users/*/orders"]
+sources = ["paas"]
+
+[[processes.routes]]
+port = "mcp"
+zone = "main"
+prefix = "mcp"
+
+[[processes.routes.access]]
+paths = ["/**"]
+sources = ["paas"]
+anonymous = true
+`), 0o644))
+
+	form, err := New().Read(context.Background(), path)
+
+	require.NoError(t, err)
+	require.Len(t, form.Processes, 1)
+	assert.Equal(t, []entities.RouteAccess{
+		{Paths: []string{"/docs", "/schemas/**"}, Methods: []string{"GET"}, Anonymous: true},
+		{Paths: []string{"/users/*/orders"}, Sources: []string{"paas"}},
+	}, form.Processes[0].Access)
+	require.Len(t, form.Processes[0].Routes, 1)
+	assert.Equal(t, []entities.RouteAccess{
+		{Paths: []string{"/**"}, Sources: []string{"paas"}, Anonymous: true},
+	}, form.Processes[0].Routes[0].Access)
+}

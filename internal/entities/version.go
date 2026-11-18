@@ -68,6 +68,17 @@ type ProcessForm struct {
 	Streaming bool
 	// Routes — дополнительные входы на внутренние порты (TRA-509).
 	Routes []RouteForm
+	// Access — правила доступа слушающего порта (TRA-518); правила — у платформы.
+	Access []RouteAccess
+}
+
+// RouteAccess — правило доступа маршрута: пути и методы, открытые токеном
+// источника авторизации и/или анониму.
+type RouteAccess struct {
+	Paths     []string
+	Methods   []string
+	Sources   []string
+	Anonymous bool
 }
 
 // RouteForm — дополнительный вход процесса: внутренний порт по имени из
@@ -77,6 +88,7 @@ type RouteForm struct {
 	Zone      string
 	Prefix    string
 	Streaming bool
+	Access    []RouteAccess
 }
 
 // Build — сборка ветки на платформе (DEP-18): артефакт без окружения.

@@ -510,6 +510,9 @@ type PersonalTokenResponse struct {
 
 // ProcessFormBody defines model for ProcessFormBody.
 type ProcessFormBody struct {
+	// Access Правила доступа слушающего порта (TRA-518): есть правила — перед процессом встаёт прокси с проверкой токена, пути вне правил недоступны; пусто — порт открыт
+	Access *[]RouteAccessBody `json:"access,omitempty"`
+
 	// Command Команда запуска контейнера (DEP-22, обязательна при публикации); сборки без неё, опубликованные раньше, выкатываются командой образа
 	Command *[]string `json:"command,omitempty"`
 
@@ -727,8 +730,26 @@ type RequiredAccessOutputBody struct {
 	Rules  []AccessRuleResponse `json:"rules"`
 }
 
+// RouteAccessBody defines model for RouteAccessBody.
+type RouteAccessBody struct {
+	// Anonymous Запрос без токена проходит как аноним; негодный токен отклоняется
+	Anonymous *bool `json:"anonymous,omitempty"`
+
+	// Methods Методы HTTP заглавными; пусто — все
+	Methods *[]string `json:"methods,omitempty"`
+
+	// Paths Шаблоны пути по сегментам: * — ровно один сегмент, ** — хвост пути и только последним
+	Paths []string `json:"paths"`
+
+	// Sources Источники авторизации по имени; доступен встроенный paas — вход платформы
+	Sources *[]string `json:"sources,omitempty"`
+}
+
 // RouteFormBody defines model for RouteFormBody.
 type RouteFormBody struct {
+	// Access Правила доступа порта этого входа (TRA-518)
+	Access *[]RouteAccessBody `json:"access,omitempty"`
+
 	// Port Имя внутреннего порта из ports
 	Port string `json:"port"`
 
