@@ -89,6 +89,27 @@ type fileProcess struct {
 	// routes — дополнительные входы на внутренние порты (TRA-509):
 	// [[processes.routes]] с port, zone, prefix, streaming.
 	Routes []fileRoute `toml:"routes"`
+	// access — правила доступа слушающего порта (TRA-518): [[processes.access]]
+	// с paths, methods, sources, anonymous.
+	Access []fileAccess `toml:"access"`
+}
+
+type fileAccess struct {
+	Paths     []string `toml:"paths"`
+	Methods   []string `toml:"methods"`
+	Sources   []string `toml:"sources"`
+	Anonymous bool     `toml:"anonymous"`
+}
+
+func accessForms(in []fileAccess) []entities.RouteAccess {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]entities.RouteAccess, 0, len(in))
+	for _, a := range in {
+		out = append(out, entities.RouteAccess(a))
+	}
+	return out
 }
 
 type fileRoute struct {
@@ -96,6 +117,8 @@ type fileRoute struct {
 	Zone      string `toml:"zone"`
 	Prefix    string `toml:"prefix"`
 	Streaming bool   `toml:"streaming"`
+	// access — правила доступа порта этого входа: [[processes.routes.access]].
+	Access []fileAccess `toml:"access"`
 }
 
 func (r *Reader) Read(_ context.Context, path string) (*entities.FormDeclaration, error) {
@@ -129,9 +152,12 @@ func (r *Reader) Read(_ context.Context, path string) (*entities.FormDeclaration
 			Prefix:    p.Prefix,
 			Ports:     p.Ports,
 			Streaming: p.Streaming,
+			Access:    accessForms(p.Access),
 		}
 		for _, r := range p.Routes {
-			process.Routes = append(process.Routes, entities.RouteForm(r))
+			process.Routes = append(process.Routes, entities.RouteForm{
+				Port: r.Port, Zone: r.Zone, Prefix: r.Prefix, Streaming: r.Streaming, Access: accessForms(r.Access),
+			})
 		}
 		declaration.Processes = append(declaration.Processes, process)
 	}

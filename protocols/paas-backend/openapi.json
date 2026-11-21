@@ -668,6 +668,13 @@
       "ProcessFormBody": {
         "additionalProperties": false,
         "properties": {
+          "access": {
+            "description": "Правила доступа слушающего порта (TRA-518): есть правила — перед процессом встаёт прокси с проверкой токена, пути вне правил недоступны; пусто — порт открыт",
+            "items": {
+              "$ref": "#/components/schemas/RouteAccessBody"
+            },
+            "type": "array"
+          },
           "command": {
             "description": "Команда запуска контейнера (DEP-22, обязательна при публикации); сборки без неё, опубликованные раньше, выкатываются командой образа",
             "items": {
@@ -725,9 +732,50 @@
         ],
         "type": "object"
       },
+      "RouteAccessBody": {
+        "additionalProperties": false,
+        "properties": {
+          "anonymous": {
+            "description": "Запрос без токена проходит как аноним; негодный токен отклоняется",
+            "type": "boolean"
+          },
+          "methods": {
+            "description": "Методы HTTP заглавными; пусто — все",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "paths": {
+            "description": "Шаблоны пути по сегментам: * — ровно один сегмент, ** — хвост пути и только последним",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "sources": {
+            "description": "Источники авторизации по имени; доступен встроенный paas — вход платформы",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "paths"
+        ],
+        "type": "object"
+      },
       "RouteFormBody": {
         "additionalProperties": false,
         "properties": {
+          "access": {
+            "description": "Правила доступа порта этого входа (TRA-518)",
+            "items": {
+              "$ref": "#/components/schemas/RouteAccessBody"
+            },
+            "type": "array"
+          },
           "port": {
             "description": "Имя внутреннего порта из ports",
             "type": "string"

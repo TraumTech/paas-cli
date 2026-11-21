@@ -122,6 +122,7 @@ func formToAPI(form *entities.VersionForm) *platformapi.VersionFormBody {
 			body.Ports = &ports
 		}
 		body.Streaming, body.Routes = routesBody(p)
+		body.Access = accessBody(p.Access)
 		out.Processes = append(out.Processes, body)
 	}
 	return out
@@ -239,6 +240,7 @@ func buildFormToAPI(form *entities.FormDeclaration) *platformapi.BuildFormBody {
 			process.Ports = &ports
 		}
 		process.Streaming, process.Routes = routesBody(p)
+		process.Access = accessBody(p.Access)
 		out.Processes = append(out.Processes, process)
 	}
 
@@ -394,7 +396,32 @@ func routesBody(p entities.ProcessForm) (*bool, *[]platformapi.RouteFormBody) {
 			on := true
 			route.Streaming = &on
 		}
+		route.Access = accessBody(r.Access)
 		routes = append(routes, route)
 	}
 	return streaming, &routes
+}
+
+// accessBody — правила доступа маршрута (TRA-518); не объявлены — поле не
+// отправляется.
+func accessBody(in []entities.RouteAccess) *[]platformapi.RouteAccessBody {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]platformapi.RouteAccessBody, 0, len(in))
+	for _, a := range in {
+		rule := platformapi.RouteAccessBody{Paths: a.Paths}
+		if len(a.Methods) > 0 {
+			rule.Methods = &a.Methods
+		}
+		if len(a.Sources) > 0 {
+			rule.Sources = &a.Sources
+		}
+		if a.Anonymous {
+			on := true
+			rule.Anonymous = &on
+		}
+		out = append(out, rule)
+	}
+	return &out
 }
