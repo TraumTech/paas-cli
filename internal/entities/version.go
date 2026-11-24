@@ -73,12 +73,14 @@ type ProcessForm struct {
 }
 
 // RouteAccess — правило доступа маршрута: пути и методы, открытые токеном
-// источника авторизации и/или анониму.
+// источника авторизации и/или анониму — либо пропущенные без проверки, когда
+// вход проверяет сам процесс (TRA-521).
 type RouteAccess struct {
-	Paths     []string
-	Methods   []string
-	Sources   []string
-	Anonymous bool
+	Paths       []string
+	Methods     []string
+	Sources     []string
+	Anonymous   bool
+	Passthrough bool
 }
 
 // RouteForm — дополнительный вход процесса: внутренний порт по имени из

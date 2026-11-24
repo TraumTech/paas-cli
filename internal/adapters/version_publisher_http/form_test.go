@@ -127,7 +127,10 @@ func TestBuildFormToAPI_Routes(t *testing.T) {
 func TestBuildFormToAPI_Access(t *testing.T) {
 	body := buildFormToAPI(&entities.FormDeclaration{Processes: []entities.ProcessForm{
 		{Name: "web", Listen: 8080, Ports: map[string]int{"mcp": 8081},
-			Access: []entities.RouteAccess{{Paths: []string{"/api/**"}, Methods: []string{"GET"}, Sources: []string{"paas"}}},
+			Access: []entities.RouteAccess{
+				{Paths: []string{"/api/**"}, Methods: []string{"GET"}, Sources: []string{"paas"}},
+				{Paths: []string{"/registry/token"}, Passthrough: true},
+			},
 			Routes: []entities.RouteForm{{Port: "mcp", Zone: "main", Access: []entities.RouteAccess{{Paths: []string{"/**"}, Anonymous: true}}}}},
 		{Name: "worker"},
 	}})
@@ -138,6 +141,12 @@ func TestBuildFormToAPI_Access(t *testing.T) {
 	assert.Equal(t, []string{"GET"}, *rule.Methods)
 	assert.Equal(t, []string{"paas"}, *rule.Sources)
 	assert.Nil(t, rule.Anonymous)
+	assert.Nil(t, rule.Passthrough, "не объявлен — поле не отправляется")
+
+	passed := (*body.Processes[0].Access)[1]
+	assert.True(t, *passed.Passthrough)
+	assert.Nil(t, passed.Sources)
+	assert.Nil(t, passed.Anonymous)
 
 	routeRule := (*(*body.Processes[0].Routes)[0].Access)[0]
 	assert.Nil(t, routeRule.Sources)

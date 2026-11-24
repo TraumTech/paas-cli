@@ -421,6 +421,10 @@ func accessBody(in []entities.RouteAccess) *[]platformapi.RouteAccessBody {
 			on := true
 			rule.Anonymous = &on
 		}
+		if a.Passthrough {
+			on := true
+			rule.Passthrough = &on
+		}
 		out = append(out, rule)
 	}
 	return &out
