@@ -275,3 +275,39 @@ anonymous = true
 		{Paths: []string{"/**"}, Sources: []string{"paas"}, Anonymous: true},
 	}, form.Processes[0].Routes[0].Access)
 }
+
+// CORS основного и дополнительного входов (TRA-524).
+func TestReadFormCORS(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "paas.toml")
+	require.NoError(t, os.WriteFile(path, []byte(`
+[[processes]]
+name = "web"
+listen = 8080
+command = ["/app"]
+zone = "main"
+prefix = "api"
+
+[processes.ports]
+mcp = 8081
+
+[processes.cors]
+origins = ["https://app.example.com"]
+headers = ["traceparent", "X-Organization-Id"]
+
+[[processes.routes]]
+port = "mcp"
+zone = "main"
+prefix = "mcp"
+
+[processes.routes.cors]
+origins = ["https://agent.example.com"]
+`), 0o644))
+
+	form, err := New().Read(context.Background(), path)
+
+	require.NoError(t, err)
+	require.Len(t, form.Processes, 1)
+	assert.Equal(t, entities.RouteCORS{Origins: []string{"https://app.example.com"}, Headers: []string{"traceparent", "X-Organization-Id"}}, form.Processes[0].CORS)
+	require.Len(t, form.Processes[0].Routes, 1)
+	assert.Equal(t, entities.RouteCORS{Origins: []string{"https://agent.example.com"}}, form.Processes[0].Routes[0].CORS)
+}

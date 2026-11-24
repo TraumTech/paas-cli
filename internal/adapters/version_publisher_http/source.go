@@ -123,6 +123,7 @@ func formToAPI(form *entities.VersionForm) *platformapi.VersionFormBody {
 		}
 		body.Streaming, body.Routes = routesBody(p)
 		body.Access = accessBody(p.Access)
+		body.Cors = corsBody(p.CORS)
 		out.Processes = append(out.Processes, body)
 	}
 	return out
@@ -241,6 +242,7 @@ func buildFormToAPI(form *entities.FormDeclaration) *platformapi.BuildFormBody {
 		}
 		process.Streaming, process.Routes = routesBody(p)
 		process.Access = accessBody(p.Access)
+		process.Cors = corsBody(p.CORS)
 		out.Processes = append(out.Processes, process)
 	}
 
@@ -397,9 +399,26 @@ func routesBody(p entities.ProcessForm) (*bool, *[]platformapi.RouteFormBody) {
 			route.Streaming = &on
 		}
 		route.Access = accessBody(r.Access)
+		route.Cors = corsBody(r.CORS)
 		routes = append(routes, route)
 	}
 	return streaming, &routes
+}
+
+// corsBody — CORS входа (TRA-524); не объявлен — поле не отправляется.
+// Заголовки без сайтов уходят как есть: отказ с причиной даёт платформа.
+func corsBody(in entities.RouteCORS) *platformapi.RouteCORSBody {
+	if len(in.Origins) == 0 && len(in.Headers) == 0 {
+		return nil
+	}
+	body := &platformapi.RouteCORSBody{Origins: in.Origins}
+	if body.Origins == nil {
+		body.Origins = []string{}
+	}
+	if len(in.Headers) > 0 {
+		body.Headers = &in.Headers
+	}
+	return body
 }
 
 // accessBody — правила доступа маршрута (TRA-518); не объявлены — поле не

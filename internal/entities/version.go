@@ -70,6 +70,15 @@ type ProcessForm struct {
 	Routes []RouteForm
 	// Access — правила доступа слушающего порта (TRA-518); правила — у платформы.
 	Access []RouteAccess
+	// CORS — сайты, с которых браузеру разрешён основной маршрут (TRA-524).
+	CORS RouteCORS
+}
+
+// RouteCORS — CORS входа: сайты и заголовки запроса сверх Authorization и
+// Content-Type. Отвечает сам вход, правила — у платформы.
+type RouteCORS struct {
+	Origins []string
+	Headers []string
 }
 
 // RouteAccess — правило доступа маршрута: пути и методы, открытые токеном
@@ -91,6 +100,7 @@ type RouteForm struct {
 	Prefix    string
 	Streaming bool
 	Access    []RouteAccess
+	CORS      RouteCORS
 }
 
 // Build — сборка ветки на платформе (DEP-18): артефакт без окружения.

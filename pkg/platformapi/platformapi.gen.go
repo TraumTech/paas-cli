@@ -516,6 +516,9 @@ type ProcessFormBody struct {
 	// Command Команда запуска контейнера (DEP-22, обязательна при публикации); сборки без неё, опубликованные раньше, выкатываются командой образа
 	Command *[]string `json:"command,omitempty"`
 
+	// Cors Сайты, с которых браузеру разрешён основной маршрут (TRA-524); без zone не задаётся
+	Cors *RouteCORSBody `json:"cors,omitempty"`
+
 	// Cpu Коробка CPU по умолчанию (нотация Kubernetes, например 100m)
 	Cpu *string `json:"cpu,omitempty"`
 
@@ -748,10 +751,22 @@ type RouteAccessBody struct {
 	Sources *[]string `json:"sources,omitempty"`
 }
 
+// RouteCORSBody defines model for RouteCORSBody.
+type RouteCORSBody struct {
+	// Headers Заголовки запроса сверх Authorization и Content-Type
+	Headers *[]string `json:"headers,omitempty"`
+
+	// Origins Сайты вида https://host[:port], без пути
+	Origins []string `json:"origins"`
+}
+
 // RouteFormBody defines model for RouteFormBody.
 type RouteFormBody struct {
 	// Access Правила доступа порта этого входа (TRA-518)
 	Access *[]RouteAccessBody `json:"access,omitempty"`
+
+	// Cors Сайты, с которых браузеру разрешён этот вход (TRA-524)
+	Cors *RouteCORSBody `json:"cors,omitempty"`
 
 	// Port Имя внутреннего порта из ports
 	Port string `json:"port"`
