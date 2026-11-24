@@ -245,6 +245,11 @@ anonymous = true
 paths = ["/users/*/orders"]
 sources = ["paas"]
 
+[[processes.access]]
+paths = ["/registry/token"]
+methods = ["GET"]
+passthrough = true
+
 [[processes.routes]]
 port = "mcp"
 zone = "main"
@@ -263,6 +268,7 @@ anonymous = true
 	assert.Equal(t, []entities.RouteAccess{
 		{Paths: []string{"/docs", "/schemas/**"}, Methods: []string{"GET"}, Anonymous: true},
 		{Paths: []string{"/users/*/orders"}, Sources: []string{"paas"}},
+		{Paths: []string{"/registry/token"}, Methods: []string{"GET"}, Passthrough: true},
 	}, form.Processes[0].Access)
 	require.Len(t, form.Processes[0].Routes, 1)
 	assert.Equal(t, []entities.RouteAccess{

@@ -90,7 +90,7 @@ type fileProcess struct {
 	// [[processes.routes]] с port, zone, prefix, streaming.
 	Routes []fileRoute `toml:"routes"`
 	// access — правила доступа слушающего порта (TRA-518): [[processes.access]]
-	// с paths, methods, sources, anonymous.
+	// с paths, methods, sources, anonymous, passthrough.
 	Access []fileAccess `toml:"access"`
 }
 
@@ -99,6 +99,8 @@ type fileAccess struct {
 	Methods   []string `toml:"methods"`
 	Sources   []string `toml:"sources"`
 	Anonymous bool     `toml:"anonymous"`
+	// passthrough — вход проверяет сам процесс (TRA-521).
+	Passthrough bool `toml:"passthrough"`
 }
 
 func accessForms(in []fileAccess) []entities.RouteAccess {

@@ -738,10 +738,13 @@ type RouteAccessBody struct {
 	// Methods Методы HTTP заглавными; пусто — все
 	Methods *[]string `json:"methods,omitempty"`
 
+	// Passthrough Вход проверяет сам процесс (TRA-521): запрос идёт к нему без проверки, с исходным Authorization; заголовки личности затёрты. Несовместимо с sources и anonymous
+	Passthrough *bool `json:"passthrough,omitempty"`
+
 	// Paths Шаблоны пути по сегментам: * — ровно один сегмент, ** — хвост пути и только последним
 	Paths []string `json:"paths"`
 
-	// Sources Источники авторизации по имени; доступен встроенный paas — вход платформы
+	// Sources Источники авторизации: встроенный paas — вход платформы — или https-адрес выпускающего токены (issuer); процесс получает claim'ы проверенного токена в X-Identity-Claims, сам токен ему не отдаётся
 	Sources *[]string `json:"sources,omitempty"`
 }
 
