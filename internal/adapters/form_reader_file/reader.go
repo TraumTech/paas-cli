@@ -92,6 +92,14 @@ type fileProcess struct {
 	// access — правила доступа слушающего порта (TRA-518): [[processes.access]]
 	// с paths, methods, sources, anonymous, passthrough.
 	Access []fileAccess `toml:"access"`
+	// cors — сайты, с которых браузеру разрешён основной маршрут (TRA-524):
+	// [processes.cors] с origins и headers.
+	CORS fileCORS `toml:"cors"`
+}
+
+type fileCORS struct {
+	Origins []string `toml:"origins"`
+	Headers []string `toml:"headers"`
 }
 
 type fileAccess struct {
@@ -121,6 +129,8 @@ type fileRoute struct {
 	Streaming bool   `toml:"streaming"`
 	// access — правила доступа порта этого входа: [[processes.routes.access]].
 	Access []fileAccess `toml:"access"`
+	// cors — [processes.routes.cors] под своим входом.
+	CORS fileCORS `toml:"cors"`
 }
 
 func (r *Reader) Read(_ context.Context, path string) (*entities.FormDeclaration, error) {
@@ -155,10 +165,11 @@ func (r *Reader) Read(_ context.Context, path string) (*entities.FormDeclaration
 			Ports:     p.Ports,
 			Streaming: p.Streaming,
 			Access:    accessForms(p.Access),
+			CORS:      entities.RouteCORS(p.CORS),
 		}
 		for _, r := range p.Routes {
 			process.Routes = append(process.Routes, entities.RouteForm{
-				Port: r.Port, Zone: r.Zone, Prefix: r.Prefix, Streaming: r.Streaming, Access: accessForms(r.Access),
+				Port: r.Port, Zone: r.Zone, Prefix: r.Prefix, Streaming: r.Streaming, Access: accessForms(r.Access), CORS: entities.RouteCORS(r.CORS),
 			})
 		}
 		declaration.Processes = append(declaration.Processes, process)

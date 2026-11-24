@@ -107,6 +107,7 @@ func TestBuildFormToAPI_Ports(t *testing.T) {
 func TestBuildFormToAPI_Routes(t *testing.T) {
 	body := buildFormToAPI(&entities.FormDeclaration{Processes: []entities.ProcessForm{
 		{Name: "web", Listen: 8080, Zone: "main", Streaming: true, Ports: map[string]int{"mcp": 8081},
+			CORS:   entities.RouteCORS{Origins: []string{"https://app.example.com"}, Headers: []string{"traceparent"}},
 			Routes: []entities.RouteForm{{Port: "mcp", Zone: "main", Prefix: "mcp", Streaming: true}}},
 		{Name: "worker"},
 	}})
@@ -122,6 +123,11 @@ func TestBuildFormToAPI_Routes(t *testing.T) {
 	assert.True(t, *routes[0].Streaming)
 	assert.Nil(t, body.Processes[1].Streaming)
 	assert.Nil(t, body.Processes[1].Routes)
+	require.NotNil(t, body.Processes[0].Cors)
+	assert.Equal(t, []string{"https://app.example.com"}, body.Processes[0].Cors.Origins)
+	assert.Equal(t, []string{"traceparent"}, *body.Processes[0].Cors.Headers)
+	assert.Nil(t, routes[0].Cors)
+	assert.Nil(t, body.Processes[1].Cors)
 }
 
 func TestBuildFormToAPI_Access(t *testing.T) {

@@ -682,6 +682,10 @@
             },
             "type": "array"
           },
+          "cors": {
+            "$ref": "#/components/schemas/RouteCORSBody",
+            "description": "Сайты, с которых браузеру разрешён основной маршрут (TRA-524); без zone не задаётся"
+          },
           "cpu": {
             "description": "Коробка CPU по умолчанию (нотация Kubernetes, например 100m)",
             "type": "string"
@@ -770,6 +774,29 @@
         ],
         "type": "object"
       },
+      "RouteCORSBody": {
+        "additionalProperties": false,
+        "properties": {
+          "headers": {
+            "description": "Заголовки запроса сверх Authorization и Content-Type",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "origins": {
+            "description": "Сайты вида https://host[:port], без пути",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "origins"
+        ],
+        "type": "object"
+      },
       "RouteFormBody": {
         "additionalProperties": false,
         "properties": {
@@ -779,6 +806,10 @@
               "$ref": "#/components/schemas/RouteAccessBody"
             },
             "type": "array"
+          },
+          "cors": {
+            "$ref": "#/components/schemas/RouteCORSBody",
+            "description": "Сайты, с которых браузеру разрешён этот вход (TRA-524)"
           },
           "port": {
             "description": "Имя внутреннего порта из ports",
