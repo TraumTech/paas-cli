@@ -1,9 +1,22 @@
 name: release
 
+run-name: ${{ github.event_name == 'workflow_dispatch' && format('release ({0})', inputs.bump) || github.ref_name }}
+
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Какую часть версии поднять
+        type: choice
+        options:
+          - patch
+          - minor
+        default: patch
+
+concurrency: release
 
 permissions:
   contents: write
@@ -30,6 +43,28 @@ jobs:
       - name: Доступ к приватным Go-модулям TraumTech
         run: git config --global url."https://x-access-token:${{ secrets.PAAS_REPOS_TOKEN }}@github.com/".insteadOf "https://github.com/"
       - run: go test ./...
+      - name: Поставить тег следующей версии
+        if: github.event_name == 'workflow_dispatch'
+        # Тег, запушенный GITHUB_TOKEN, новый запуск не порождает — релиз собирается здесь же.
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::релиз выпускается только с main, а не с ${GITHUB_REF}"; exit 1
+          fi
+          latest=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1)
+          if [ -z "$latest" ]; then
+            echo "::error::не найден ни один тег vX.Y.Z"; exit 1
+          fi
+          if [ "$(git rev-list -n1 "$latest")" = "$(git rev-parse HEAD)" ]; then
+            echo "::error::на этом коммите уже стоит ${latest} — выпускать нечего"; exit 1
+          fi
+          IFS=. read -r major minor patch <<< "${latest#v}"
+          case "${{ inputs.bump }}" in
+            minor) next="v${major}.$((minor + 1)).0" ;;
+            *) next="v${major}.${minor}.$((patch + 1))" ;;
+          esac
+          git tag "$next"
+          git push origin "$next"
+          echo "Релиз ${next} (предыдущий ${latest})" >> "$GITHUB_STEP_SUMMARY"
       - uses: goreleaser/goreleaser-action@v6
         with:
           version: "~> v2"

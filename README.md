@@ -90,8 +90,14 @@ go build -o paas-cli ./cmd/paas-cli
 (`.github/workflows/release.yml`): кросс-платформенные бинари и архивы
 публикуются в GitHub Releases, версия прошивается в бинарь через ldflags.
 
+Выпустить релиз — кнопкой: Actions → **release** → Run workflow, выбрать `patch`
+или `minor`. Workflow сам берёт последний тег, считает следующую версию, ставит
+тег на `main` и собирает релиз. Работает и из мобильного приложения GitHub.
+
+Тег, запушенный руками, по-прежнему запускает ту же сборку:
+
 ```sh
-git tag v0.1.0 && git push origin v0.1.0   # триггерит сборку релиза
+git tag v0.1.0 && git push origin v0.1.0
 ```
 
 ## Использование
