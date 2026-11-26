@@ -222,6 +222,46 @@ streaming = true
 	assert.Equal(t, []entities.RouteForm{{Port: "mcp", Zone: "nomadvisa", Prefix: "mcp", Streaming: true}}, form.Processes[0].Routes)
 }
 
+// Дополнительные адреса основного и дополнительного входов (TRA-530).
+func TestReadFormAliases(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "paas.toml")
+	require.NoError(t, os.WriteFile(path, []byte(`
+[[processes]]
+name = "web"
+listen = 8080
+command = ["/app"]
+zone = "old"
+prefix = "api"
+
+[[processes.aliases]]
+zone = "new"
+prefix = "api"
+
+[[processes.aliases]]
+zone = "new"
+
+[processes.ports]
+mcp = 8081
+
+[[processes.routes]]
+port = "mcp"
+zone = "old"
+prefix = "mcp"
+
+[[processes.routes.aliases]]
+zone = "new"
+prefix = "mcp"
+`), 0o644))
+
+	form, err := New().Read(context.Background(), path)
+
+	require.NoError(t, err)
+	require.Len(t, form.Processes, 1)
+	assert.Equal(t, []entities.RouteAlias{{Zone: "new", Prefix: "api"}, {Zone: "new"}}, form.Processes[0].Aliases)
+	assert.Equal(t, []entities.RouteForm{{Port: "mcp", Zone: "old", Prefix: "mcp",
+		Aliases: []entities.RouteAlias{{Zone: "new", Prefix: "mcp"}}}}, form.Processes[0].Routes)
+}
+
 // Правила доступа основного и дополнительного входов (TRA-518).
 func TestReadFormAccess(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "paas.toml")

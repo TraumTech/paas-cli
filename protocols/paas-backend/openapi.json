@@ -675,6 +675,13 @@
             },
             "type": "array"
           },
+          "aliases": {
+            "description": "Дополнительные адреса основного маршрута (TRA-530): тот же порт, те же правила доступа и CORS; без zone не задаются",
+            "items": {
+              "$ref": "#/components/schemas/RouteAliasBody"
+            },
+            "type": "array"
+          },
           "command": {
             "description": "Команда запуска контейнера (DEP-22, обязательна при публикации); сборки без неё, опубликованные раньше, выкатываются командой образа",
             "items": {
@@ -774,6 +781,23 @@
         ],
         "type": "object"
       },
+      "RouteAliasBody": {
+        "additionalProperties": false,
+        "properties": {
+          "prefix": {
+            "description": "Префикс под базовым хостом зоны; пусто — сам базовый хост",
+            "type": "string"
+          },
+          "zone": {
+            "description": "Доменная зона организации по имени",
+            "type": "string"
+          }
+        },
+        "required": [
+          "zone"
+        ],
+        "type": "object"
+      },
       "RouteCORSBody": {
         "additionalProperties": false,
         "properties": {
@@ -804,6 +828,13 @@
             "description": "Правила доступа порта этого входа (TRA-518)",
             "items": {
               "$ref": "#/components/schemas/RouteAccessBody"
+            },
+            "type": "array"
+          },
+          "aliases": {
+            "description": "Дополнительные адреса этого входа (TRA-530)",
+            "items": {
+              "$ref": "#/components/schemas/RouteAliasBody"
             },
             "type": "array"
           },

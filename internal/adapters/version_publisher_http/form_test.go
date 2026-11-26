@@ -130,6 +130,27 @@ func TestBuildFormToAPI_Routes(t *testing.T) {
 	assert.Nil(t, body.Processes[1].Cors)
 }
 
+func TestBuildFormToAPI_Aliases(t *testing.T) {
+	body := buildFormToAPI(&entities.FormDeclaration{Processes: []entities.ProcessForm{
+		{Name: "web", Listen: 8080, Zone: "old", Prefix: "api", Ports: map[string]int{"mcp": 8081},
+			Aliases: []entities.RouteAlias{{Zone: "new", Prefix: "api"}, {Zone: "new"}},
+			Routes: []entities.RouteForm{{Port: "mcp", Zone: "old", Prefix: "mcp",
+				Aliases: []entities.RouteAlias{{Zone: "new", Prefix: "mcp"}}}}},
+		{Name: "worker"},
+	}})
+
+	require.NotNil(t, body.Processes[0].Aliases)
+	aliases := *body.Processes[0].Aliases
+	require.Len(t, aliases, 2)
+	assert.Equal(t, "new", aliases[0].Zone)
+	assert.Equal(t, "api", *aliases[0].Prefix)
+	assert.Nil(t, aliases[1].Prefix, "пустой префикс не отправляется")
+	routeAliases := *(*body.Processes[0].Routes)[0].Aliases
+	require.Len(t, routeAliases, 1)
+	assert.Equal(t, "mcp", *routeAliases[0].Prefix)
+	assert.Nil(t, body.Processes[1].Aliases)
+}
+
 func TestBuildFormToAPI_Access(t *testing.T) {
 	body := buildFormToAPI(&entities.FormDeclaration{Processes: []entities.ProcessForm{
 		{Name: "web", Listen: 8080, Ports: map[string]int{"mcp": 8081},

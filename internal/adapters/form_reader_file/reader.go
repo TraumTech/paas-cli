@@ -95,6 +95,25 @@ type fileProcess struct {
 	// cors — сайты, с которых браузеру разрешён основной маршрут (TRA-524):
 	// [processes.cors] с origins и headers.
 	CORS fileCORS `toml:"cors"`
+	// aliases — дополнительные адреса основного маршрута (TRA-530):
+	// [[processes.aliases]] с zone и prefix.
+	Aliases []fileAlias `toml:"aliases"`
+}
+
+type fileAlias struct {
+	Zone   string `toml:"zone"`
+	Prefix string `toml:"prefix"`
+}
+
+func aliasForms(in []fileAlias) []entities.RouteAlias {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]entities.RouteAlias, 0, len(in))
+	for _, a := range in {
+		out = append(out, entities.RouteAlias(a))
+	}
+	return out
 }
 
 type fileCORS struct {
@@ -131,6 +150,8 @@ type fileRoute struct {
 	Access []fileAccess `toml:"access"`
 	// cors — [processes.routes.cors] под своим входом.
 	CORS fileCORS `toml:"cors"`
+	// aliases — [[processes.routes.aliases]] под своим входом.
+	Aliases []fileAlias `toml:"aliases"`
 }
 
 func (r *Reader) Read(_ context.Context, path string) (*entities.FormDeclaration, error) {
@@ -166,10 +187,11 @@ func (r *Reader) Read(_ context.Context, path string) (*entities.FormDeclaration
 			Streaming: p.Streaming,
 			Access:    accessForms(p.Access),
 			CORS:      entities.RouteCORS(p.CORS),
+			Aliases:   aliasForms(p.Aliases),
 		}
 		for _, r := range p.Routes {
 			process.Routes = append(process.Routes, entities.RouteForm{
-				Port: r.Port, Zone: r.Zone, Prefix: r.Prefix, Streaming: r.Streaming, Access: accessForms(r.Access), CORS: entities.RouteCORS(r.CORS),
+				Port: r.Port, Zone: r.Zone, Prefix: r.Prefix, Streaming: r.Streaming, Access: accessForms(r.Access), CORS: entities.RouteCORS(r.CORS), Aliases: aliasForms(r.Aliases),
 			})
 		}
 		declaration.Processes = append(declaration.Processes, process)
