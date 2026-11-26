@@ -26,7 +26,7 @@ const (
 	// envOTLPURL — приёмный OTLP/HTTP-шлюз платформы (тот же, куда шлёт трассы
 	// браузер, OBS-03); значение `off` выключает трассировку.
 	envOTLPURL     = "PAAS_OTLP_URL"
-	defaultOTLPURL = "https://otlp.paas.traumtech.ru"
+	defaultOTLPURL = "https://otlp.stapel.sh"
 	otlpURLOff     = "off"
 	// envLogLevel/envLogEncoding — те же переменные, что у observabilitydefault.
 	envLogLevel    = "OBSERVABILITY_LOG_LEVEL"

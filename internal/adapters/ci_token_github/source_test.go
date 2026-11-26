@@ -34,7 +34,7 @@ func TestTokenRequestsAudienceAndReadsExpiry(t *testing.T) {
 	}))
 	defer srv.Close()
 	env := map[string]string{EnvRequestURL: srv.URL + "/token?api-version=2.0", EnvRequestToken: "req-secret"}
-	source, ok := New(func(k string) string { return env[k] }, "https://api.paas.traumtech.ru", srv.Client())
+	source, ok := New(func(k string) string { return env[k] }, "https://api.stapel.sh", srv.Client())
 	if !ok {
 		t.Fatal("источник должен собраться")
 	}
@@ -44,7 +44,7 @@ func TestTokenRequestsAudienceAndReadsExpiry(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Token: %v", err)
 	}
-	if gotAudience != "https://api.paas.traumtech.ru" || gotExisting != "2.0" {
+	if gotAudience != "https://api.stapel.sh" || gotExisting != "2.0" {
 		t.Fatalf("query: audience=%q api-version=%q", gotAudience, gotExisting)
 	}
 	if gotAuth != "Bearer req-secret" {

@@ -26,7 +26,7 @@ env:
   # Dogfooding: после релиза PaaS фиксирует версию paas-cli самим собой (VER-02) и
   # регистрирует зависимости этой версии из манифеста (PRT-05/CLI-15) — CLI тоже
   # реальный потребитель контракта. Сервис и состав зависимостей берёт из protocols.toml.
-  PAAS_API: https://api.paas.traumtech.ru
+  PAAS_API: https://api.stapel.sh
   # paas-observability-sdk — приватный модуль: мимо proxy.golang.org, git с токеном.
   GOPRIVATE: github.com/TraumTech/*
 
@@ -79,7 +79,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Установить paas-cli
+      - name: Установить stapel
         run: |
           curl -fsSL "${PAAS_API}/cli/install.sh" | sh
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
@@ -88,7 +88,7 @@ jobs:
         # Публикация версии идемпотентна (одна ревизия = одна версия): при «Re-run»
         # вернётся та же версия с тем же id. Этот id адресует зависимость.
         run: |
-          version_id=$(paas-cli versions publish "${{ github.sha }}")
+          version_id=$(stapel versions publish "${{ github.sha }}")
           echo "id=${version_id}" >> "$GITHUB_OUTPUT"
       - name: Зарегистрировать зависимости версии из манифеста
         # Регистрируем весь состав зависимостей из protocols.toml одной командой
@@ -96,4 +96,4 @@ jobs:
         # --prune (CLI-16): регистрируемая версия замещает зависимости прошлых версий —
         # платформа снимает их атомарно с регистрацией (PRT-12). Отдельный шаг снятия
         # (curl+jq) больше не нужен. Идемпотентно: повторный прогон — та же одна связь.
-        run: paas-cli dependencies register --prune "${{ steps.version.outputs.id }}"
+        run: stapel dependencies register --prune "${{ steps.version.outputs.id }}"
