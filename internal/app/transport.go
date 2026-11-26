@@ -38,7 +38,7 @@ func (t *unauthorizedTransport) RoundTrip(req *http.Request) (*http.Response, er
 // предъявляется, а отказ объясняет, что токен нужно перевыпустить. Без токена в
 // GitHub Actions с правом `id-token: write` предъявляется токен запуска
 // (TRA-485): платформа узнаёт сервис по репозиторию. Иначе запросы идут
-// сохранённым входом OIDC (`paas-cli auth login`), который
+// сохранённым входом OIDC (`stapel auth login`), который
 // транспорт продлевает сам; без того и другого — анонимно. Observability-транспорт — внешним слоем: спан и traceparent
 // появляются до креденшелов, логи и спан покрывают весь запрос.
 func httpClient(obs observability.Observer, envToken string, credential *entities.Credential, oauth tokenGrantor, sessions usecases.SessionStore, ci ciTokenSource) *http.Client {

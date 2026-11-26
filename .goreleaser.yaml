@@ -6,8 +6,8 @@ before:
 
 builds:
   - id: paas-cli
-    main: ./cmd/paas-cli
-    binary: paas-cli
+    main: ./cmd/stapel
+    binary: stapel
     env:
       - CGO_ENABLED=0
     goos:

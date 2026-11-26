@@ -1,15 +1,19 @@
-# paas-cli
+# stapel
+
+CLI платформы Stapel. Раньше команда называлась `paas-cli`: установщик ставит оба
+имени, прежнее остаётся рабочим для CI и скриптов. Репозиторий, клиент входа и
+каталог сохранённого входа названия не меняли.
 
 Универсальный для любого потребителя бинарь, которым получают контракты сервисов
-платформы PaaS. Не привязан к стеку потребителя: контракт любого сервиса тянется
+платформы. Не привязан к стеку потребителя: контракт любого сервиса тянется
 одной командой откуда угодно.
 
 ## Подключение кластера
 
 ```sh
-paas-cli clusters connect --name yc-prod            # текущий контекст kubeconfig
-paas-cli clusters connect --name yc-prod --context prod --yes
-paas-cli clusters connect --name yc-prod --topology regional   # заявить топологию явно
+stapel clusters connect --name yc-prod            # текущий контекст kubeconfig
+stapel clusters connect --name yc-prod --context prod --yes
+stapel clusters connect --name yc-prod --topology regional   # заявить топологию явно
 ```
 
 Команда спрашивает у платформы, какие права ей нужны, показывает что именно
@@ -29,10 +33,10 @@ paas-cli clusters connect --name yc-prod --topology regional   # заявить 
 ## Оператор СУБД или хранилища в подключённом кластере
 
 ```sh
-paas-cli databases operators install --engine postgres              # текущий контекст kubeconfig
-paas-cli databases operators install --engine postgres --context prod --yes
-paas-cli databases operators install --engine s3                    # объектное хранилище (SeaweedFS)
-paas-cli databases operators install --engine s3 --cluster paas-local   # кластер назван явно (DB-10)
+stapel databases operators install --engine postgres              # текущий контекст kubeconfig
+stapel databases operators install --engine postgres --context prod --yes
+stapel databases operators install --engine s3                    # объектное хранилище (SeaweedFS)
+stapel databases operators install --engine s3 --cluster paas-local   # кластер назван явно (DB-10)
 ```
 
 Ставит в **уже подключённый** кластер оператор типа ресурса (для Postgres —
@@ -61,7 +65,7 @@ server-side apply, и команда говорит, что изменилось
 архитектуру (Apple Silicon / Intel), скачивает актуальный релиз и ставит бинарь:
 
 ```sh
-curl -fsSL https://api.paas.traumtech.ru/cli/install.sh | sh
+curl -fsSL https://api.stapel.sh/cli/install.sh | sh
 ```
 
 Ставится без `sudo` в `~/.local/bin` (каталог переопределяется переменной
@@ -73,16 +77,16 @@ curl -fsSL https://api.paas.traumtech.ru/cli/install.sh | sh
 [GitHub Releases](https://github.com/TraumTech/paas-cli/releases). Или через Go:
 
 ```sh
-go install github.com/TraumTech/paas-cli/cmd/paas-cli@latest
+go install github.com/TraumTech/paas-cli/cmd/stapel@latest
 ```
 
 Или собрать локально:
 
 ```sh
-go build -o paas-cli ./cmd/paas-cli
+go build -o stapel ./cmd/stapel
 ```
 
-Версия бинаря: `paas-cli --version`.
+Версия бинаря: `stapel --version`.
 
 ## Релизы
 
@@ -110,8 +114,8 @@ OpenAPI → `openapi.json`, gRPC → `contract.proto` (тот же `.proto`-ис
 что опубликован владельцем; стабы из него потребитель генерирует сам):
 
 ```sh
-paas-cli protocols fetch <service-id>                      # → protocols/<service-name>/openapi.json
-paas-cli --destination vendor/api protocols fetch <service-id>   # → vendor/api/<service-name>/openapi.json
+stapel protocols fetch <service-id>                      # → protocols/<service-name>/openapi.json
+stapel --destination vendor/api protocols fetch <service-id>   # → vendor/api/<service-name>/openapi.json
 ```
 
 #### Частичный контракт
@@ -125,8 +129,8 @@ paas-cli --destination vendor/api protocols fetch <service-id>   # → vendor/ap
 отбрасываются: результат самодостаточен и меньше:
 
 ```sh
-paas-cli protocols fetch <service-id> -m "GET /services" -m "GET /services/{id}"
-paas-cli protocols fetch <service-id> --method "GET /services,DELETE /services/{id}"
+stapel protocols fetch <service-id> -m "GET /services" -m "GET /services/{id}"
+stapel protocols fetch <service-id> --method "GET /services,DELETE /services/{id}"
 ```
 
 Если указан несуществующий метод, команда сообщает, какой именно не найден, и
@@ -141,7 +145,7 @@ paas-cli protocols fetch <service-id> --method "GET /services,DELETE /services/{
 атрибутов остаётся целиком, общая для методов схема — объединение объявленного:
 
 ```sh
-paas-cli protocols fetch <service-id> -m "GET /services" -a "GET /services#response.200.name"
+stapel protocols fetch <service-id> -m "GET /services" -a "GET /services#response.200.name"
 ```
 
 Несуществующий атрибут — понятная ошибка с перечнем ненайденных, как у методов.
@@ -152,7 +156,7 @@ paas-cli protocols fetch <service-id> -m "GET /services" -a "GET /services#respo
 переменной окружения `PAAS_API_URL`:
 
 ```sh
-PAAS_API_URL=http://localhost:8080 paas-cli protocols fetch <service-id>
+PAAS_API_URL=http://localhost:8080 stapel protocols fetch <service-id>
 ```
 
 #### Организация (`PAAS_ORGANIZATION_ID`)
@@ -165,17 +169,17 @@ PAAS_API_URL=http://localhost:8080 paas-cli protocols fetch <service-id>
 CI заголовок не важен: их организация — организация сервиса.
 
 ```sh
-PAAS_ORGANIZATION_ID=<id организации> paas-cli databases operators install ...
+PAAS_ORGANIZATION_ID=<id организации> stapel databases operators install ...
 ```
 
 #### Аутентификация токеном (`PAAS_API_TOKEN`)
 
-Для неинтерактивного доступа (CI, скрипты выкатки) `paas-cli` предъявляет платформе
+Для неинтерактивного доступа (CI, скрипты выкатки) `stapel` предъявляет платформе
 **токен доступа** из переменной окружения `PAAS_API_TOKEN`; если она задана, CLI
 прикладывает токен ко всем обращениям к платформе:
 
 ```sh
-PAAS_API_TOKEN=<секрет> paas-cli protocols publish "$version_id"
+PAAS_API_TOKEN=<секрет> stapel protocols publish "$version_id"
 ```
 
 С IAP-04 токен — **клиент входа платформы**: значение имеет вид
@@ -223,7 +227,7 @@ CLI запрашивает новый. Платформа находит сер�
 
 Перевести существующий сервис на токен GitHub:
 
-1. В jobs, которые зовут `paas-cli`, добавить `permissions` с `id-token: write`
+1. В jobs, которые зовут `stapel`, добавить `permissions` с `id-token: write`
    (и `contents: read`, если job читает репозиторий), а строку
    `PAAS_API_TOKEN: ${{ secrets.PAAS_API_TOKEN }}` из `env` убрать.
 2. Дождаться зелёного CI на ветке по умолчанию.
@@ -233,13 +237,13 @@ CLI запрашивает новый. Платформа находит сер�
 
 #### Вход под своей учётной записью (`auth`)
 
-Человеку на своей машине токен сервиса не нужен: `paas-cli` умеет входить под
+Человеку на своей машине токен сервиса не нужен: `stapel` умеет входить под
 учётной записью платформы (той же, что и в веб-интерфейсе):
 
 ```sh
-paas-cli auth login      # откроет браузер: войдите на странице платформы
-paas-cli auth whoami     # под кем выполнен вход (проверяется у платформы)
-paas-cli auth logout     # завершить вход и удалить его локально
+stapel auth login      # откроет браузер: войдите на странице платформы
+stapel auth whoami     # под кем выполнен вход (проверяется у платформы)
+stapel auth logout     # завершить вход и удалить его локально
 ```
 
 **Вход через браузер** (IAP-03) — стандартный OIDC-поток: CLI поднимает
@@ -334,8 +338,8 @@ waived = ["traumtech.paas_protocols.v1.Protocol.document"]   # атрибуты,
 ```
 
 ```sh
-paas-cli protocols sync                       # читает ./protocols.toml
-paas-cli protocols sync --manifest deps.toml  # другой путь к манифесту (-f)
+stapel protocols sync                       # читает ./protocols.toml
+stapel protocols sync --manifest deps.toml  # другой путь к манифесту (-f)
 ```
 
 **Адрес зависимости внутри кластера (TRA-512).** Когда сборка с `[[dependencies]]`
@@ -670,11 +674,11 @@ Owner-команда для процесса выкатки: проверить,
 команда печатает его и завершается ненулевым кодом, если кандидат ломающий.
 
 ```sh
-paas-cli protocols compatibility                                 # без аргументов: все контракты манифеста (CLI-23)
-paas-cli protocols compatibility <service-id> <candidate-file>   # точечный режим, напр. ./openapi.json
-paas-cli protocols compat <service-id> <candidate-file>          # короткий алиас
-paas-cli protocols compat --format grpc <service-id> registry.proto   # gRPC-кандидат (.proto)
-paas-cli protocols compat --name admin <service-id> admin.json   # кандидат именованного протокола
+stapel protocols compatibility                                 # без аргументов: все контракты манифеста (CLI-23)
+stapel protocols compatibility <service-id> <candidate-file>   # точечный режим, напр. ./openapi.json
+stapel protocols compat <service-id> <candidate-file>          # короткий алиас
+stapel protocols compat --format grpc <service-id> registry.proto   # gRPC-кандидат (.proto)
+stapel protocols compat --name admin <service-id> admin.json   # кандидат именованного протокола
 ```
 
 **Без аргументов — манифестный режим**: проверяются все контракты из манифеста
@@ -714,8 +718,8 @@ Owner-команда для процесса выкатки: опубликов�
 возвращает разбор совместимости с потребителями, который команда печатает по каждому.
 
 ```sh
-paas-cli protocols publish <version-id>                     # сервис и контракт — из ./protocols.toml
-paas-cli protocols publish --manifest deps.toml <version-id># другой путь к манифесту (-f)
+stapel protocols publish <version-id>                     # сервис и контракт — из ./protocols.toml
+stapel protocols publish --manifest deps.toml <version-id># другой путь к манифесту (-f)
 ```
 
 - Версию (`<version-id>`) даёт предыдущий шаг выкатки — публикация версии по
@@ -754,7 +758,7 @@ Owner-команда для процесса выкатки: по факту в�
 самодельный `curl`-шаг пайплайна.
 
 ```sh
-paas-cli versions publish <commit-revision>   # напр. "$GITHUB_SHA"; сервис — из ./protocols.toml
+stapel versions publish <commit-revision>   # напр. "$GITHUB_SHA"; сервис — из ./protocols.toml
 ```
 
 - **Версия принадлежит окружению (DEP-08):** флаг `--environment` (`-e`) —
@@ -770,14 +774,14 @@ paas-cli versions publish <commit-revision>   # напр. "$GITHUB_SHA"; сер�
   там врёт.
 
   ```sh
-  paas-cli versions publish --branch "$GITHUB_REF_NAME" "$GITHUB_SHA"
+  stapel versions publish --branch "$GITHUB_REF_NAME" "$GITHUB_SHA"
   ```
 
 - **Идентификатор версии печатается на stdout** отдельной строкой — его без разбора
   подхватывает следующий шаг выкатки (например, привязка протокола к версии):
 
   ```sh
-  version_id=$(paas-cli versions publish "$GITHUB_SHA")
+  version_id=$(stapel versions publish "$GITHUB_SHA")
   ```
 
   Человекочитаемое подтверждение уходит на stderr, чтобы не мешать автоматике.
@@ -789,7 +793,7 @@ paas-cli versions publish <commit-revision>   # напр. "$GITHUB_SHA"; сер�
 
 ### Вход в реестр образов платформы (для CI сервиса)
 
-`paas-cli registry login` получает у платформы вход в реестр образов
+`stapel registry login` получает у платформы вход в реестр образов
 `registry.paas.traumtech.ru` (EPIC-31), передаёт его `docker login` и печатает
 адрес репозитория образов сервиса. В GitHub Actions вход идёт по токену запуска
 (`permissions: id-token: write`), секретов в репозитории нет. Вход действует
@@ -801,7 +805,7 @@ permissions:
   id-token: write
 steps:
   - run: |
-      IMAGE=$(paas-cli registry login)
+      IMAGE=$(stapel registry login)
       docker build -t "$IMAGE:$GITHUB_SHA" .
       docker push "$IMAGE:$GITHUB_SHA"
 ```
@@ -819,8 +823,8 @@ steps:
 прогон по всему манифесту, заменяя самодельный `jq`+`curl`-шаг пайплайна.
 
 ```sh
-paas-cli dependencies register <version-id>           # состав — из ./protocols.toml
-paas-cli dependencies register --prune <version-id>   # + снять прошлые версии этого потребителя
+stapel dependencies register <version-id>           # состав — из ./protocols.toml
+stapel dependencies register --prune <version-id>   # + снять прошлые версии этого потребителя
 ```
 
 Сервису, который катит платформа (`builds publish`, DEP-18/19), эта команда не нужна:
@@ -912,11 +916,11 @@ CLI инструментирован `paas-observability-sdk`: каждая ко
 
 ## Догфудинг контракта
 
-`paas-cli` — сам потребитель API бэкенда, поэтому клиент платформы не пишется
-руками, а генерируется из контракта, полученного этим же `paas-cli`:
+`stapel` — сам потребитель API бэкенда, поэтому клиент платформы не пишется
+руками, а генерируется из контракта, полученного этим же `stapel`:
 
 ```sh
-paas-cli protocols fetch <paas-backend-service-id>   # → protocols/paas-backend/openapi.json
+stapel protocols fetch <paas-backend-service-id>   # → protocols/paas-backend/openapi.json
 go generate ./...                                    # контракт → pkg/platformapi + моки
 ```
 
