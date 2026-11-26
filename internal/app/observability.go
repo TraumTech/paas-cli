@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"net/url"
 	"os"
 	"strings"
 
@@ -72,7 +73,7 @@ func newTracer(logger observability.Logger, version string) (trace.Tracer, func(
 	}
 
 	exporter, err := otlptracehttp.New(context.Background(),
-		otlptracehttp.WithEndpointURL(endpoint),
+		otlptracehttp.WithEndpointURL(tracesURL(endpoint)),
 		otlptracehttp.WithRetry(otlptracehttp.RetryConfig{Enabled: false}),
 	)
 	if err != nil {
@@ -90,6 +91,17 @@ func newTracer(logger observability.Logger, version string) (trace.Tracer, func(
 		)),
 	)
 	return tp.Tracer(obsServiceName), tp.Shutdown
+}
+
+// tracesURL дополняет адрес шлюза путём приёма трасс: WithEndpointURL берёт
+// путь из адреса как есть и без него шлёт в корень, где шлюз отвечает 404.
+func tracesURL(endpoint string) string {
+	u, err := url.Parse(endpoint)
+	if err != nil || strings.Trim(u.Path, "/") != "" {
+		return endpoint
+	}
+	u.Path = "/v1/traces"
+	return u.String()
 }
 
 // instrumentCommands оборачивает Action листовых команд корневым спаном трассы:
