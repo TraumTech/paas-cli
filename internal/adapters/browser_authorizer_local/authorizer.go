@@ -147,7 +147,7 @@ func parseCallback(query url.Values) (string, error) {
 
 func writePage(w http.ResponseWriter, title, message string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprintf(w, `<!doctype html><meta charset="utf-8"><title>%s — paas-cli</title>`+
+	fmt.Fprintf(w, `<!doctype html><meta charset="utf-8"><title>%s — stapel</title>`+
 		`<body style="font-family:system-ui;margin:4rem auto;max-width:30rem;text-align:center">`+
 		`<h1>%s</h1><p>%s</p></body>`, title, title, message)
 }

@@ -192,7 +192,7 @@ func Run(ctx context.Context, args []string) error {
 	logout := authlogoutcommandcli.New(usecases.NewLogout(sessions, oauth))
 
 	root := &cli.Command{
-		Name:    "paas-cli",
+		Name:    "stapel",
 		Usage:   "получение контрактов сервисов платформы",
 		Version: Version,
 		Flags: []cli.Flag{

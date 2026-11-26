@@ -93,7 +93,7 @@ func (c *Command) run(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	// Идентификатор версии — на stdout отдельной строкой: его без разбора
-	// подхватывает следующий шаг выкатки (`id=$(paas-cli versions publish …)`).
+	// подхватывает следующий шаг выкатки (`id=$(stapel versions publish …)`).
 	// Человекочитаемое подтверждение уходит на stderr, чтобы не мешать автоматике.
 	fmt.Fprintln(cmd.Root().Writer, version.ID)
 	fmt.Fprintf(cmd.Root().ErrWriter, "✓ Версия %d (%s) зафиксирована для ревизии %s\n",
