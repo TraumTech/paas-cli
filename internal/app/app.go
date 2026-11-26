@@ -53,7 +53,7 @@ import (
 
 const (
 	defaultAPIURL   = "https://api.stapel.sh"
-	defaultOAuthURL = "https://oauth.paas.traumtech.ru"
+	defaultOAuthURL = "https://oauth.stapel.sh"
 	// oauthClientID — публичный OAuth-клиент CLI у сервера авторизации платформы
 	// (IAP-03); регистрируется в paas-kratos (deploy/hydra-clients.sh).
 	oauthClientID      = "paas-cli"
