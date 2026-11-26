@@ -72,6 +72,15 @@ type ProcessForm struct {
 	Access []RouteAccess
 	// CORS — сайты, с которых браузеру разрешён основной маршрут (TRA-524).
 	CORS RouteCORS
+	// Aliases — дополнительные адреса основного маршрута (TRA-530).
+	Aliases []RouteAlias
+}
+
+// RouteAlias — ещё один адрес того же входа: тот же порт, те же правила
+// доступа и CORS; правила — у платформы.
+type RouteAlias struct {
+	Zone   string
+	Prefix string
 }
 
 // RouteCORS — CORS входа: сайты и заголовки запроса сверх Authorization и
@@ -101,6 +110,7 @@ type RouteForm struct {
 	Streaming bool
 	Access    []RouteAccess
 	CORS      RouteCORS
+	Aliases   []RouteAlias
 }
 
 // Build — сборка ветки на платформе (DEP-18): артефакт без окружения.

@@ -513,6 +513,9 @@ type ProcessFormBody struct {
 	// Access Правила доступа слушающего порта (TRA-518): есть правила — перед процессом встаёт прокси с проверкой токена, пути вне правил недоступны; пусто — порт открыт
 	Access *[]RouteAccessBody `json:"access,omitempty"`
 
+	// Aliases Дополнительные адреса основного маршрута (TRA-530): тот же порт, те же правила доступа и CORS; без zone не задаются
+	Aliases *[]RouteAliasBody `json:"aliases,omitempty"`
+
 	// Command Команда запуска контейнера (DEP-22, обязательна при публикации); сборки без неё, опубликованные раньше, выкатываются командой образа
 	Command *[]string `json:"command,omitempty"`
 
@@ -751,6 +754,15 @@ type RouteAccessBody struct {
 	Sources *[]string `json:"sources,omitempty"`
 }
 
+// RouteAliasBody defines model for RouteAliasBody.
+type RouteAliasBody struct {
+	// Prefix Префикс под базовым хостом зоны; пусто — сам базовый хост
+	Prefix *string `json:"prefix,omitempty"`
+
+	// Zone Доменная зона организации по имени
+	Zone string `json:"zone"`
+}
+
 // RouteCORSBody defines model for RouteCORSBody.
 type RouteCORSBody struct {
 	// Headers Заголовки запроса сверх Authorization и Content-Type
@@ -764,6 +776,9 @@ type RouteCORSBody struct {
 type RouteFormBody struct {
 	// Access Правила доступа порта этого входа (TRA-518)
 	Access *[]RouteAccessBody `json:"access,omitempty"`
+
+	// Aliases Дополнительные адреса этого входа (TRA-530)
+	Aliases *[]RouteAliasBody `json:"aliases,omitempty"`
 
 	// Cors Сайты, с которых браузеру разрешён этот вход (TRA-524)
 	Cors *RouteCORSBody `json:"cors,omitempty"`

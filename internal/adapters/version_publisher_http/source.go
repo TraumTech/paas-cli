@@ -124,6 +124,7 @@ func formToAPI(form *entities.VersionForm) *platformapi.VersionFormBody {
 		body.Streaming, body.Routes = routesBody(p)
 		body.Access = accessBody(p.Access)
 		body.Cors = corsBody(p.CORS)
+		body.Aliases = aliasesBody(p.Aliases)
 		out.Processes = append(out.Processes, body)
 	}
 	return out
@@ -243,6 +244,7 @@ func buildFormToAPI(form *entities.FormDeclaration) *platformapi.BuildFormBody {
 		process.Streaming, process.Routes = routesBody(p)
 		process.Access = accessBody(p.Access)
 		process.Cors = corsBody(p.CORS)
+		process.Aliases = aliasesBody(p.Aliases)
 		out.Processes = append(out.Processes, process)
 	}
 
@@ -400,9 +402,28 @@ func routesBody(p entities.ProcessForm) (*bool, *[]platformapi.RouteFormBody) {
 		}
 		route.Access = accessBody(r.Access)
 		route.Cors = corsBody(r.CORS)
+		route.Aliases = aliasesBody(r.Aliases)
 		routes = append(routes, route)
 	}
 	return streaming, &routes
+}
+
+// aliasesBody — дополнительные адреса входа (TRA-530); не объявлены — поле
+// не отправляется.
+func aliasesBody(in []entities.RouteAlias) *[]platformapi.RouteAliasBody {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]platformapi.RouteAliasBody, 0, len(in))
+	for _, a := range in {
+		alias := platformapi.RouteAliasBody{Zone: a.Zone}
+		if a.Prefix != "" {
+			prefix := a.Prefix
+			alias.Prefix = &prefix
+		}
+		out = append(out, alias)
+	}
+	return &out
 }
 
 // corsBody — CORS входа (TRA-524); не объявлен — поле не отправляется.
