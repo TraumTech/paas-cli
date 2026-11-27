@@ -17,6 +17,7 @@ import (
 	clusterdirectoryhttp "github.com/TraumTech/paas-cli/internal/adapters/cluster_directory_http"
 	clusterprovisionerk8s "github.com/TraumTech/paas-cli/internal/adapters/cluster_provisioner_k8s"
 	clusterregistrarhttp "github.com/TraumTech/paas-cli/internal/adapters/cluster_registrar_http"
+	componentreadergomod "github.com/TraumTech/paas-cli/internal/adapters/component_reader_gomod"
 	databaseoperatorhttp "github.com/TraumTech/paas-cli/internal/adapters/database_operator_http"
 	dependencyregistrarhttp "github.com/TraumTech/paas-cli/internal/adapters/dependency_registrar_http"
 	dockerloginexec "github.com/TraumTech/paas-cli/internal/adapters/docker_login_exec"
@@ -147,7 +148,7 @@ func Run(ctx context.Context, args []string) error {
 		return err
 	}
 	publishVersion := versionpublishcommandcli.New(usecases.NewPublishVersion(manifests, formreaderfile.New(), resolver, publisher))
-	publishBuild := buildpublishcommandcli.New(usecases.NewPublishBuild(manifests, formreaderfile.New(), resolver, candidates, publisher))
+	publishBuild := buildpublishcommandcli.New(usecases.NewPublishBuild(manifests, formreaderfile.New(), resolver, candidates, componentreadergomod.New(), publisher))
 
 	publishSource, err := protocolpublishhttp.New(baseURL, client)
 	if err != nil {

@@ -6,7 +6,7 @@ import (
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
-//go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=usecases github.com/TraumTech/paas-cli/internal/usecases ProtocolSource,ProtocolStore,CandidateReader,CompatibilitySource,RegistryDirectory,VersionPublisher,BuildPublisher,ProtocolPublisher,DependencyRegistrar,ManifestReader,FormReader,ServiceResolver,LoginInspector,LoginRevoker,SessionStore,BrowserAuthorizer
+//go:generate go run go.uber.org/mock/mockgen@latest -destination=dependencies_mock_test.go -package=usecases github.com/TraumTech/paas-cli/internal/usecases ProtocolSource,ProtocolStore,CandidateReader,CompatibilitySource,RegistryDirectory,VersionPublisher,BuildPublisher,ProtocolPublisher,DependencyRegistrar,ManifestReader,FormReader,ComponentReader,ServiceResolver,LoginInspector,LoginRevoker,SessionStore,BrowserAuthorizer
 
 // ProtocolSource достаёт актуальный опубликованный контракт сервиса из платформы.
 // Непустой methods — контракт, суженный платформой до этих методов (CLI-09);
@@ -98,6 +98,12 @@ type DependencyRegistration struct {
 // окружения, идемпотентный по ревизии.
 type BuildPublisher interface {
 	PublishBuild(ctx context.Context, serviceID string, request entities.BuildRequest) (*entities.Build, error)
+}
+
+// ComponentReader распознаёт состав сервиса по исходникам в каталоге dir
+// (TRA-539). Нечего распознавать — пустой состав, а не ошибка.
+type ComponentReader interface {
+	Read(ctx context.Context, dir string) ([]entities.Component, error)
 }
 
 // ManifestReader читает манифест зависимостей из файла в репозитории потребителя.

@@ -134,6 +134,8 @@ type BuildRequest struct {
 	// Dependencies — зависимости из манифеста со снимками из раскладки: их
 	// регистрирует выкатка, когда заведёт версию (DEP-25).
 	Dependencies []BuildDependency
+	// Components — состав сборки (TRA-539): в реестр окружения его пишет выкатка.
+	Components []Component
 }
 
 // BuildDependency — зависимость сборки от контракта продьюсера, как её

@@ -4,20 +4,22 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
 type PublishBuildUseCase struct {
-	manifests ManifestReader
-	forms     FormReader
-	resolver  ServiceResolver
-	snapshots CandidateReader
-	publisher BuildPublisher
+	manifests  ManifestReader
+	forms      FormReader
+	resolver   ServiceResolver
+	snapshots  CandidateReader
+	components ComponentReader
+	publisher  BuildPublisher
 }
 
-func NewPublishBuild(manifests ManifestReader, forms FormReader, resolver ServiceResolver, snapshots CandidateReader, p BuildPublisher) *PublishBuildUseCase {
-	return &PublishBuildUseCase{manifests: manifests, forms: forms, resolver: resolver, snapshots: snapshots, publisher: p}
+func NewPublishBuild(manifests ManifestReader, forms FormReader, resolver ServiceResolver, snapshots CandidateReader, components ComponentReader, p BuildPublisher) *PublishBuildUseCase {
+	return &PublishBuildUseCase{manifests: manifests, forms: forms, resolver: resolver, snapshots: snapshots, components: components, publisher: p}
 }
 
 // Execute публикует сборку ветки (DEP-18). В отличие от публикации версии,
@@ -78,6 +80,10 @@ func (uc *PublishBuildUseCase) Execute(ctx context.Context, in PublishBuildInput
 	}
 	if request.Dependencies, err = uc.dependencies(ctx, manifest); err != nil {
 		return nil, err
+	}
+	// Состав распознаётся по исходникам рядом с формой сервиса (TRA-539).
+	if request.Components, err = uc.components.Read(ctx, filepath.Dir(in.FormPath)); err != nil {
+		return nil, fmt.Errorf("состав сборки: %w", err)
 	}
 	if err := request.Validate(); err != nil {
 		return nil, err
