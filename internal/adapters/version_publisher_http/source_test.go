@@ -94,3 +94,35 @@ func TestPublishVersion_Unreachable(t *testing.T) {
 	_, err = src.PublishVersion(context.Background(), svcID, "prod", "abc123", "", "", nil)
 	require.Error(t, err)
 }
+
+// Состав едет в теле публикации сборки; у сборки без состава поля нет вовсе —
+// платформа прежней версии такое тело принимает (TRA-539).
+func TestPublishBuild_SendsComponents(t *testing.T) {
+	var gotBody map[string]any
+	src := newSource(t, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/services/"+svcID+"/builds", r.URL.Path)
+		body, _ := io.ReadAll(r.Body)
+		gotBody = nil
+		require.NoError(t, json.Unmarshal(body, &gotBody))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte(`{"id":"` + svcID + `","commit_revision":"abc123","created_at":"2026-06-15T10:00:00Z","has_contract":false}`))
+	})
+
+	_, err := src.PublishBuild(context.Background(), svcID, entities.BuildRequest{
+		CommitRevision: "abc123",
+		Components: []entities.Component{
+			{Kind: entities.ComponentKindGoModule, Name: "github.com/google/uuid", Version: "v1.6.0"},
+			{Kind: entities.ComponentKindGoModule, Name: "golang.org/x/net", Version: "v0.60.0", Indirect: true},
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []any{
+		map[string]any{"kind": "go-module", "name": "github.com/google/uuid", "version": "v1.6.0"},
+		map[string]any{"kind": "go-module", "name": "golang.org/x/net", "version": "v0.60.0", "indirect": true},
+	}, gotBody["components"])
+
+	_, err = src.PublishBuild(context.Background(), svcID, entities.BuildRequest{CommitRevision: "abc123"})
+	require.NoError(t, err)
+	require.NotContains(t, gotBody, "components")
+}

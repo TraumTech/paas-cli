@@ -20,6 +20,8 @@ var (
 	ErrEmptyProtocol        = newDomainError("контракт пуст")
 	ErrInvalidProtocol      = newDomainError("ответ не похож на OpenAPI-контракт")
 	ErrEmptyCommitRevision  = newDomainError("ревизия коммита не указана")
+	// Состав сборки (TRA-539): go.mod, по которому не понять модули и версии.
+	ErrInvalidGoMod = newDomainError("go.mod не разбирается")
 	// Форма без образа не даст платформе сгенерировать манифесты — отказываем
 	// до обращения к сети (DEP-02).
 	ErrFormRequiresImage = newDomainError("paas.toml найден — укажите адрес образа флагом --image")

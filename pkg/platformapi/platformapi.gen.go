@@ -348,6 +348,27 @@ type CompatibilityReportResponse struct {
 	Consumers []ConsumerCompatibilityResponse `json:"consumers"`
 }
 
+// ComponentBody defines model for ComponentBody.
+type ComponentBody struct {
+	// Indirect Компонент попал в состав через другой компонент
+	Indirect *bool `json:"indirect,omitempty"`
+
+	// Kind Вид компонента
+	//
+	// Examples: go-module
+	Kind string `json:"kind"`
+
+	// Name Имя компонента
+	//
+	// Examples: golang.org/x/net
+	Name string `json:"name"`
+
+	// Version Версия как её называет источник
+	//
+	// Examples: v0.60.0
+	Version string `json:"version"`
+}
+
 // ConnectClusterInputBody defines model for ConnectClusterInputBody.
 type ConnectClusterInputBody struct {
 	// Schema A URL to the JSON Schema for this object.
@@ -655,6 +676,9 @@ type PublishBuildInputBody struct {
 
 	// CommitRevision Ревизия коммита, из которой собран артефакт
 	CommitRevision string `json:"commit_revision"`
+
+	// Components Состав сборки: компоненты, из которых собран сервис (например, Go-модули)
+	Components *[]ComponentBody `json:"components,omitempty"`
 
 	// Contract Контракт сервиса как есть
 	Contract *string `json:"contract,omitempty"`

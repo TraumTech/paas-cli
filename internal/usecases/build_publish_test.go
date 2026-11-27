@@ -14,12 +14,13 @@ import (
 )
 
 type buildFixture struct {
-	manifests *MockManifestReader
-	forms     *MockFormReader
-	resolver  *MockServiceResolver
-	snapshots *MockCandidateReader
-	publisher *MockBuildPublisher
-	uc        *PublishBuildUseCase
+	manifests  *MockManifestReader
+	forms      *MockFormReader
+	resolver   *MockServiceResolver
+	snapshots  *MockCandidateReader
+	components *MockComponentReader
+	publisher  *MockBuildPublisher
+	uc         *PublishBuildUseCase
 }
 
 func newBuildFixture(t *testing.T) *buildFixture {
@@ -32,7 +33,30 @@ func newBuildFixture(t *testing.T) *buildFixture {
 		snapshots: NewMockCandidateReader(ctrl),
 		publisher: NewMockBuildPublisher(ctrl),
 	}
-	f.uc = NewPublishBuild(f.manifests, f.forms, f.resolver, f.snapshots, f.publisher)
+	f.uc = NewPublishBuild(f.manifests, f.forms, f.resolver, f.snapshots, noComponents(ctrl), f.publisher)
+	return f
+}
+
+// noComponents — сервис без распознаваемого состава: прочим тестам публикации
+// состав безразличен.
+func noComponents(ctrl *gomock.Controller) *MockComponentReader {
+	reader := NewMockComponentReader(ctrl)
+	reader.EXPECT().Read(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	return reader
+}
+
+func newBuildFixtureWithComponents(t *testing.T) *buildFixture {
+	t.Helper()
+	ctrl := gomock.NewController(t)
+	f := &buildFixture{
+		manifests:  NewMockManifestReader(ctrl),
+		forms:      NewMockFormReader(ctrl),
+		resolver:   NewMockServiceResolver(ctrl),
+		snapshots:  NewMockCandidateReader(ctrl),
+		components: NewMockComponentReader(ctrl),
+		publisher:  NewMockBuildPublisher(ctrl),
+	}
+	f.uc = NewPublishBuild(f.manifests, f.forms, f.resolver, f.snapshots, f.components, f.publisher)
 	return f
 }
 
@@ -233,4 +257,39 @@ func TestPublishBuildFailsWithoutSnapshot(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "paas-backend")
+}
+
+// Состав распознаётся рядом с формой сервиса и едет со сборкой (TRA-539/AC-1).
+func TestPublishBuildCarriesComponents(t *testing.T) {
+	f := newBuildFixtureWithComponents(t)
+	f.expectResolved(nameManifest())
+	f.forms.EXPECT().Read(gomock.Any(), "svc/paas.toml").Return(nil, nil)
+	components := []entities.Component{
+		{Kind: entities.ComponentKindGoModule, Name: "golang.org/x/net", Version: "v0.60.0", Indirect: true},
+	}
+	f.components.EXPECT().Read(gomock.Any(), "svc").Return(components, nil)
+
+	var got entities.BuildRequest
+	f.publisher.EXPECT().PublishBuild(gomock.Any(), "svc", gomock.Any()).DoAndReturn(
+		func(_ context.Context, _ string, request entities.BuildRequest) (*entities.Build, error) {
+			got = request
+			return &entities.Build{ID: "b1"}, nil
+		})
+
+	_, err := f.uc.Execute(context.Background(), PublishBuildInput{CommitRevision: "abc123", FormPath: "svc/paas.toml"})
+
+	require.NoError(t, err)
+	require.Equal(t, components, got.Components)
+}
+
+// Неразбираемый go.mod отклоняет публикацию до сети: сборка не заводится (TRA-539/AC-4).
+func TestPublishBuildRejectsUnreadableComponents(t *testing.T) {
+	f := newBuildFixtureWithComponents(t)
+	f.expectResolved(nameManifest())
+	f.forms.EXPECT().Read(gomock.Any(), gomock.Any()).Return(nil, nil)
+	f.components.EXPECT().Read(gomock.Any(), ".").Return(nil, entities.ErrInvalidGoMod)
+
+	_, err := f.uc.Execute(context.Background(), PublishBuildInput{CommitRevision: "abc123", FormPath: "paas.toml"})
+
+	require.ErrorIs(t, err, entities.ErrInvalidGoMod)
 }

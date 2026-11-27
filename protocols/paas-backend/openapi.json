@@ -313,6 +313,42 @@
         ],
         "type": "object"
       },
+      "ComponentBody": {
+        "additionalProperties": false,
+        "properties": {
+          "indirect": {
+            "description": "Компонент попал в состав через другой компонент",
+            "type": "boolean"
+          },
+          "kind": {
+            "description": "Вид компонента",
+            "examples": [
+              "go-module"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "description": "Имя компонента",
+            "examples": [
+              "golang.org/x/net"
+            ],
+            "type": "string"
+          },
+          "version": {
+            "description": "Версия как её называет источник",
+            "examples": [
+              "v0.60.0"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "name",
+          "version"
+        ],
+        "type": "object"
+      },
       "ConnectClusterInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -1187,6 +1223,14 @@
           "commit_revision": {
             "description": "Ревизия коммита, из которой собран артефакт",
             "type": "string"
+          },
+          "components": {
+            "description": "Состав сборки: компоненты, из которых собран сервис (например, Go-модули)",
+            "items": {
+              "$ref": "#/components/schemas/ComponentBody"
+            },
+            "maxItems": 5000,
+            "type": "array"
           },
           "contract": {
             "description": "Контракт сервиса как есть",

@@ -173,6 +173,7 @@ func (s *Source) PublishBuild(ctx context.Context, serviceID string, in entities
 	if body.Dependencies, err = buildDependenciesToAPI(in.Dependencies); err != nil {
 		return nil, err
 	}
+	body.Components = componentsToAPI(in.Components)
 
 	resp, err := s.client.PublishBuildWithResponse(ctx, id, body)
 	if err != nil {
@@ -199,6 +200,21 @@ func (s *Source) PublishBuild(ctx context.Context, serviceID string, in entities
 		Branch:         derefString(build.Branch),
 		CreatedAt:      build.CreatedAt,
 	}, nil
+}
+
+func componentsToAPI(components []entities.Component) *[]platformapi.ComponentBody {
+	if len(components) == 0 {
+		return nil
+	}
+	out := make([]platformapi.ComponentBody, 0, len(components))
+	for _, c := range components {
+		body := platformapi.ComponentBody{Kind: c.Kind, Name: c.Name, Version: c.Version}
+		if c.Indirect {
+			body.Indirect = &c.Indirect
+		}
+		out = append(out, body)
+	}
+	return &out
 }
 
 // buildFormToAPI переносит объявление формы как есть: секции окружений едут
