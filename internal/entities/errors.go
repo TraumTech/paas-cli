@@ -69,6 +69,11 @@ var (
 	ErrOperatorNotReady         = newDomainError("оператор установлен, но не поднялся за отведённое время — проверьте его поды в кластере")
 	ErrOperatorManifestBroken   = newDomainError("манифест оператора, полученный от платформы, не разбирается")
 
+	// Сборщик вывода сервисов в кластере приложений (TRA-559).
+	ErrEmptyLogKey               = newDomainError("укажите ключ приёма логов: --key-file или переменная STAPEL_LOGS_KEY")
+	ErrLogCollectorInstallDenied = newDomainError("вашего доступа не хватает, чтобы установить сборщик логов — нужен доступ уровня администратора кластера")
+	ErrLogCollectorNotReady      = newDomainError("сборщик логов установлен, но не поднялся за отведённое время — проверьте поды в namespace stapel-logs")
+
 	ErrLoginRequired = newDomainError("платформа требует вход: выполните `stapel auth login` или задайте токен доступа в STAPEL_API_TOKEN")
 	ErrTokenRejected = newDomainError("токен из STAPEL_API_TOKEN не принят платформой — он отозван, просрочен или неверен")
 	// ErrCITokenRejected — токен запуска GitHub Actions (TRA-485) платформа не
