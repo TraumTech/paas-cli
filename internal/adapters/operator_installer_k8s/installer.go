@@ -108,29 +108,9 @@ func (i *Installer) Install(
 		return nil, err
 	}
 
-	report := &entities.OperatorInstallReport{}
-	// Сначала CRD: до их готовности объекты их типов сервер не примет.
-	crds, rest := split(objects)
-	for _, obj := range crds {
-		change, err := c.apply(ctx, obj)
-		if err != nil {
-			return nil, err
-		}
-		report.Changes = append(report.Changes, change)
-	}
-	if len(crds) > 0 {
-		if err := c.waitEstablished(ctx, crds); err != nil {
-			return nil, err
-		}
-		// Маппер кэширует ресурсы сервера — новые типы он ещё не видел.
-		c.mapper.Reset()
-	}
-	for _, obj := range rest {
-		change, err := c.apply(ctx, obj)
-		if err != nil {
-			return nil, err
-		}
-		report.Changes = append(report.Changes, change)
+	report, err := c.applyAll(ctx, objects)
+	if err != nil {
+		return nil, err
 	}
 
 	if err := c.waitDeployment(ctx, op.Namespace, op.Deployment); err != nil {
@@ -144,6 +124,24 @@ func (i *Installer) Install(
 	}
 	report.Changes = append(report.Changes, grants...)
 	return report, nil
+}
+
+// Apply приводит кластер к манифесту и говорит, что изменилось: общий путь
+// для всего, что CLI ставит в кластер доступом владельца.
+func (i *Installer) Apply(ctx context.Context, kubeconfigPath, contextName, manifest string) (*entities.OperatorInstallReport, error) {
+	objects, err := parse(manifest)
+	if err != nil {
+		return nil, err
+	}
+	config, _, err := kubeconfig.Load(kubeconfigPath, contextName)
+	if err != nil {
+		return nil, err
+	}
+	c, err := newClients(config)
+	if err != nil {
+		return nil, err
+	}
+	return c.applyAll(ctx, objects)
 }
 
 type clients struct {
@@ -170,6 +168,34 @@ func newClients(config *rest.Config) (*clients, error) {
 		typed:   typed,
 		mapper:  restmapper.NewDeferredDiscoveryRESTMapper(memory.NewMemCacheClient(disc)),
 	}, nil
+}
+
+func (c *clients) applyAll(ctx context.Context, objects []*unstructured.Unstructured) (*entities.OperatorInstallReport, error) {
+	report := &entities.OperatorInstallReport{}
+	// Сначала CRD: до их готовности объекты их типов сервер не примет.
+	crds, rest := split(objects)
+	for _, obj := range crds {
+		change, err := c.apply(ctx, obj)
+		if err != nil {
+			return nil, err
+		}
+		report.Changes = append(report.Changes, change)
+	}
+	if len(crds) > 0 {
+		if err := c.waitEstablished(ctx, crds); err != nil {
+			return nil, err
+		}
+		// Маппер кэширует ресурсы сервера — новые типы он ещё не видел.
+		c.mapper.Reset()
+	}
+	for _, obj := range rest {
+		change, err := c.apply(ctx, obj)
+		if err != nil {
+			return nil, err
+		}
+		report.Changes = append(report.Changes, change)
+	}
+	return report, nil
 }
 
 // apply применяет объект server-side и говорит, что с ним стало: ревизия

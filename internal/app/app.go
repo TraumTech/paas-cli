@@ -22,6 +22,7 @@ import (
 	dependencyregistrarhttp "github.com/TraumTech/paas-cli/internal/adapters/dependency_registrar_http"
 	dockerloginexec "github.com/TraumTech/paas-cli/internal/adapters/docker_login_exec"
 	formreaderfile "github.com/TraumTech/paas-cli/internal/adapters/form_reader_file"
+	logcollectorinstallerk8s "github.com/TraumTech/paas-cli/internal/adapters/log_collector_installer_k8s"
 	manifestreaderfile "github.com/TraumTech/paas-cli/internal/adapters/manifest_reader_file"
 	oauthclienthydra "github.com/TraumTech/paas-cli/internal/adapters/oauth_client_hydra"
 	operatorinstallerk8s "github.com/TraumTech/paas-cli/internal/adapters/operator_installer_k8s"
@@ -40,6 +41,7 @@ import (
 	authwhoamicommandcli "github.com/TraumTech/paas-cli/internal/controllers/auth_whoami_command_cli"
 	buildpublishcommandcli "github.com/TraumTech/paas-cli/internal/controllers/build_publish_command_cli"
 	clusterconnectcommandcli "github.com/TraumTech/paas-cli/internal/controllers/cluster_connect_command_cli"
+	clusterlogsinstallcommandcli "github.com/TraumTech/paas-cli/internal/controllers/cluster_logs_install_command_cli"
 	databaseoperatorinstallcommandcli "github.com/TraumTech/paas-cli/internal/controllers/database_operator_install_command_cli"
 	dependencyregistercommandcli "github.com/TraumTech/paas-cli/internal/controllers/dependency_register_command_cli"
 	protocolcompatibilitycommandcli "github.com/TraumTech/paas-cli/internal/controllers/protocol_compatibility_command_cli"
@@ -178,6 +180,10 @@ func Run(ctx context.Context, args []string) error {
 		usecases.NewConnectCluster(clusterAccess, clusterprovisionerk8s.New(), clusterRegistrar, clusterDirectory),
 	)
 
+	installLogCollector := clusterlogsinstallcommandcli.New(
+		usecases.NewInstallLogCollector(logcollectorinstallerk8s.New()),
+	)
+
 	operatorSource, err := databaseoperatorhttp.New(baseURL, client)
 	if err != nil {
 		return err
@@ -241,6 +247,11 @@ func Run(ctx context.Context, args []string) error {
 				Usage: "подключение кластеров Kubernetes организации",
 				Commands: []*cli.Command{
 					connectCluster.CLICommand(),
+					{
+						Name:     "logs",
+						Usage:    "вывод сервисов кластера на платформе",
+						Commands: []*cli.Command{installLogCollector.CLICommand()},
+					},
 				},
 			},
 			{
