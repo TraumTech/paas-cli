@@ -66,8 +66,9 @@ func (i *Installer) Install(ctx context.Context, kubeconfigPath, contextName str
 		return nil, err
 	}
 	report, err := i.objects.Apply(ctx, kubeconfigPath, contextName, manifest)
-	if errors.Is(err, entities.ErrOperatorInstallDenied) {
-		return nil, entities.ErrLogCollectorInstallDenied
+	var denied *operatorinstallerk8s.AccessDenied
+	if errors.As(err, &denied) {
+		return nil, fmt.Errorf("%w (%s): %s", entities.ErrLogCollectorInstallDenied, denied.Action, denied.Reason)
 	}
 	if err != nil {
 		return nil, err
