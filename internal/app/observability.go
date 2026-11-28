@@ -25,7 +25,7 @@ const (
 	obsEnvironment = "production"
 	// envOTLPURL — приёмный OTLP/HTTP-шлюз платформы (тот же, куда шлёт трассы
 	// браузер, OBS-03); значение `off` выключает трассировку.
-	envOTLPURL     = "PAAS_OTLP_URL"
+	envOTLPURL     = "OTLP_URL"
 	defaultOTLPURL = "https://otlp.stapel.sh"
 	otlpURLOff     = "off"
 	// envLogLevel/envLogEncoding — те же переменные, что у observabilitydefault.
@@ -77,7 +77,7 @@ func newTracer(logger observability.Logger, version string) (trace.Tracer, func(
 		otlptracehttp.WithRetry(otlptracehttp.RetryConfig{Enabled: false}),
 	)
 	if err != nil {
-		logger.Warn(context.Background(), "трассировка выключена: некорректный "+envOTLPURL,
+		logger.Warn(context.Background(), "трассировка выключена: некорректный STAPEL_"+envOTLPURL,
 			observability.String("endpoint", endpoint), observability.Err(err))
 		return tracenoop.NewTracerProvider().Tracer(obsServiceName), noFlush
 	}

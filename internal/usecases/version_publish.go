@@ -38,7 +38,7 @@ func (uc *PublishVersionUseCase) Execute(ctx context.Context, in PublishVersionI
 	if err != nil {
 		return nil, err
 	}
-	// Форма едет с версией (DEP-02): отсутствие paas.toml — штатно, публикация
+	// Форма едет с версией (DEP-02): отсутствие файла сервиса — штатно, публикация
 	// без формы. Форма без образа не имеет смысла — отказываем до сети.
 	declaration, err := uc.forms.Read(ctx, in.FormPath)
 	if err != nil {

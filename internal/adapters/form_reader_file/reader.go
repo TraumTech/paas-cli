@@ -1,4 +1,4 @@
-// Package formreaderfile читает форму сервиса из paas.toml (DEP-02).
+// Package formreaderfile читает форму сервиса из файла сервиса (DEP-02).
 // Отсутствие файла — штатная ветка «формы нет», а не ошибка: публикация без
 // формы работает как раньше.
 package formreaderfile
@@ -12,6 +12,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 
+	servicefile "github.com/TraumTech/paas-cli/internal/adapters/service_file"
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
@@ -21,7 +22,7 @@ func New() *Reader {
 	return &Reader{}
 }
 
-// fileForm — транспортная форма paas.toml; маппинг в доменное объявление
+// fileForm — транспортная форма файла сервиса; маппинг в доменное объявление
 // entities.FormDeclaration живёт только здесь, в адаптере.
 type fileForm struct {
 	Processes []fileProcess `toml:"processes"`
@@ -154,7 +155,11 @@ type fileRoute struct {
 	Aliases []fileAlias `toml:"aliases"`
 }
 
+// Read читает форму; пустой путь — файл сервиса в текущем каталоге.
 func (r *Reader) Read(_ context.Context, path string) (*entities.FormDeclaration, error) {
+	if path == "" {
+		path, _ = servicefile.Resolve(".")
+	}
 	data, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
@@ -167,7 +172,7 @@ func (r *Reader) Read(_ context.Context, path string) (*entities.FormDeclaration
 		return nil, fmt.Errorf("форма %s не разобрана как TOML: %w", path, err)
 	}
 
-	// paas.toml — единый манифест (CLI-22): файл есть у каждого сервиса, но
+	// Файл сервиса — единый манифест (CLI-22): файл есть у каждого сервиса, но
 	// форма — только у объявивших процессы. Нет процессов — нет формы.
 	if len(file.Processes) == 0 {
 		return nil, nil

@@ -260,7 +260,7 @@ func (s *ciSourceStub) Token(context.Context) (*entities.Credential, error) {
 	return &entities.Credential{Kind: entities.CredentialCI, Token: "gh-" + string(rune('0'+n)), ExpiresAt: time.Now().Add(s.ttl)}, nil
 }
 
-// TRA-485: без PAAS_API_TOKEN в GitHub Actions предъявляется токен запуска и
+// TRA-485: без STAPEL_API_TOKEN в GitHub Actions предъявляется токен запуска и
 // переиспользуется, пока жив.
 func TestCITransport_SendsGitHubToken(t *testing.T) {
 	var got []string
@@ -304,7 +304,7 @@ func TestCITransport_RenewsExpiringToken(t *testing.T) {
 }
 
 // Секрет в окружении важнее токена запуска (AC-6): поведение CI с
-// PAAS_API_TOKEN не меняется.
+// STAPEL_API_TOKEN не меняется.
 func TestCITransport_EnvTokenWins(t *testing.T) {
 	var got string
 	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { got = r.Header.Get("Authorization") }))

@@ -351,3 +351,38 @@ origins = ["https://agent.example.com"]
 	require.Len(t, form.Processes[0].Routes, 1)
 	assert.Equal(t, entities.RouteCORS{Origins: []string{"https://agent.example.com"}}, form.Processes[0].Routes[0].CORS)
 }
+
+// TRA-555/AC-1…AC-3: без явного пути форма берётся из stapel.toml, при его
+// отсутствии — из прежнего paas.toml.
+func TestReadFormResolvesServiceFile(t *testing.T) {
+	form := func(name string) []byte {
+		return []byte("[[processes]]\nname = \"" + name + "\"\ncommand = [\"/app\"]\n")
+	}
+	cases := map[string]struct {
+		files map[string]string
+		want  string
+	}{
+		"stapel.toml":       {files: map[string]string{"stapel.toml": "current"}, want: "current"},
+		"прежний paas.toml": {files: map[string]string{"paas.toml": "former"}, want: "former"},
+		"оба файла":         {files: map[string]string{"stapel.toml": "current", "paas.toml": "former"}, want: "current"},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Chdir(t.TempDir())
+			for file, process := range tc.files {
+				require.NoError(t, os.WriteFile(file, form(process), 0o644))
+			}
+			got, err := New().Read(context.Background(), "")
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			assert.Equal(t, tc.want, got.Processes[0].Name)
+		})
+	}
+}
+
+func TestReadFormNoServiceFile(t *testing.T) {
+	t.Chdir(t.TempDir())
+	got, err := New().Read(context.Background(), "")
+	require.NoError(t, err)
+	assert.Nil(t, got)
+}

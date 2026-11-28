@@ -111,7 +111,7 @@ type ManifestReader interface {
 	Read(ctx context.Context, path string) (*entities.Manifest, error)
 }
 
-// FormReader читает объявление формы из paas.toml (DEP-02). Отсутствие файла —
+// FormReader читает объявление формы из файла сервиса (DEP-02). Отсутствие файла —
 // штатная ветка (nil, nil): версия публикуется без формы. Значения окружений
 // (DEP-14/15) приходят как объявлены — разрешает их use case, зная окружение
 // публикуемой версии.
