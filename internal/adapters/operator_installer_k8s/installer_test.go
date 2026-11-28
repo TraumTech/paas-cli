@@ -1,10 +1,13 @@
 package operatorinstallerk8s
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
@@ -63,4 +66,17 @@ func TestParseRejectsBrokenManifest(t *testing.T) {
 			assert.ErrorIs(t, err, entities.ErrOperatorManifestBroken)
 		})
 	}
+}
+
+// Отказ по правам называет действие и ответ кластера: иначе не понять, какого
+// права не хватило.
+func TestWrapAccessKeepsReason(t *testing.T) {
+	forbidden := apierrors.NewForbidden(schema.GroupResource{Group: "apps", Resource: "daemonsets"}, "collector", errors.New("нет права patch"))
+
+	err := wrapAccess(forbidden, "применить DaemonSet collector")
+
+	require.ErrorIs(t, err, entities.ErrOperatorInstallDenied)
+	assert.Contains(t, err.Error(), "применить DaemonSet collector")
+	assert.Contains(t, err.Error(), "нет права patch")
+	assert.NoError(t, wrapAccess(nil, "x"))
 }

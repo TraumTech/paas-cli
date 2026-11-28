@@ -479,7 +479,20 @@ func wrapAccess(err error, action string) error {
 		return nil
 	}
 	if apierrors.IsForbidden(err) {
-		return fmt.Errorf("%w (%s)", entities.ErrOperatorInstallDenied, action)
+		return &AccessDenied{Action: action, Reason: err.Error()}
 	}
 	return fmt.Errorf("%s: %w", action, err)
 }
+
+// AccessDenied — кластер отказал по правам. Действие и ответ кластера идут в
+// сообщение: без них не понять, какого именно права не хватило.
+type AccessDenied struct {
+	Action string
+	Reason string
+}
+
+func (e *AccessDenied) Error() string {
+	return fmt.Sprintf("%s (%s): %s", entities.ErrOperatorInstallDenied, e.Action, e.Reason)
+}
+
+func (e *AccessDenied) Unwrap() error { return entities.ErrOperatorInstallDenied }
