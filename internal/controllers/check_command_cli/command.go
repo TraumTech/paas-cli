@@ -11,17 +11,16 @@ import (
 	"github.com/TraumTech/paas-cli/internal/usecases"
 )
 
-const (
-	fileFlag        = "file"
-	defaultFilePath = "paas.toml"
-)
+const fileFlag = "file"
 
 type Command struct {
 	checker ServiceFileChecker
+	// locate — файл сервиса текущего каталога, когда путь не задан.
+	locate func() string
 }
 
-func New(checker ServiceFileChecker) *Command {
-	return &Command{checker: checker}
+func New(checker ServiceFileChecker, locate func() string) *Command {
+	return &Command{checker: checker, locate: locate}
 }
 
 func (c *Command) CLICommand() *cli.Command {
@@ -32,8 +31,7 @@ func (c *Command) CLICommand() *cli.Command {
 			&cli.StringFlag{
 				Name:    fileFlag,
 				Aliases: []string{"f"},
-				Value:   defaultFilePath,
-				Usage:   "путь к файлу сервиса",
+				Usage:   "путь к файлу сервиса (по умолчанию stapel.toml, при его отсутствии paas.toml)",
 			},
 		},
 		Action: c.run,
@@ -41,7 +39,11 @@ func (c *Command) CLICommand() *cli.Command {
 }
 
 func (c *Command) run(ctx context.Context, cmd *cli.Command) error {
-	result, err := c.checker.Execute(ctx, usecases.CheckServiceFileInput{Path: cmd.String(fileFlag)})
+	path := cmd.String(fileFlag)
+	if path == "" {
+		path = c.locate()
+	}
+	result, err := c.checker.Execute(ctx, usecases.CheckServiceFileInput{Path: path})
 	if err != nil {
 		return err
 	}

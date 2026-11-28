@@ -31,7 +31,7 @@ func TestCommandRun_PrintsBareIDToStdout(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	publisher := NewMockVersionPublisher(ctrl)
 	publisher.EXPECT().
-		Execute(gomock.Any(), usecases.PublishVersionInput{CommitRevision: "abc123", Environment: "prod", ManifestPath: "", FormPath: "paas.toml"}).
+		Execute(gomock.Any(), usecases.PublishVersionInput{CommitRevision: "abc123", Environment: "prod", ManifestPath: "", FormPath: ""}).
 		Return(&entities.Version{ID: "ver-1", Environment: "prod", Number: 7, CommitRevision: "abc123"}, nil)
 
 	var out, errOut bytes.Buffer
@@ -76,7 +76,7 @@ func TestCommandRun_ForwardsEnvironment(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	publisher := NewMockVersionPublisher(ctrl)
 	publisher.EXPECT().
-		Execute(gomock.Any(), usecases.PublishVersionInput{CommitRevision: "abc123", Environment: "dev", ManifestPath: "", FormPath: "paas.toml"}).
+		Execute(gomock.Any(), usecases.PublishVersionInput{CommitRevision: "abc123", Environment: "dev", ManifestPath: "", FormPath: ""}).
 		Return(&entities.Version{ID: "ver-2", Environment: "dev", Number: 1, CommitRevision: "abc123"}, nil)
 
 	var out, errOut bytes.Buffer

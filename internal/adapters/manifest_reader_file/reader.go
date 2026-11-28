@@ -9,31 +9,28 @@ import (
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
-// Reader читает манифест репозитория. Единственный манифест — paas.toml
-// (CLI-22); protocols.toml остаётся переходным именем и снимется отдельным
-// шагом после переезда всех репозиториев.
+// Reader читает манифест репозитория. Единственный манифест — файл сервиса
+// (stapel.toml, прежнее имя paas.toml); protocols.toml остаётся переходным
+// именем и снимется отдельным шагом после переезда всех репозиториев.
 type Reader struct{}
 
 func New() *Reader {
 	return &Reader{}
 }
 
-// Имена манифеста: новое и переходное.
-const (
-	unifiedManifestPath = "paas.toml"
-	legacyManifestPath  = "protocols.toml"
-)
+const legacyManifestPath = "protocols.toml"
 
-// Resolve выбирает файл манифеста, когда путь не задан явно: paas.toml, а при
-// его отсутствии — переходный protocols.toml. Полупереехавший репозиторий
-// (paas.toml есть, но секции манифеста остались в protocols.toml) — явная
+// Resolve выбирает файл манифеста, когда путь не задан явно: файл сервиса, а
+// при его отсутствии — переходный protocols.toml. Полупереехавший репозиторий
+// (файл сервиса есть, но секции манифеста остались в protocols.toml) — явная
 // ошибка, а не молчаливое чтение старого файла: иначе правки в новом файле
 // молча не действовали бы.
 func resolve(path string) (string, error) {
 	if path != "" {
 		return path, nil
 	}
-	if _, err := os.Stat(unifiedManifestPath); err != nil {
+	unifiedManifestPath, found := servicefile.Resolve(".")
+	if !found {
 		return legacyManifestPath, nil
 	}
 	data, err := os.ReadFile(unifiedManifestPath)
@@ -46,8 +43,8 @@ func resolve(path string) (string, error) {
 	}
 	if unified.Service == nil && len(unified.Protocols) == 0 && len(unified.Dependencies) == 0 {
 		if _, err := os.Stat(legacyManifestPath); err == nil {
-			return "", fmt.Errorf("%s не содержит секций манифеста ([service], dependencies) — перенесите их из %s: paas.toml теперь единственный манифест репозитория",
-				unifiedManifestPath, legacyManifestPath)
+			return "", fmt.Errorf("%s не содержит секций манифеста ([service], dependencies) — перенесите их из %s: %s теперь единственный манифест репозитория",
+				unifiedManifestPath, legacyManifestPath, unifiedManifestPath)
 		}
 	}
 	return unifiedManifestPath, nil

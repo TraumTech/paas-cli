@@ -1,4 +1,4 @@
-// Package formreaderfile читает форму сервиса из paas.toml (DEP-02).
+// Package formreaderfile читает форму сервиса из файла сервиса (DEP-02).
 // Отсутствие файла — штатная ветка «формы нет», а не ошибка: публикация без
 // формы работает как раньше.
 package formreaderfile
@@ -42,7 +42,11 @@ func accessForms(in []servicefile.Access) []entities.RouteAccess {
 	return out
 }
 
+// Read читает форму; пустой путь — файл сервиса в текущем каталоге.
 func (r *Reader) Read(_ context.Context, path string) (*entities.FormDeclaration, error) {
+	if path == "" {
+		path, _ = servicefile.Resolve(".")
+	}
 	data, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
@@ -55,7 +59,7 @@ func (r *Reader) Read(_ context.Context, path string) (*entities.FormDeclaration
 		return nil, err
 	}
 
-	// paas.toml — единый манифест (CLI-22): файл есть у каждого сервиса, но
+	// Файл сервиса — единый манифест (CLI-22): файл есть у каждого сервиса, но
 	// форма — только у объявивших процессы. Нет процессов — нет формы.
 	if len(file.Processes) == 0 {
 		return nil, nil

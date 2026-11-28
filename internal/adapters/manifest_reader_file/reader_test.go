@@ -209,6 +209,31 @@ func TestRead_HalfMigratedIsExplicitError(t *testing.T) {
 	assert.Contains(t, err.Error(), "перенесите")
 }
 
+// TRA-555/AC-1: stapel.toml читается как манифест.
+func TestRead_ResolvesStapelManifest(t *testing.T) {
+	t.Chdir(t.TempDir())
+	require.NoError(t, os.WriteFile("stapel.toml", []byte("[service]\nname = \"svc-stapel\"\n"), 0o644))
+
+	got, err := manifestreaderfile.New().Read(context.Background(), "")
+	require.NoError(t, err)
+	name, err := got.ServiceName()
+	require.NoError(t, err)
+	assert.Equal(t, "svc-stapel", name)
+}
+
+// TRA-555/AC-3: при обоих файлах берётся stapel.toml.
+func TestRead_StapelManifestWinsOverFormerName(t *testing.T) {
+	t.Chdir(t.TempDir())
+	require.NoError(t, os.WriteFile("stapel.toml", []byte("[service]\nname = \"svc-stapel\"\n"), 0o644))
+	require.NoError(t, os.WriteFile("paas.toml", []byte("[service]\nname = \"svc-paas\"\n"), 0o644))
+
+	got, err := manifestreaderfile.New().Read(context.Background(), "")
+	require.NoError(t, err)
+	name, err := got.ServiceName()
+	require.NoError(t, err)
+	assert.Equal(t, "svc-stapel", name)
+}
+
 // TRA-554/AC-1: незнакомый ключ манифеста — ошибка чтения с подсказкой.
 func TestRead_UnknownKey(t *testing.T) {
 	path := writeManifest(t, "[service]\nname = \"svc\"\n\n[[dependencies]]\nname = \"billing\"\nmethod = [\"GET /a\"]\n")

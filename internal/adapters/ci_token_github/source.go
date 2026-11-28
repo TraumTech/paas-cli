@@ -1,7 +1,7 @@
 // Package citokengithub — выходной адаптер «токен запуска CI» (TRA-485):
 // OIDC-токен GitHub Actions для платформы. Workflow с правом `id-token: write`
 // получает адрес и ключ запроса в переменных окружения; токен — короткий JWT,
-// подписанный GitHub, его и предъявляет CLI вместо PAAS_API_TOKEN.
+// подписанный GitHub, его и предъявляет CLI вместо STAPEL_API_TOKEN.
 package citokengithub
 
 import (

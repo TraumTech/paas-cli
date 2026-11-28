@@ -83,7 +83,7 @@ type PublishVersionInput struct {
 	Branch string
 	// ManifestPath — манифест, из которого берём имя текущего сервиса.
 	ManifestPath string
-	// FormPath — paas.toml с формой сервиса (DEP-02); отсутствие файла — штатно,
+	// FormPath — файл сервиса с формой (DEP-02); отсутствие файла — штатно,
 	// версия публикуется без формы. Image обязателен вместе с формой.
 	FormPath string
 	Image    string

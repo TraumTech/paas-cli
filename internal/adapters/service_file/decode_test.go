@@ -113,7 +113,7 @@ func TestDecodeBrokenSyntaxNamesLine(t *testing.T) {
 
 // Файл самого репозитория — действующий пример формата.
 func TestDecodeOwnServiceFile(t *testing.T) {
-	data, err := os.ReadFile("../../../paas.toml")
+	data, err := os.ReadFile("../../../stapel.toml")
 	require.NoError(t, err)
 
 	_, err = Decode("paas.toml", data)

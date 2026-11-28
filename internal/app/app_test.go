@@ -37,13 +37,13 @@ func fakePlatform(t *testing.T) *httptest.Server {
 	}))
 }
 
-// TestRun_FetchWritesContract — сквозной тест сборки: PAAS_API_URL указывает на
+// TestRun_FetchWritesContract — сквозной тест сборки: STAPEL_API_URL указывает на
 // фейковую платформу, команда тянет протокол и пишет его в <dest>/<name>/openapi.json.
 func TestRun_FetchWritesContract(t *testing.T) {
 	srv := fakePlatform(t)
 	defer srv.Close()
 
-	t.Setenv("PAAS_API_URL", srv.URL)
+	t.Setenv("STAPEL_API_URL", srv.URL)
 	dest := t.TempDir()
 
 	err := app.Run(context.Background(),
@@ -55,7 +55,7 @@ func TestRun_FetchWritesContract(t *testing.T) {
 	assert.JSONEq(t, `{"openapi":"3.1.0","paths":{"/x":{}}}`, string(data))
 }
 
-// TestRun_CompatibilityBreaking — сквозной тест owner-команды: PAAS_API_URL
+// TestRun_CompatibilityBreaking — сквозной тест owner-команды: STAPEL_API_URL
 // указывает на фейковую платформу, команда шлёт кандидат на проверку и при
 // ломающем вердикте завершается ошибкой (ненулевой код останавливает выкатку).
 func TestRun_CompatibilityBreaking(t *testing.T) {
@@ -68,7 +68,7 @@ func TestRun_CompatibilityBreaking(t *testing.T) {
 	candidate := filepath.Join(t.TempDir(), "openapi.json")
 	require.NoError(t, os.WriteFile(candidate, []byte(`{"openapi":"3.1.0","paths":{"/x":{}}}`), 0o644))
 
-	t.Setenv("PAAS_API_URL", srv.URL)
+	t.Setenv("STAPEL_API_URL", srv.URL)
 	err := app.Run(context.Background(),
 		[]string{"paas-cli", "protocols", "compatibility", svcID, candidate})
 	require.Error(t, err)
@@ -83,7 +83,7 @@ func TestRun_CompatibilityNoConsumers(t *testing.T) {
 	candidate := filepath.Join(t.TempDir(), "openapi.json")
 	require.NoError(t, os.WriteFile(candidate, []byte(`{"openapi":"3.1.0","paths":{"/x":{}}}`), 0o644))
 
-	t.Setenv("PAAS_API_URL", srv.URL)
+	t.Setenv("STAPEL_API_URL", srv.URL)
 	require.NoError(t, app.Run(context.Background(),
 		[]string{"paas-cli", "protocols", "compatibility", svcID, candidate}))
 }
@@ -112,7 +112,7 @@ func TestRun_PublishVersionIdempotent(t *testing.T) {
 	manifest := filepath.Join(t.TempDir(), "protocols.toml")
 	require.NoError(t, os.WriteFile(manifest, []byte("[service]\nname = \"payments\"\n"), 0o644))
 
-	t.Setenv("PAAS_API_URL", srv.URL)
+	t.Setenv("STAPEL_API_URL", srv.URL)
 	for range 2 {
 		stdout := captureStdout(t, func() {
 			require.NoError(t, app.Run(context.Background(),
@@ -140,7 +140,7 @@ func captureStdout(t *testing.T, fn func()) string {
 	return string(data)
 }
 
-// TestRun_PublishProtocol — сквозной тест owner-команды публикации: PAAS_API_URL
+// TestRun_PublishProtocol — сквозной тест owner-команды публикации: STAPEL_API_URL
 // указывает на фейковую платформу, команда берёт имя сервиса и путь к контракту из
 // манифеста ([service]), резолвит имя в id, публикует контракт под версией и печатает
 // сводку совместимости с потребителями.
@@ -174,12 +174,12 @@ name = "payments"
 contract = "openapi.json"
 `), 0o644))
 
-	t.Setenv("PAAS_API_URL", srv.URL)
+	t.Setenv("STAPEL_API_URL", srv.URL)
 	require.NoError(t, app.Run(context.Background(),
 		[]string{"paas-cli", "protocols", "publish", "--manifest", manifest, verID}))
 }
 
-// TestRun_RegisterDependency — сквозной тест команды потребителя: PAAS_API_URL
+// TestRun_RegisterDependency — сквозной тест команды потребителя: STAPEL_API_URL
 // указывает на фейковую платформу, команда читает состав зависимостей из манифеста,
 // резолвит потребителя и продьюсера по имени, берёт снимок продьюсера из раскладки и
 // регистрирует зависимость версии.
@@ -212,7 +212,7 @@ func TestRun_RegisterDependency(t *testing.T) {
 	require.NoError(t, os.WriteFile(manifest,
 		[]byte("destination = \""+dest+"\"\n\n[service]\nname = \"payments\"\n\n[[dependencies]]\nname = \"paas-backend\"\n"), 0o644))
 
-	t.Setenv("PAAS_API_URL", srv.URL)
+	t.Setenv("STAPEL_API_URL", srv.URL)
 	require.NoError(t, app.Run(context.Background(),
 		[]string{"paas-cli", "dependencies", "register", "--manifest", manifest, verID}))
 }
@@ -227,7 +227,7 @@ func TestRun_FetchNotPublished(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	t.Setenv("PAAS_API_URL", srv.URL)
+	t.Setenv("STAPEL_API_URL", srv.URL)
 	err := app.Run(context.Background(),
 		[]string{"paas-cli", "--destination", t.TempDir(), "protocols", "fetch", svcID})
 	require.Error(t, err)
