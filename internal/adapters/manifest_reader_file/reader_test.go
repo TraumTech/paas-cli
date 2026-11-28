@@ -233,3 +233,13 @@ func TestRead_StapelManifestWinsOverFormerName(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "svc-stapel", name)
 }
+
+// TRA-554/AC-1: незнакомый ключ манифеста — ошибка чтения с подсказкой.
+func TestRead_UnknownKey(t *testing.T) {
+	path := writeManifest(t, "[service]\nname = \"svc\"\n\n[[dependencies]]\nname = \"billing\"\nmethod = [\"GET /a\"]\n")
+
+	_, err := manifestreaderfile.New().Read(context.Background(), path)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "строка 6: dependencies.method — возможно, вы имели в виду methods")
+}

@@ -25,12 +25,14 @@ import (
 	manifestreaderfile "github.com/TraumTech/paas-cli/internal/adapters/manifest_reader_file"
 	oauthclienthydra "github.com/TraumTech/paas-cli/internal/adapters/oauth_client_hydra"
 	operatorinstallerk8s "github.com/TraumTech/paas-cli/internal/adapters/operator_installer_k8s"
+	organizationinventoryhttp "github.com/TraumTech/paas-cli/internal/adapters/organization_inventory_http"
 	protocolcompatibilityhttp "github.com/TraumTech/paas-cli/internal/adapters/protocol_compatibility_http"
 	protocolpublishhttp "github.com/TraumTech/paas-cli/internal/adapters/protocol_publish_http"
 	protocolsourcehttp "github.com/TraumTech/paas-cli/internal/adapters/protocol_source_http"
 	protocolstorefile "github.com/TraumTech/paas-cli/internal/adapters/protocol_store_file"
 	registrydirectoryhttp "github.com/TraumTech/paas-cli/internal/adapters/registry_directory_http"
 	registryloginhttp "github.com/TraumTech/paas-cli/internal/adapters/registry_login_http"
+	servicefile "github.com/TraumTech/paas-cli/internal/adapters/service_file"
 	serviceresolverhttp "github.com/TraumTech/paas-cli/internal/adapters/service_resolver_http"
 	sessionstorefile "github.com/TraumTech/paas-cli/internal/adapters/session_store_file"
 	userinfohydra "github.com/TraumTech/paas-cli/internal/adapters/user_info_hydra"
@@ -39,6 +41,7 @@ import (
 	authlogoutcommandcli "github.com/TraumTech/paas-cli/internal/controllers/auth_logout_command_cli"
 	authwhoamicommandcli "github.com/TraumTech/paas-cli/internal/controllers/auth_whoami_command_cli"
 	buildpublishcommandcli "github.com/TraumTech/paas-cli/internal/controllers/build_publish_command_cli"
+	checkcommandcli "github.com/TraumTech/paas-cli/internal/controllers/check_command_cli"
 	clusterconnectcommandcli "github.com/TraumTech/paas-cli/internal/controllers/cluster_connect_command_cli"
 	databaseoperatorinstallcommandcli "github.com/TraumTech/paas-cli/internal/controllers/database_operator_install_command_cli"
 	dependencyregistercommandcli "github.com/TraumTech/paas-cli/internal/controllers/dependency_register_command_cli"
@@ -151,6 +154,16 @@ func Run(ctx context.Context, args []string) error {
 	publishVersion := versionpublishcommandcli.New(usecases.NewPublishVersion(manifests, formreaderfile.New(), resolver, publisher))
 	publishBuild := buildpublishcommandcli.New(usecases.NewPublishBuild(manifests, formreaderfile.New(), resolver, candidates, componentreadergomod.New(), publisher))
 
+	inventory, err := organizationinventoryhttp.New(baseURL, client)
+	if err != nil {
+		return err
+	}
+	signedIn := envToken != "" || credential != nil || ci != nil
+	check := checkcommandcli.New(usecases.NewCheckServiceFile(manifests, formreaderfile.New(), resolver, inventory, signedIn), func() string {
+		path, _ := servicefile.Resolve(".")
+		return path
+	})
+
 	publishSource, err := protocolpublishhttp.New(baseURL, client)
 	if err != nil {
 		return err
@@ -206,6 +219,7 @@ func Run(ctx context.Context, args []string) error {
 			},
 		},
 		Commands: []*cli.Command{
+			check.CLICommand(),
 			{
 				Name:  "protocols",
 				Usage: "работа с контрактами (протоколами) сервисов",

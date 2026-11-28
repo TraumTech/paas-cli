@@ -386,3 +386,14 @@ func TestReadFormNoServiceFile(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, got)
 }
+
+// TRA-554/AC-1: незнакомый ключ формы — ошибка чтения, а не молчаливый пропуск.
+func TestReadFormUnknownKey(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "paas.toml")
+	require.NoError(t, os.WriteFile(path, []byte("[[processes]]\nname = \"server\"\n\n[env.prod]\nreplica = 2\n"), 0o644))
+
+	_, err := New().Read(context.Background(), path)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "строка 5: env.prod.replica — возможно, вы имели в виду replicas")
+}

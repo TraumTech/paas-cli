@@ -87,6 +87,45 @@ func (e DatabaseFormBodyEngine) Valid() bool {
 	}
 }
 
+// Defines values for DatabaseServerResponseKind.
+const (
+	Cluster  DatabaseServerResponseKind = "cluster"
+	External DatabaseServerResponseKind = "external"
+)
+
+// Valid indicates whether the value is a known member of the DatabaseServerResponseKind enum.
+func (e DatabaseServerResponseKind) Valid() bool {
+	switch e {
+	case Cluster:
+		return true
+	case External:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DatabaseServerResponseSslMode.
+const (
+	Disable    DatabaseServerResponseSslMode = "disable"
+	Require    DatabaseServerResponseSslMode = "require"
+	VerifyFull DatabaseServerResponseSslMode = "verify-full"
+)
+
+// Valid indicates whether the value is a known member of the DatabaseServerResponseSslMode enum.
+func (e DatabaseServerResponseSslMode) Valid() bool {
+	switch e {
+	case Disable:
+		return true
+	case Require:
+		return true
+	case VerifyFull:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProductResponseStage.
 const (
 	Active   ProductResponseStage = "active"
@@ -448,6 +487,87 @@ type DatabaseOverrideBody struct {
 	Server string `json:"server"`
 }
 
+// DatabaseServerMetricsResponse defines model for DatabaseServerMetricsResponse.
+type DatabaseServerMetricsResponse struct {
+	ConnectionsMax  int64     `json:"connections_max"`
+	ConnectionsUsed int64     `json:"connections_used"`
+	DataBytes       int64     `json:"data_bytes"`
+	Failure         *string   `json:"failure,omitempty"`
+	MeasuredAt      time.Time `json:"measured_at"`
+}
+
+// DatabaseServerResponse defines model for DatabaseServerResponse.
+type DatabaseServerResponse struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: https://api.stapel.sh/schemas/DatabaseServerResponse.json
+	Schema         *string                        `json:"$schema,omitempty"`
+	CapacityBytes  *int64                         `json:"capacity_bytes,omitempty"`
+	ClusterId      *openapi_types.UUID            `json:"cluster_id,omitempty"`
+	Connected      bool                           `json:"connected"`
+	CreatedAt      time.Time                      `json:"created_at"`
+	Database       string                         `json:"database"`
+	Engine         string                         `json:"engine"`
+	Environment    *string                        `json:"environment,omitempty"`
+	Host           string                         `json:"host"`
+	Id             openapi_types.UUID             `json:"id"`
+	Kind           DatabaseServerResponseKind     `json:"kind"`
+	LastContactAt  *time.Time                     `json:"last_contact_at,omitempty"`
+	Metrics        *DatabaseServerMetricsResponse `json:"metrics,omitempty"`
+	Name           string                         `json:"name"`
+	Port           int64                          `json:"port"`
+	SslMode        DatabaseServerResponseSslMode  `json:"ssl_mode"`
+	Username       string                         `json:"username"`
+	WithoutBackups bool                           `json:"without_backups"`
+}
+
+// DatabaseServerResponseKind defines model for DatabaseServerResponse.Kind.
+type DatabaseServerResponseKind string
+
+// DatabaseServerResponseSslMode defines model for DatabaseServerResponse.SslMode.
+type DatabaseServerResponseSslMode string
+
+// DatabaseServersOutputBody defines model for DatabaseServersOutputBody.
+type DatabaseServersOutputBody struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: https://api.stapel.sh/schemas/DatabaseServersOutputBody.json
+	Schema  *string                  `json:"$schema,omitempty"`
+	Servers []DatabaseServerResponse `json:"servers"`
+}
+
+// DomainZoneHostResponse defines model for DomainZoneHostResponse.
+type DomainZoneHostResponse struct {
+	BaseHost    string    `json:"base_host"`
+	Environment string    `json:"environment"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// DomainZoneResponse defines model for DomainZoneResponse.
+type DomainZoneResponse struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: https://api.stapel.sh/schemas/DomainZoneResponse.json
+	Schema    *string                  `json:"$schema,omitempty"`
+	CreatedAt time.Time                `json:"created_at"`
+	Hosts     []DomainZoneHostResponse `json:"hosts"`
+	Name      string                   `json:"name"`
+	Slug      string                   `json:"slug"`
+	UpdatedAt time.Time                `json:"updated_at"`
+}
+
+// EnvironmentResponse defines model for EnvironmentResponse.
+type EnvironmentResponse struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: https://api.stapel.sh/schemas/EnvironmentResponse.json
+	Schema     *string          `json:"$schema,omitempty"`
+	Cluster    *ClusterResponse `json:"cluster,omitempty"`
+	CreatedAt  time.Time        `json:"created_at"`
+	Name       string           `json:"name"`
+	Production bool             `json:"production"`
+}
+
 // ErrorDetail defines model for ErrorDetail.
 type ErrorDetail struct {
 	// Location Where the error occurred, e.g. 'body.items[3].tags' or 'path.thing-id'
@@ -517,6 +637,24 @@ type FormVariableBody struct {
 
 	// Value Значение (несекретное)
 	Value string `json:"value"`
+}
+
+// ListEnvironmentsOutputBody defines model for ListEnvironmentsOutputBody.
+type ListEnvironmentsOutputBody struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: https://api.stapel.sh/schemas/ListEnvironmentsOutputBody.json
+	Schema       *string               `json:"$schema,omitempty"`
+	Environments []EnvironmentResponse `json:"environments"`
+}
+
+// ListZonesOutputBody defines model for ListZonesOutputBody.
+type ListZonesOutputBody struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: https://api.stapel.sh/schemas/ListZonesOutputBody.json
+	Schema *string              `json:"$schema,omitempty"`
+	Zones  []DomainZoneResponse `json:"zones"`
 }
 
 // PersonalTokenResponse defines model for PersonalTokenResponse.
@@ -1042,12 +1180,31 @@ type ClientInterface interface {
 	// Corresponds with GET /organizations/current/clusters/required-access (the `GetClusterRequiredAccess` operationId).
 	GetClusterRequiredAccess(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListDatabaseServers Подключённые СУБД организации
+	//
+	// Перечень подключённых СУБД организации (DB-01). last_contact_at показывает, когда связь подтверждалась последний раз: доступ могли отозвать на стороне владельца.
+	//
+	// Corresponds with GET /organizations/current/database-servers (the `ListDatabaseServers` operationId).
+	ListDatabaseServers(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetDatabaseOperator Оператор СУБД для установки в подключённый кластер
 	//
 	// Манифест оператора и право, которое после установки нужно платформе (DB-05). Единственный источник для CLI: версия оператора и требования меняются на платформе, без выпуска CLI. Ставит оператор владелец своим доступом — у платформы прав на CRD и роли в кластере нет по замыслу.
 	//
 	// Corresponds with GET /organizations/current/database-servers/operators/{engine} (the `GetDatabaseOperator` operationId).
 	GetDatabaseOperator(ctx context.Context, engine GetDatabaseOperatorParamsEngine, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListDomainZones Доменные зоны организации
+	//
+	// Corresponds with GET /organizations/current/domain-zones (the `ListDomainZones` operationId).
+	ListDomainZones(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListEnvironments Окружения организации
+	//
+	// Окружения в порядке заведения, у каждого — признак «боевое» и обслуживающий кластер, если назначен.
+	//
+	// Corresponds with GET /organizations/current/environments (the `ListEnvironments` operationId).
+	ListEnvironments(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListServices Список сервисов
 	//
@@ -1231,6 +1388,23 @@ func (c *Client) GetClusterRequiredAccess(ctx context.Context, reqEditors ...Req
 	return c.Client.Do(req)
 }
 
+// ListDatabaseServers Подключённые СУБД организации
+//
+// Перечень подключённых СУБД организации (DB-01). last_contact_at показывает, когда связь подтверждалась последний раз: доступ могли отозвать на стороне владельца.
+//
+// Corresponds with GET /organizations/current/database-servers (the `ListDatabaseServers` operationId).
+func (c *Client) ListDatabaseServers(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListDatabaseServersRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // GetDatabaseOperator Оператор СУБД для установки в подключённый кластер
 //
 // Манифест оператора и право, которое после установки нужно платформе (DB-05). Единственный источник для CLI: версия оператора и требования меняются на платформе, без выпуска CLI. Ставит оператор владелец своим доступом — у платформы прав на CRD и роли в кластере нет по замыслу.
@@ -1238,6 +1412,38 @@ func (c *Client) GetClusterRequiredAccess(ctx context.Context, reqEditors ...Req
 // Corresponds with GET /organizations/current/database-servers/operators/{engine} (the `GetDatabaseOperator` operationId).
 func (c *Client) GetDatabaseOperator(ctx context.Context, engine GetDatabaseOperatorParamsEngine, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetDatabaseOperatorRequest(c.Server, engine)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListDomainZones Доменные зоны организации
+//
+// Corresponds with GET /organizations/current/domain-zones (the `ListDomainZones` operationId).
+func (c *Client) ListDomainZones(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListDomainZonesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListEnvironments Окружения организации
+//
+// Окружения в порядке заведения, у каждого — признак «боевое» и обслуживающий кластер, если назначен.
+//
+// Corresponds with GET /organizations/current/environments (the `ListEnvironments` operationId).
+func (c *Client) ListEnvironments(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListEnvironmentsRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -1621,6 +1827,33 @@ func NewGetClusterRequiredAccessRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewListDatabaseServersRequest constructs an http.Request for the ListDatabaseServers method
+func NewListDatabaseServersRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/organizations/current/database-servers")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetDatabaseOperatorRequest constructs an http.Request for the GetDatabaseOperator method
 func NewGetDatabaseOperatorRequest(server string, engine GetDatabaseOperatorParamsEngine) (*http.Request, error) {
 	var err error
@@ -1638,6 +1871,60 @@ func NewGetDatabaseOperatorRequest(server string, engine GetDatabaseOperatorPara
 	}
 
 	operationPath := fmt.Sprintf("/organizations/current/database-servers/operators/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListDomainZonesRequest constructs an http.Request for the ListDomainZones method
+func NewListDomainZonesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/organizations/current/domain-zones")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListEnvironmentsRequest constructs an http.Request for the ListEnvironments method
+func NewListEnvironmentsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/organizations/current/environments")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2364,6 +2651,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /organizations/current/clusters/required-access (the `GetClusterRequiredAccess` operationId).
 	GetClusterRequiredAccessWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetClusterRequiredAccessResponse, error)
 
+	// ListDatabaseServersWithResponse Подключённые СУБД организации
+	//
+	// Перечень подключённых СУБД организации (DB-01). last_contact_at показывает, когда связь подтверждалась последний раз: доступ могли отозвать на стороне владельца.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /organizations/current/database-servers (the `ListDatabaseServers` operationId).
+	ListDatabaseServersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListDatabaseServersResponse, error)
+
 	// GetDatabaseOperatorWithResponse Оператор СУБД для установки в подключённый кластер
 	//
 	// Манифест оператора и право, которое после установки нужно платформе (DB-05). Единственный источник для CLI: версия оператора и требования меняются на платформе, без выпуска CLI. Ставит оператор владелец своим доступом — у платформы прав на CRD и роли в кластере нет по замыслу.
@@ -2372,6 +2668,22 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /organizations/current/database-servers/operators/{engine} (the `GetDatabaseOperator` operationId).
 	GetDatabaseOperatorWithResponse(ctx context.Context, engine GetDatabaseOperatorParamsEngine, reqEditors ...RequestEditorFn) (*GetDatabaseOperatorResponse, error)
+
+	// ListDomainZonesWithResponse Доменные зоны организации
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /organizations/current/domain-zones (the `ListDomainZones` operationId).
+	ListDomainZonesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListDomainZonesResponse, error)
+
+	// ListEnvironmentsWithResponse Окружения организации
+	//
+	// Окружения в порядке заведения, у каждого — признак «боевое» и обслуживающий кластер, если назначен.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /organizations/current/environments (the `ListEnvironments` operationId).
+	ListEnvironmentsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListEnvironmentsResponse, error)
 
 	// ListServicesWithResponse Список сервисов
 	//
@@ -2641,6 +2953,54 @@ func (r GetClusterRequiredAccessResponse) ContentType() string {
 	return ""
 }
 
+type ListDatabaseServersResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DatabaseServersOutputBody
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListDatabaseServersResponse) GetJSON200() *DatabaseServersOutputBody {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r ListDatabaseServersResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListDatabaseServersResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListDatabaseServersResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListDatabaseServersResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListDatabaseServersResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetDatabaseOperatorResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -2683,6 +3043,102 @@ func (r GetDatabaseOperatorResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetDatabaseOperatorResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListDomainZonesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ListZonesOutputBody
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListDomainZonesResponse) GetJSON200() *ListZonesOutputBody {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r ListDomainZonesResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListDomainZonesResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListDomainZonesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListDomainZonesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListDomainZonesResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListEnvironmentsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ListEnvironmentsOutputBody
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListEnvironmentsResponse) GetJSON200() *ListEnvironmentsOutputBody {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r ListEnvironmentsResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListEnvironmentsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListEnvironmentsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListEnvironmentsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListEnvironmentsResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -3346,6 +3802,21 @@ func (c *ClientWithResponses) GetClusterRequiredAccessWithResponse(ctx context.C
 	return ParseGetClusterRequiredAccessResponse(rsp)
 }
 
+// ListDatabaseServersWithResponse Подключённые СУБД организации
+//
+// Перечень подключённых СУБД организации (DB-01). last_contact_at показывает, когда связь подтверждалась последний раз: доступ могли отозвать на стороне владельца.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /organizations/current/database-servers (the `ListDatabaseServers` operationId).
+func (c *ClientWithResponses) ListDatabaseServersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListDatabaseServersResponse, error) {
+	rsp, err := c.ListDatabaseServers(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListDatabaseServersResponse(rsp)
+}
+
 // GetDatabaseOperatorWithResponse Оператор СУБД для установки в подключённый кластер
 //
 // Манифест оператора и право, которое после установки нужно платформе (DB-05). Единственный источник для CLI: версия оператора и требования меняются на платформе, без выпуска CLI. Ставит оператор владелец своим доступом — у платформы прав на CRD и роли в кластере нет по замыслу.
@@ -3359,6 +3830,34 @@ func (c *ClientWithResponses) GetDatabaseOperatorWithResponse(ctx context.Contex
 		return nil, err
 	}
 	return ParseGetDatabaseOperatorResponse(rsp)
+}
+
+// ListDomainZonesWithResponse Доменные зоны организации
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /organizations/current/domain-zones (the `ListDomainZones` operationId).
+func (c *ClientWithResponses) ListDomainZonesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListDomainZonesResponse, error) {
+	rsp, err := c.ListDomainZones(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListDomainZonesResponse(rsp)
+}
+
+// ListEnvironmentsWithResponse Окружения организации
+//
+// Окружения в порядке заведения, у каждого — признак «боевое» и обслуживающий кластер, если назначен.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /organizations/current/environments (the `ListEnvironments` operationId).
+func (c *ClientWithResponses) ListEnvironmentsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListEnvironmentsResponse, error) {
+	rsp, err := c.ListEnvironments(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListEnvironmentsResponse(rsp)
 }
 
 // ListServicesWithResponse Список сервисов
@@ -3685,6 +4184,39 @@ func ParseGetClusterRequiredAccessResponse(rsp *http.Response) (*GetClusterRequi
 	return response, nil
 }
 
+// ParseListDatabaseServersResponse parses an HTTP response from a ListDatabaseServersWithResponse call
+func ParseListDatabaseServersResponse(rsp *http.Response) (*ListDatabaseServersResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListDatabaseServersResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DatabaseServersOutputBody
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetDatabaseOperatorResponse parses an HTTP response from a GetDatabaseOperatorWithResponse call
 func ParseGetDatabaseOperatorResponse(rsp *http.Response) (*GetDatabaseOperatorResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -3701,6 +4233,72 @@ func ParseGetDatabaseOperatorResponse(rsp *http.Response) (*GetDatabaseOperatorR
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest DatabaseOperatorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListDomainZonesResponse parses an HTTP response from a ListDomainZonesWithResponse call
+func ParseListDomainZonesResponse(rsp *http.Response) (*ListDomainZonesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListDomainZonesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ListZonesOutputBody
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListEnvironmentsResponse parses an HTTP response from a ListEnvironmentsWithResponse call
+func ParseListEnvironmentsResponse(rsp *http.Response) (*ListEnvironmentsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListEnvironmentsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ListEnvironmentsOutputBody
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

@@ -65,6 +65,8 @@ func TestResolve_BothPrefersCurrentAndWarnsOnce(t *testing.T) {
 
 func TestResolve_None(t *testing.T) {
 	captureWarnings(t)
-	_, found := Resolve(t.TempDir())
+	dir := t.TempDir()
+	path, found := Resolve(dir)
 	assert.False(t, found)
+	assert.Equal(t, filepath.Join(dir, Name), path)
 }

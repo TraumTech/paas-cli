@@ -20,13 +20,17 @@ var Warnings io.Writer = os.Stderr
 
 var warnOnce sync.Once
 
-// Resolve выбирает файл сервиса в каталоге dir. При обоих файлах читается
+// Resolve выбирает файл сервиса в каталоге dir; файла нет — путь, где его
+// ждут. При обоих файлах читается
 // stapel.toml: правки в прежнем молча не действовали бы, поэтому о нём
 // предупреждаем.
 func Resolve(dir string) (string, bool) {
 	current, former := filepath.Join(dir, Name), filepath.Join(dir, FormerName)
 	if !exists(current) {
-		return former, exists(former)
+		if exists(former) {
+			return former, true
+		}
+		return current, false
 	}
 	if exists(former) {
 		warnOnce.Do(func() {
