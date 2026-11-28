@@ -111,3 +111,15 @@ type ManifestDuplicateProtocolError struct {
 func (e *ManifestDuplicateProtocolError) Error() string {
 	return fmt.Sprintf("протокол %q объявлен в [[protocols]] повторно", e.Name)
 }
+
+// ServiceFileMissingError — в каталоге нет файла сервиса (TRA-556).
+type ServiceFileMissingError struct {
+	// Expected — имя файла, которое ожидалось.
+	Expected string
+	// Dir — каталог, где его искали.
+	Dir string
+}
+
+func (e *ServiceFileMissingError) Error() string {
+	return fmt.Sprintf("в каталоге %s нет файла сервиса: ожидается %s в корне репозитория (другой путь — флагом --file)", e.Dir, e.Expected)
+}

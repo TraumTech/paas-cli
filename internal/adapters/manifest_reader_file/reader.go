@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/BurntSushi/toml"
-
+	servicefile "github.com/TraumTech/paas-cli/internal/adapters/service_file"
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
@@ -41,9 +40,9 @@ func resolve(path string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("чтение манифеста %s: %w", unifiedManifestPath, err)
 	}
-	var unified fileManifest
-	if err := toml.Unmarshal(data, &unified); err != nil {
-		return "", fmt.Errorf("манифест %s не разобран как TOML: %w", unifiedManifestPath, err)
+	unified, err := servicefile.Decode(unifiedManifestPath, data)
+	if err != nil {
+		return "", err
 	}
 	if unified.Service == nil && len(unified.Protocols) == 0 && len(unified.Dependencies) == 0 {
 		if _, err := os.Stat(legacyManifestPath); err == nil {
@@ -52,34 +51,6 @@ func resolve(path string) (string, error) {
 		}
 	}
 	return unifiedManifestPath, nil
-}
-
-// fileManifest — транспортная форма манифеста (TOML); маппинг в доменный
-// entities.Manifest живёт только здесь, в адаптере.
-type fileManifest struct {
-	Service      *fileService     `toml:"service"`
-	Protocols    []fileProtocol   `toml:"protocols"`
-	Destination  string           `toml:"destination"`
-	Dependencies []fileDependency `toml:"dependencies"`
-}
-
-type fileService struct {
-	Name     string `toml:"name"`
-	Contract string `toml:"contract"`
-	Format   string `toml:"format"`
-}
-
-type fileProtocol struct {
-	Name     string `toml:"name"`
-	Contract string `toml:"contract"`
-	Format   string `toml:"format"`
-}
-
-type fileDependency struct {
-	Name       string   `toml:"name"`
-	Methods    []string `toml:"methods"`
-	Waived     []string `toml:"waived"`
-	Attributes []string `toml:"attributes"`
 }
 
 func (r *Reader) Read(_ context.Context, path string) (*entities.Manifest, error) {
@@ -91,9 +62,9 @@ func (r *Reader) Read(_ context.Context, path string) (*entities.Manifest, error
 	if err != nil {
 		return nil, fmt.Errorf("чтение манифеста %s: %w", path, err)
 	}
-	var file fileManifest
-	if err := toml.Unmarshal(data, &file); err != nil {
-		return nil, fmt.Errorf("манифест %s не разобран как TOML: %w", path, err)
+	file, err := servicefile.Decode(path, data)
+	if err != nil {
+		return nil, err
 	}
 
 	manifest := &entities.Manifest{Destination: file.Destination}

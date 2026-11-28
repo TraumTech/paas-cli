@@ -10,8 +10,7 @@ import (
 	"io/fs"
 	"os"
 
-	"github.com/BurntSushi/toml"
-
+	servicefile "github.com/TraumTech/paas-cli/internal/adapters/service_file"
 	"github.com/TraumTech/paas-cli/internal/entities"
 )
 
@@ -21,91 +20,7 @@ func New() *Reader {
 	return &Reader{}
 }
 
-// fileForm — транспортная форма paas.toml; маппинг в доменное объявление
-// entities.FormDeclaration живёт только здесь, в адаптере.
-type fileForm struct {
-	Processes []fileProcess `toml:"processes"`
-	// Databases — потребности в базах (DB-03): [[databases]].
-	Databases []fileDatabase `toml:"databases"`
-	// Buckets — потребности в бакетах (OBJ-06): [[buckets]].
-	Buckets []fileBucket `toml:"buckets"`
-	// Env — секции [env.default] и [env.<окружение>] (DEP-14/15): общие
-	// значения и переопределения. Разрешает их use case, зная окружение версии.
-	Env map[string]fileEnvironment `toml:"env"`
-}
-
-// fileEnvironment — одна секция [env.*].
-type fileEnvironment struct {
-	Variables map[string]string `toml:"variables"`
-	// Replicas 0 — секция числа реплик не задаёт.
-	Replicas int `toml:"replicas"`
-	// Databases — [env.<окружение>.databases.<имя>]: окружение переопределяет
-	// только СУБД для объявленной базы.
-	Databases map[string]fileDatabaseOverride `toml:"databases"`
-	// Buckets — [env.<окружение>.buckets.<имя>]: хранилище и/или размер.
-	Buckets map[string]fileBucketOverride `toml:"buckets"`
-}
-
-type fileBucket struct {
-	Name   string `toml:"name"`
-	Server string `toml:"server"`
-	Size   string `toml:"size"`
-}
-
-type fileBucketOverride struct {
-	Server string `toml:"server"`
-	Size   string `toml:"size"`
-}
-
-type fileDatabase struct {
-	Name   string `toml:"name"`
-	Engine string `toml:"engine"`
-	// server — имя подключённой СУБД организации, где заводить базу.
-	Server string `toml:"server"`
-	// variable — переменная с доступом; пусто — умолчание платформы из имени.
-	Variable string `toml:"variable"`
-}
-
-type fileDatabaseOverride struct {
-	Server string `toml:"server"`
-}
-
-type fileProcess struct {
-	Name string `toml:"name"`
-	// listen — порт, который слушает процесс; отсутствие — воркер.
-	Listen  int      `toml:"listen"`
-	Command []string `toml:"command"`
-	CPU     string   `toml:"cpu"`
-	Memory  string   `toml:"memory"`
-	// zone/prefix — маршрут слушающего процесса (DEP-10): доменная зона
-	// организации по имени и префикс под её базовым хостом.
-	Zone   string `toml:"zone"`
-	Prefix string `toml:"prefix"`
-	// ports — внутренние именованные порты (DEP-24): [processes.ports]
-	// с парами «имя = номер»; снаружи недоступны, соседям по кластеру — по имени.
-	Ports map[string]int `toml:"ports"`
-	// streaming — основной маршрут отдаёт потоковые ответы (TRA-509).
-	Streaming bool `toml:"streaming"`
-	// routes — дополнительные входы на внутренние порты (TRA-509):
-	// [[processes.routes]] с port, zone, prefix, streaming.
-	Routes []fileRoute `toml:"routes"`
-	// access — правила доступа слушающего порта (TRA-518): [[processes.access]]
-	// с paths, methods, sources, anonymous, passthrough.
-	Access []fileAccess `toml:"access"`
-	// cors — сайты, с которых браузеру разрешён основной маршрут (TRA-524):
-	// [processes.cors] с origins и headers.
-	CORS fileCORS `toml:"cors"`
-	// aliases — дополнительные адреса основного маршрута (TRA-530):
-	// [[processes.aliases]] с zone и prefix.
-	Aliases []fileAlias `toml:"aliases"`
-}
-
-type fileAlias struct {
-	Zone   string `toml:"zone"`
-	Prefix string `toml:"prefix"`
-}
-
-func aliasForms(in []fileAlias) []entities.RouteAlias {
+func aliasForms(in []servicefile.Alias) []entities.RouteAlias {
 	if len(in) == 0 {
 		return nil
 	}
@@ -116,21 +31,7 @@ func aliasForms(in []fileAlias) []entities.RouteAlias {
 	return out
 }
 
-type fileCORS struct {
-	Origins []string `toml:"origins"`
-	Headers []string `toml:"headers"`
-}
-
-type fileAccess struct {
-	Paths     []string `toml:"paths"`
-	Methods   []string `toml:"methods"`
-	Sources   []string `toml:"sources"`
-	Anonymous bool     `toml:"anonymous"`
-	// passthrough — вход проверяет сам процесс (TRA-521).
-	Passthrough bool `toml:"passthrough"`
-}
-
-func accessForms(in []fileAccess) []entities.RouteAccess {
+func accessForms(in []servicefile.Access) []entities.RouteAccess {
 	if len(in) == 0 {
 		return nil
 	}
@@ -141,19 +42,6 @@ func accessForms(in []fileAccess) []entities.RouteAccess {
 	return out
 }
 
-type fileRoute struct {
-	Port      string `toml:"port"`
-	Zone      string `toml:"zone"`
-	Prefix    string `toml:"prefix"`
-	Streaming bool   `toml:"streaming"`
-	// access — правила доступа порта этого входа: [[processes.routes.access]].
-	Access []fileAccess `toml:"access"`
-	// cors — [processes.routes.cors] под своим входом.
-	CORS fileCORS `toml:"cors"`
-	// aliases — [[processes.routes.aliases]] под своим входом.
-	Aliases []fileAlias `toml:"aliases"`
-}
-
 func (r *Reader) Read(_ context.Context, path string) (*entities.FormDeclaration, error) {
 	data, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -162,9 +50,9 @@ func (r *Reader) Read(_ context.Context, path string) (*entities.FormDeclaration
 	if err != nil {
 		return nil, fmt.Errorf("чтение формы %s: %w", path, err)
 	}
-	var file fileForm
-	if err := toml.Unmarshal(data, &file); err != nil {
-		return nil, fmt.Errorf("форма %s не разобрана как TOML: %w", path, err)
+	file, err := servicefile.Decode(path, data)
+	if err != nil {
+		return nil, err
 	}
 
 	// paas.toml — единый манифест (CLI-22): файл есть у каждого сервиса, но
