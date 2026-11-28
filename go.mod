@@ -3,13 +3,13 @@ module github.com/TraumTech/paas-cli
 go 1.26.0
 
 require (
-	github.com/BurntSushi/toml v1.6.0
 	github.com/TraumTech/paas-observability-sdk v0.1.0
 	github.com/TraumTech/paas-observability-sdk/sdk/observabilityhttp v0.1.0
 	github.com/TraumTech/paas-observability-sdk/sdk/observabilityotel v0.1.0
 	github.com/TraumTech/paas-observability-sdk/sdk/observabilityzerolog v0.1.0
 	github.com/google/uuid v1.6.0
 	github.com/oapi-codegen/runtime v1.4.1
+	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/stretchr/testify v1.12.1
 	github.com/urfave/cli/v3 v3.10.0
 	go.opentelemetry.io/otel v1.47.0

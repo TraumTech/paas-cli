@@ -20,10 +20,10 @@ const (
 )
 
 const (
-	// Пустой путь — выбор за читателем: paas.toml, при его отсутствии
+	// Пустой путь — выбор за читателем: файл сервиса, при его отсутствии
 	// переходный protocols.toml (CLI-22).
 	defaultManifestPath = ""
-	defaultFormPath     = "paas.toml"
+	defaultFormPath     = ""
 )
 
 type Command struct {
@@ -44,12 +44,12 @@ func (c *Command) CLICommand() *cli.Command {
 				Name:    manifestFlag,
 				Aliases: []string{"f"},
 				Value:   defaultManifestPath,
-				Usage:   "путь к манифесту (по умолчанию paas.toml, при его отсутствии protocols.toml)",
+				Usage:   "путь к манифесту (по умолчанию stapel.toml, при его отсутствии paas.toml, затем protocols.toml)",
 			},
 			&cli.StringFlag{
 				Name:  formFlag,
 				Value: defaultFormPath,
-				Usage: "путь к форме сервиса; файла нет — сборка публикуется без формы",
+				Usage: "путь к форме сервиса (по умолчанию stapel.toml, при его отсутствии paas.toml); файла нет — сборка публикуется без формы",
 			},
 			&cli.StringFlag{
 				Name:  imageFlag,

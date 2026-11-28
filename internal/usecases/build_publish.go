@@ -57,22 +57,17 @@ func (uc *PublishBuildUseCase) Execute(ctx context.Context, in PublishBuildInput
 	// выкатка — уже зная версию, к которой его привязать (DEP-19). Сборка несёт
 	// ровно один контракт без имени (протокол по умолчанию): перечень
 	// [[protocols]] из нескольких или именованных записей сборка пока не везёт.
-	protocols, err := manifest.DeclaredProtocols()
+	protocol, err := buildProtocol(manifest)
 	if err != nil {
 		return nil, err
 	}
-	switch {
-	case len(protocols) > 1:
-		return nil, entities.ErrBuildMultipleContracts
-	case len(protocols) == 1 && protocols[0].Name != "" && protocols[0].Name != entities.DefaultProtocolName:
-		return nil, entities.ErrBuildNamedContract
-	case len(protocols) == 1:
-		document, err := os.ReadFile(protocols[0].Contract)
+	if protocol != nil {
+		document, err := os.ReadFile(protocol.Contract)
 		if err != nil {
-			return nil, fmt.Errorf("read contract %s: %w", protocols[0].Contract, err)
+			return nil, fmt.Errorf("read contract %s: %w", protocol.Contract, err)
 		}
 		request.Contract = string(document)
-		request.ContractFormat = protocols[0].Format
+		request.ContractFormat = protocol.Format
 		if request.ContractFormat == "" {
 			// Пустой формат в манифесте означает OpenAPI (ParseProtocolFormat).
 			request.ContractFormat = "openapi"
@@ -94,6 +89,24 @@ func (uc *PublishBuildUseCase) Execute(ctx context.Context, in PublishBuildInput
 		return nil, fmt.Errorf("publish build: %w", err)
 	}
 	return build, nil
+}
+
+// buildProtocol — контракт, который сборка везёт: ровно один и без имени
+// (протокол по умолчанию). Контракт не объявлен — nil без ошибки.
+func buildProtocol(manifest *entities.Manifest) (*entities.ManifestProtocol, error) {
+	protocols, err := manifest.DeclaredProtocols()
+	if err != nil {
+		return nil, err
+	}
+	switch {
+	case len(protocols) == 0:
+		return nil, nil
+	case len(protocols) > 1:
+		return nil, entities.ErrBuildMultipleContracts
+	case protocols[0].Name != "" && protocols[0].Name != entities.DefaultProtocolName:
+		return nil, entities.ErrBuildNamedContract
+	}
+	return &protocols[0], nil
 }
 
 // dependencies собирает [[dependencies]] манифеста со снимками из раскладки —

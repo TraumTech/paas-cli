@@ -26,12 +26,14 @@ import (
 	manifestreaderfile "github.com/TraumTech/paas-cli/internal/adapters/manifest_reader_file"
 	oauthclienthydra "github.com/TraumTech/paas-cli/internal/adapters/oauth_client_hydra"
 	operatorinstallerk8s "github.com/TraumTech/paas-cli/internal/adapters/operator_installer_k8s"
+	organizationinventoryhttp "github.com/TraumTech/paas-cli/internal/adapters/organization_inventory_http"
 	protocolcompatibilityhttp "github.com/TraumTech/paas-cli/internal/adapters/protocol_compatibility_http"
 	protocolpublishhttp "github.com/TraumTech/paas-cli/internal/adapters/protocol_publish_http"
 	protocolsourcehttp "github.com/TraumTech/paas-cli/internal/adapters/protocol_source_http"
 	protocolstorefile "github.com/TraumTech/paas-cli/internal/adapters/protocol_store_file"
 	registrydirectoryhttp "github.com/TraumTech/paas-cli/internal/adapters/registry_directory_http"
 	registryloginhttp "github.com/TraumTech/paas-cli/internal/adapters/registry_login_http"
+	servicefile "github.com/TraumTech/paas-cli/internal/adapters/service_file"
 	serviceresolverhttp "github.com/TraumTech/paas-cli/internal/adapters/service_resolver_http"
 	sessionstorefile "github.com/TraumTech/paas-cli/internal/adapters/session_store_file"
 	userinfohydra "github.com/TraumTech/paas-cli/internal/adapters/user_info_hydra"
@@ -40,6 +42,7 @@ import (
 	authlogoutcommandcli "github.com/TraumTech/paas-cli/internal/controllers/auth_logout_command_cli"
 	authwhoamicommandcli "github.com/TraumTech/paas-cli/internal/controllers/auth_whoami_command_cli"
 	buildpublishcommandcli "github.com/TraumTech/paas-cli/internal/controllers/build_publish_command_cli"
+	checkcommandcli "github.com/TraumTech/paas-cli/internal/controllers/check_command_cli"
 	clusterconnectcommandcli "github.com/TraumTech/paas-cli/internal/controllers/cluster_connect_command_cli"
 	clusterlogsinstallcommandcli "github.com/TraumTech/paas-cli/internal/controllers/cluster_logs_install_command_cli"
 	databaseoperatorinstallcommandcli "github.com/TraumTech/paas-cli/internal/controllers/database_operator_install_command_cli"
@@ -66,17 +69,18 @@ const (
 	// команда завершается с этой задержкой максимум, а не висит.
 	obsFlushTimeout = 3 * time.Second
 	// envAPIToken — машинный креденшел сервиса для неинтерактивного доступа (CI, скрипты).
-	envAPIToken = "PAAS_API_TOKEN"
+	envAPIToken = "API_TOKEN"
 	// envOAuthURL — адрес сервера авторизации платформы (issuer): вход через
 	// браузер, продление и отзыв входа (IAP-03).
-	envOAuthURL = "PAAS_OAUTH_URL"
+	envOAuthURL = "OAUTH_URL"
+	envAPIURL   = "API_URL"
 )
 
 // Version — версия бинаря; подставляется при сборке релиза (GoReleaser, ldflags).
 var Version = "dev"
 
 // Run собирает корневую команду CLI и запускает её. Адрес платформы берётся из
-// PAAS_API_URL (по умолчанию прод), поэтому команда работает из любого
+// STAPEL_API_URL (по умолчанию прод), поэтому команда работает из любого
 // репозитория-потребителя.
 func Run(ctx context.Context, args []string) error {
 	obs, obsFlush := newObserver(Version)
@@ -86,11 +90,11 @@ func Run(ctx context.Context, args []string) error {
 		_ = obsFlush(flushCtx)
 	}()
 
-	baseURL := strings.TrimRight(envOr("PAAS_API_URL", defaultAPIURL), "/")
+	baseURL := strings.TrimRight(envOr(envAPIURL, defaultAPIURL), "/")
 	sessions := sessionstorefile.New()
 	// Токен из окружения (если задан) уходит со всеми запросами к платформе;
 	// без него — локально сохранённый вход пользователя (auth login), если он есть.
-	envToken := os.Getenv(envAPIToken)
+	envToken := platformEnv(envAPIToken)
 	var credential *entities.Credential
 	if envToken == "" {
 		if saved, err := sessions.Load(ctx); err == nil {
@@ -104,7 +108,7 @@ func Run(ctx context.Context, args []string) error {
 		Timeout:   httpTimeout,
 		Transport: observabilityhttp.NewTransport(obs, nil),
 	})
-	// Токен запуска GitHub Actions (TRA-485) — только если PAAS_API_TOKEN не
+	// Токен запуска GitHub Actions (TRA-485) — только если STAPEL_API_TOKEN не
 	// задан: секрет, если он есть, по-прежнему в приоритете. Audience — адрес
 	// API платформы: под него её прокси и ждёт токен.
 	var ci ciTokenSource
@@ -113,7 +117,7 @@ func Run(ctx context.Context, args []string) error {
 			ci = source
 		}
 	}
-	client := withOrganization(httpClient(obs, envToken, credential, oauth, sessions, ci), os.Getenv(envOrganizationID))
+	client := withOrganization(httpClient(obs, envToken, credential, oauth, sessions, ci), platformEnv(envOrganizationID))
 
 	source, err := protocolsourcehttp.New(baseURL, client)
 	if err != nil {
@@ -151,6 +155,16 @@ func Run(ctx context.Context, args []string) error {
 	}
 	publishVersion := versionpublishcommandcli.New(usecases.NewPublishVersion(manifests, formreaderfile.New(), resolver, publisher))
 	publishBuild := buildpublishcommandcli.New(usecases.NewPublishBuild(manifests, formreaderfile.New(), resolver, candidates, componentreadergomod.New(), publisher))
+
+	inventory, err := organizationinventoryhttp.New(baseURL, client)
+	if err != nil {
+		return err
+	}
+	signedIn := envToken != "" || credential != nil || ci != nil
+	check := checkcommandcli.New(usecases.NewCheckServiceFile(manifests, formreaderfile.New(), resolver, inventory, signedIn), func() string {
+		path, _ := servicefile.Resolve(".")
+		return path
+	})
 
 	publishSource, err := protocolpublishhttp.New(baseURL, client)
 	if err != nil {
@@ -211,6 +225,7 @@ func Run(ctx context.Context, args []string) error {
 			},
 		},
 		Commands: []*cli.Command{
+			check.CLICommand(),
 			{
 				Name:  "protocols",
 				Usage: "работа с контрактами (протоколами) сервисов",
@@ -287,8 +302,17 @@ func Run(ctx context.Context, args []string) error {
 	return root.Run(ctx, args)
 }
 
-func envOr(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
+// platformEnv читает настройку CLI: STAPEL_<имя>, при её отсутствии — прежняя
+// PAAS_<имя>.
+func platformEnv(name string) string {
+	if v := os.Getenv("STAPEL_" + name); v != "" {
+		return v
+	}
+	return os.Getenv("PAAS_" + name)
+}
+
+func envOr(name, fallback string) string {
+	if v := platformEnv(name); v != "" {
 		return v
 	}
 	return fallback

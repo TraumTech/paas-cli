@@ -24,11 +24,11 @@ var (
 	ErrInvalidGoMod = newDomainError("go.mod не разбирается")
 	// Форма без образа не даст платформе сгенерировать манифесты — отказываем
 	// до обращения к сети (DEP-02).
-	ErrFormRequiresImage = newDomainError("paas.toml найден — укажите адрес образа флагом --image")
+	ErrFormRequiresImage = newDomainError("файл сервиса с формой найден — укажите адрес образа флагом --image")
 
 	ErrUnknownEnvironment = newDomainError("имя окружения — строчные латинские буквы, цифры и дефис, до 32 символов, не default")
 	// Секция [env.<имя>] в манифесте, имя которой окружением быть не может.
-	ErrUnknownFormEnvironment = newDomainError("секция [env.<окружение>] в paas.toml: имя окружения — строчные латинские буквы, цифры и дефис, до 32 символов; общая секция — default")
+	ErrUnknownFormEnvironment = newDomainError("секция [env.<окружение>] в файле сервиса: имя окружения — строчные латинские буквы, цифры и дефис, до 32 символов; общая секция — default")
 
 	ErrMethodsUnsupportedForFormat = newDomainError("сужение до методов для контракта этого формата не поддерживается — уберите methods у этой зависимости")
 	// Срез до атрибутов (PRT-29) пока умеет только OpenAPI.
@@ -74,14 +74,14 @@ var (
 	ErrLogCollectorInstallDenied = newDomainError("вашего доступа не хватает, чтобы установить сборщик логов — нужен доступ уровня администратора кластера")
 	ErrLogCollectorNotReady      = newDomainError("сборщик логов установлен, но не поднялся за отведённое время — проверьте поды в namespace stapel-logs")
 
-	ErrLoginRequired = newDomainError("платформа требует вход: выполните `stapel auth login` или задайте токен доступа в PAAS_API_TOKEN")
-	ErrTokenRejected = newDomainError("токен из PAAS_API_TOKEN не принят платформой — он отозван, просрочен или неверен")
+	ErrLoginRequired = newDomainError("платформа требует вход: выполните `stapel auth login` или задайте токен доступа в STAPEL_API_TOKEN")
+	ErrTokenRejected = newDomainError("токен из STAPEL_API_TOKEN не принят платформой — он отозван, просрочен или неверен")
 	// ErrCITokenRejected — токен запуска GitHub Actions (TRA-485) платформа не
 	// приняла: репозиторий не привязан к сервису.
-	ErrCITokenRejected = newDomainError("токен запуска GitHub Actions не принят платформой — репозиторий не привязан к сервису на платформе; привяжите его или задайте PAAS_API_TOKEN")
+	ErrCITokenRejected = newDomainError("токен запуска GitHub Actions не принят платформой — репозиторий не привязан к сервису на платформе; привяжите его или задайте STAPEL_API_TOKEN")
 	// Секрет прежнего вида (до IAP-04) платформа с IAP-05 не принимает: обменять
 	// его на JWT нельзя, нужен перевыпуск.
-	ErrLegacyToken = newDomainError("токен в PAAS_API_TOKEN прежнего вида больше не принимается — перевыпустите его в интерфейсе платформы (раздел токенов)")
+	ErrLegacyToken = newDomainError("токен в STAPEL_API_TOKEN прежнего вида больше не принимается — перевыпустите его в интерфейсе платформы (раздел токенов)")
 
 	// Браузерный вход (IAP-03).
 	ErrAuthorizationDenied  = newDomainError("вход не подтверждён в браузере — ничего не сохранено")
@@ -115,4 +115,16 @@ type ManifestDuplicateProtocolError struct {
 
 func (e *ManifestDuplicateProtocolError) Error() string {
 	return fmt.Sprintf("протокол %q объявлен в [[protocols]] повторно", e.Name)
+}
+
+// ServiceFileMissingError — в каталоге нет файла сервиса (TRA-556).
+type ServiceFileMissingError struct {
+	// Expected — имя файла, которое ожидалось.
+	Expected string
+	// Dir — каталог, где его искали.
+	Dir string
+}
+
+func (e *ServiceFileMissingError) Error() string {
+	return fmt.Sprintf("в каталоге %s нет файла сервиса: ожидается %s в корне репозитория (другой путь — флагом --file)", e.Dir, e.Expected)
 }

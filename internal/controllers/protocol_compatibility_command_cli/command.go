@@ -52,7 +52,7 @@ func (c *Command) CLICommand() *cli.Command {
 			&cli.StringFlag{
 				Name:    manifestFlag,
 				Aliases: []string{"f"},
-				Usage:   "путь к манифесту (по умолчанию paas.toml); только без аргументов",
+				Usage:   "путь к манифесту (по умолчанию stapel.toml, при его отсутствии paas.toml); только без аргументов",
 			},
 		},
 		Action: c.run,

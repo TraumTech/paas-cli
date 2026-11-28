@@ -1576,6 +1576,304 @@
           "format"
         ],
         "type": "object"
+      },
+      "DatabaseServersOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://api.stapel.sh/schemas/DatabaseServersOutputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "servers": {
+            "items": {
+              "$ref": "#/components/schemas/DatabaseServerResponse"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "servers"
+        ],
+        "type": "object"
+      },
+      "DatabaseServerResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://api.stapel.sh/schemas/DatabaseServerResponse.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "capacity_bytes": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "cluster_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "connected": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "database": {
+            "type": "string"
+          },
+          "engine": {
+            "type": "string"
+          },
+          "environment": {
+            "maxLength": 32,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "external",
+              "cluster"
+            ],
+            "type": "string"
+          },
+          "last_contact_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/DatabaseServerMetricsResponse"
+          },
+          "name": {
+            "type": "string"
+          },
+          "port": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "ssl_mode": {
+            "enum": [
+              "verify-full",
+              "require",
+              "disable"
+            ],
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "without_backups": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "engine",
+          "host",
+          "port",
+          "database",
+          "username",
+          "ssl_mode",
+          "connected",
+          "created_at",
+          "kind",
+          "without_backups"
+        ],
+        "type": "object"
+      },
+      "DatabaseServerMetricsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "connections_max": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "connections_used": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "data_bytes": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "failure": {
+            "type": "string"
+          },
+          "measured_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "measured_at",
+          "connections_max",
+          "connections_used",
+          "data_bytes"
+        ],
+        "type": "object"
+      },
+      "ListZonesOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://api.stapel.sh/schemas/ListZonesOutputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "zones": {
+            "items": {
+              "$ref": "#/components/schemas/DomainZoneResponse"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "zones"
+        ],
+        "type": "object"
+      },
+      "DomainZoneResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://api.stapel.sh/schemas/DomainZoneResponse.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "hosts": {
+            "items": {
+              "$ref": "#/components/schemas/DomainZoneHostResponse"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "hosts",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "DomainZoneHostResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "base_host": {
+            "type": "string"
+          },
+          "environment": {
+            "maxLength": 32,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "environment",
+          "base_host",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "ListEnvironmentsOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://api.stapel.sh/schemas/ListEnvironmentsOutputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "environments": {
+            "items": {
+              "$ref": "#/components/schemas/EnvironmentResponse"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "environments"
+        ],
+        "type": "object"
+      },
+      "EnvironmentResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://api.stapel.sh/schemas/EnvironmentResponse.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "cluster": {
+            "$ref": "#/components/schemas/ClusterResponse"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "production": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "production",
+          "created_at"
+        ],
+        "type": "object"
       }
     }
   },
@@ -1689,6 +1987,38 @@
         ]
       }
     },
+    "/organizations/current/database-servers": {
+      "get": {
+        "description": "Перечень подключённых СУБД организации (DB-01). last_contact_at показывает, когда связь подтверждалась последний раз: доступ могли отозвать на стороне владельца.",
+        "operationId": "list-database-servers",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatabaseServersOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Подключённые СУБД организации",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
     "/organizations/current/database-servers/operators/{engine}": {
       "get": {
         "description": "Манифест оператора и право, которое после установки нужно платформе (DB-05). Единственный источник для CLI: версия оператора и требования меняются на платформе, без выпуска CLI. Ставит оператор владелец своим доступом — у платформы прав на CRD и роли в кластере нет по замыслу.",
@@ -1732,6 +2062,69 @@
           }
         },
         "summary": "Оператор СУБД для установки в подключённый кластер",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/organizations/current/domain-zones": {
+      "get": {
+        "operationId": "list-domain-zones",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListZonesOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Доменные зоны организации",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/organizations/current/environments": {
+      "get": {
+        "description": "Окружения в порядке заведения, у каждого — признак «боевое» и обслуживающий кластер, если назначен.",
+        "operationId": "list-environments",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListEnvironmentsOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Окружения организации",
         "tags": [
           "organizations"
         ]

@@ -6,7 +6,7 @@ const (
 	// envOrganizationID — организация, в которой работает CLI (TRA-506). Выбор
 	// у каждого клиента свой: интерфейс и агент от него не переключаются.
 	// Пусто — личная организация пользователя.
-	envOrganizationID  = "PAAS_ORGANIZATION_ID"
+	envOrganizationID  = "ORGANIZATION_ID"
 	organizationHeader = "X-Organization-Id"
 )
 

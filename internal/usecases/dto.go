@@ -83,7 +83,7 @@ type PublishVersionInput struct {
 	Branch string
 	// ManifestPath — манифест, из которого берём имя текущего сервиса.
 	ManifestPath string
-	// FormPath — paas.toml с формой сервиса (DEP-02); отсутствие файла — штатно,
+	// FormPath — файл сервиса с формой (DEP-02); отсутствие файла — штатно,
 	// версия публикуется без формы. Image обязателен вместе с формой.
 	FormPath string
 	Image    string
@@ -139,4 +139,20 @@ type PublishBuildInput struct {
 	ManifestPath   string
 	FormPath       string
 	Image          string
+}
+
+type CheckServiceFileInput struct {
+	// Path — файл сервиса: и манифест, и форма.
+	Path string
+}
+
+type CheckServiceFileResult struct {
+	Path    string
+	Service string
+	// PlatformSkipped — вход не выполнен, сверки с платформой не было.
+	PlatformSkipped bool
+	// Notes — замечания, которые проверку не проваливают.
+	Notes []string
+	// Missing — на что файл ссылается, а в организации этого нет.
+	Missing []entities.MissingReference
 }

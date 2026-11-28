@@ -1,4 +1,4 @@
-# paas.toml — единственный манифест репозитория для платформы (CLI-22):
+# stapel.toml — файл сервиса: единственный манифест репозитория для платформы (CLI-22):
 # [service], зависимости и, у выкатываемых сервисов, форма ([[processes]]).
 [service]
 name = "paas-cli"
@@ -11,6 +11,9 @@ methods = [
     "GET /organizations/current/clusters", # cluster_directory_http: подключённые кластеры — оператор ставится только в подключённый (DB-05)
     "GET /organizations/current/database-servers/operators/{engine}", # database_operator_http: манифест оператора СУБД и право платформы (DB-05)
     "POST /organizations/current/clusters", # cluster_registrar_http: регистрация подключённого кластера
+    "GET /organizations/current/environments", # organization_inventory_http: окружения организации для stapel check (TRA-556)
+    "GET /organizations/current/domain-zones", # organization_inventory_http: доменные зоны организации для stapel check (TRA-556)
+    "GET /organizations/current/database-servers", # organization_inventory_http: СУБД и хранилища организации для stapel check (TRA-556)
     "GET /services", # service_resolver_http: резолв имени продьюсера в id
     "GET /services/{id}", # protocol_source_http: метаданные сервиса перед получением контракта
     "GET /services/{id}/protocol", # protocol_source_http: получение контракта (sync/fetch)
